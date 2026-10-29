@@ -8,7 +8,7 @@ Key format: modifiers joined with "+", then the key, e.g. "Ctrl+Shift+Z".
   Modifiers: Ctrl, Alt, Shift, Cmd
   Keys:      A-Z, 0-9, F1-F12, Space, Esc, Enter, Tab, Delete, Backspace,
              "=", "-", "[", "]", Left, Right, Up, Down, Home, End
-  Mouse:     LMB, MMB, RMB, WheelUp, WheelDown
+  Mouse:     LMB, MMB, RMB, WheelUp, WheelDown, MouseMove (hover)
              (a mouse button entry starts a drag: it runs until release)
 
 Lines whose action isn't built yet are skipped quietly, so later-stage
@@ -25,6 +25,7 @@ WHERE = {
     "timeline":   ("Sequencer", 'SEQUENCE_EDITOR', 'WINDOW'),
     "timeline_view": ("View2D", 'EMPTY', 'WINDOW'),       # timeline pan / zoom
     "track_headers": ("Sequencer Channels", 'SEQUENCE_EDITOR', 'WINDOW'),
+    "script":     ("Text", 'TEXT_EDITOR', 'WINDOW'),
 }
 
 SHORTCUTS = [
@@ -84,7 +85,15 @@ SHORTCUTS = [
     ("timeline_view", "Ctrl+-",          "view2d.zoom_out",              "Zoom out"),
     ("timeline",     "Ctrl+0",           "sequencer.view_all",           "Fit to screen"),
 
+    # --- Voice -------------------------------------------------------------
+    ("playback",     "Ctrl+R",           "plastron.voice_record",        "Record voice at the playhead (again: stop)"),
+
+    ("script",       "LMB",              "plastron.script_click",        "Click a script line: playhead to where it's spoken"),
+
     # --- Timeline: editing -------------------------------------------------
+    ("timeline",     "MouseMove",        "plastron.transcript_hover",    "Light up the transcript word under the mouse"),
+    ("timeline",     "LMB",              "plastron.transcript_click",    "Click a transcript word: playhead there, select it"),
+    ("timeline",     "Shift+LMB",        "plastron.transcript_click",    "Select words up to this one", {"extend": True}),
     ("timeline",     "LMB",              "plastron.clip_trim",           "Drag a clip edge to retime (else select / move)"),
     ("timeline",     "Ctrl+LMB",         "plastron.clip_trim",           "...snapping (Ctrl flips snapping)"),
     ("timeline",     "N",                "plastron.panel_new",           "New panel at playhead"),
@@ -102,6 +111,12 @@ SHORTCUTS = [
     ("track_headers", "LMB",             "plastron.track_header_click",  "Ripple / solo / volume; pick active track"),
 ]
 
+
+# Plastron actions that act and then pass the click on, so Blender's own
+# item on the same key keeps working (e.g. the script click still places
+# the text cursor).
+PASSES_ON = {"plastron.clip_trim", "plastron.script_click", "plastron.transcript_click",
+             "plastron.transcript_hover"}
 
 # Keys that keep firing while held down (like holding a key in a text box).
 REPEAT = {"Q", "W", "Ctrl+Z", "Ctrl+Shift+Z", "Ctrl+=", "Ctrl+-"}

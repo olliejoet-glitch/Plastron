@@ -20,15 +20,15 @@ LATER_STAGES = {   # stage 5: pixel selection and transform
 # Plastron actions on a plain click that pass the click on to Blender when
 # they don't apply (e.g. clip_trim lets Blender select / move a clip unless
 # the click is on a clip edge), so sharing that key is intended.
-PASS_THROUGH = {"plastron.clip_trim", "plastron.track_header_click"}
+PASS_THROUGH = set(cfg.PASSES_ON) | {"plastron.track_header_click"}
 
 
 def find(km, action, key):
     key_type, flags = keymaps.parse_key(key)
     for kmi in km.keymap_items:
         if (kmi.idname == action and kmi.type == key_type and kmi.active
-                and all(bool(getattr(kmi, m)) == flags.get(m, False)
-                        for m in ("ctrl", "alt", "shift", "oskey"))):
+                and (kmi.any or all(bool(getattr(kmi, m)) == flags.get(m, False)
+                                    for m in ("ctrl", "alt", "shift", "oskey")))):
             return kmi
     return None
 

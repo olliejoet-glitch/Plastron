@@ -30,6 +30,9 @@ class PLASTRON_PG_track(bpy.types.PropertyGroup):
     volume: bpy.props.FloatProperty(
         name="Track Volume", default=1.0, min=0.0, max=2.0, subtype='FACTOR',
         update=_mix_changed)
+    collapse: bpy.props.BoolProperty(
+        name="Collapse Transcript", description="Show this track's transcript as one line",
+        update=lambda self, context: events.emit("tracks_changed", context.scene))
 
 
 class PLASTRON_PG_timeline(bpy.types.PropertyGroup):

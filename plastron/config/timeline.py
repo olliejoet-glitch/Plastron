@@ -31,6 +31,7 @@ HEADER_WIDGETS = [
     ("RIPPLE", "R", {"VIDEO", "AUDIO"}),
     ("SOLO",   "S", {"AUDIO"}),
     ("VOLUME", "",  {"AUDIO"}),
+    ("COLLAPSE", "…", {"AUDIO"}),        # transcript bar: one line
 ]
 HEADER_TOGGLE_PX = 18         # toggle button size
 HEADER_VOLUME_PX = 54         # volume bar width

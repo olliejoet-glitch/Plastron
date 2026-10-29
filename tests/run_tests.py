@@ -42,7 +42,9 @@ def run_file(path):
     code, out = blender_env.run(
         ["--app-template", "plastron", "--enable-event-simulate",
          "--python-exit-code", "1", "--python", path],
-        env={"PLASTRON_TEST_RESULT": result, "PLASTRON_TEST_OUTPUT": blender_env.OUTPUT},
+        env={"PLASTRON_TEST_RESULT": result, "PLASTRON_TEST_OUTPUT": blender_env.OUTPUT,
+             # no installs, no microphone, no speech model in tests: stand-ins
+             "PLASTRON_NO_INSTALL": "1", "PLASTRON_FAKE_MIC": "1", "PLASTRON_FAKE_TRANSCRIBE": "1"},
         timeout=180)
     with open(os.path.join(blender_env.OUTPUT, name + ".log"), "w") as f:
         f.write(out)

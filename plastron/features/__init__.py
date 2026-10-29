@@ -8,6 +8,7 @@ import importlib
 
 FEATURES = [
     "storyboard",
+    "voice",
 ]
 
 _loaded = []

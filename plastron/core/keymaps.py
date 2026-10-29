@@ -77,12 +77,16 @@ def _add_plastron_keys(kc):
         km_name, space, region = cfg.WHERE[entry["where"]]
         km = kc.keymaps.new(name=km_name, space_type=space, region_type=region)
         key_type, flags = parse_key(entry["key"])
-        kmi = km.keymap_items.new(entry["action"], key_type, 'PRESS', **flags)
+        if key_type == 'MOUSEMOVE':      # hover: any movement, any modifiers
+            kmi = km.keymap_items.new(entry["action"], key_type, 'ANY', any=True)
+        else:
+            kmi = km.keymap_items.new(entry["action"], key_type, 'PRESS', **flags)
         kmi.repeat = entry["key"] in cfg.REPEAT
         for prop, value in entry["settings"].items():
             setattr(kmi.properties, prop, value)
         _added.append((km, kmi))
-        taken.add(_signature(km_name, kmi))
+        if entry["action"] not in cfg.PASSES_ON:
+            taken.add(_signature(km_name, kmi))
     return taken
 
 

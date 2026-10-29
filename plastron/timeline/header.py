@@ -1,6 +1,14 @@
-"""Timeline header: transport, add track, snapping, loop range, clip volume."""
+"""Timeline header: transport, add track, snapping, loop range, clip volume.
+Features add their own controls with add_section() (e.g. voice recording)."""
 
 from ..core import hidden_ui
+
+_sections = []     # draw(layout, context) functions from features
+
+
+def add_section(func):
+    """func(layout, context) draws after the track buttons."""
+    _sections.append(func)
 
 
 def draw(self, context):
@@ -32,6 +40,10 @@ def draw(self, context):
     row = layout.row(align=True)
     row.operator("plastron.track_add", text="Video Track", icon='ADD').kind = 'VIDEO'
     row.operator("plastron.track_add", text="Audio Track", icon='ADD').kind = 'AUDIO'
+
+    for section in _sections:
+        layout.separator(type='LINE')
+        section(layout, context)
 
     layout.separator_spacer()
 

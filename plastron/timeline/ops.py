@@ -132,6 +132,9 @@ class PLASTRON_OT_clip_trim(bpy.types.Operator):
         return {'RUNNING_MODAL'}
 
 
+delete_handlers = []    # features: func(context) -> True if it handled Delete
+
+
 def _selected(scene):
     return [s for s in clips.top_clips(scene) if s.select]
 
@@ -157,12 +160,15 @@ class PLASTRON_OT_clip_split(bpy.types.Operator):
 
 
 class PLASTRON_OT_clip_delete(bpy.types.Operator):
-    """Delete the selected clips (ripple tracks close the gap)"""
+    """Delete the selected clips (ripple tracks close the gap), or selected transcript words"""
     bl_idname = "plastron.clip_delete"
     bl_label = "Delete Clips"
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
+        for handler in delete_handlers:      # e.g. selected transcript words
+            if handler(context):
+                return {'FINISHED'}
         if not ripple.delete(context.scene, _selected(context.scene)):
             return {'CANCELLED'}
         return {'FINISHED'}

@@ -70,6 +70,11 @@ def _set(strip, new_start, new_end):
     old_start, old_end = start(strip), end(strip)
     if (old_start, old_end) == (new_start, new_end):
         return
+    if new_start - old_start == new_end - old_end:
+        # A move: the content moves with it (moving the handles instead would
+        # trim a sound clip, putting different audio at the same place).
+        strip.content_start += new_start - old_start
+        return
     lo, hi = max(old_start, new_start), min(old_end, new_end)
     if lo < hi:
         # Ranges overlap: shrink to the shared part, then grow.
