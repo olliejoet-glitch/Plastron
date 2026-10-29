@@ -1,12 +1,13 @@
 """Storyboard mode: script, canvas, tool strip, timeline.
 
-Stage 1: canvas navigation, tool switching, tool strip, options bar.
+Stage 1: canvas navigation, tool switching, tool strip, options bar,
+canvas colour.
 """
 
 import bpy
 
 from ...core import handlers
-from . import canvas_frame, canvas_view, options_bar, tools
+from . import canvas_color, canvas_frame, canvas_view, options_bar, tools
 
 _CLASSES = canvas_view.classes + tools.classes
 
@@ -21,10 +22,12 @@ def register():
         bpy.utils.register_class(cls)
     options_bar.register()
     canvas_frame.register()
+    canvas_color.register()
     handlers.on_load(_after_load)
 
 
 def unregister():
+    canvas_color.unregister()
     canvas_frame.unregister()
     options_bar.unregister()
     for cls in reversed(_CLASSES):

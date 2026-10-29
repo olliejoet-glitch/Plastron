@@ -100,6 +100,8 @@ Plastron/
 │  │  ├─ keymaps.py          builds keymap from config, strips Blender's
 │  │  ├─ layout.py           builds mode workspaces (used by the build script)
 │  │  ├─ project.py          scene.plastron data; new-project setup; ensure on load
+│  │  ├─ user_settings.py    in-app choices Ollie makes that must persist (JSON in
+│  │  │                      portable config; Blender prefs aren't saved)
 │  │  ├─ hidden_ui.py        hides panels (never-poll) and swaps header draws
 │  │  ├─ theme.py, preferences.py, modes.py, util.py
 │  ├─ ui/topbar.py           slim top bar: File menu, undo/redo, mode switcher
@@ -107,7 +109,8 @@ Plastron/
 │  ├─ widgets/               shared UI components (dot graph later)
 │  ├─ features/              one package per feature; list in features/__init__.py
 │  │  └─ storyboard/         canvas_view (navigation), canvas_frame (overlay),
-│  │                         tools (tool switching, tool strip, layers), options_bar
+│  │                         tools (tool switching, tool strip, layers), options_bar,
+│  │                         canvas_color (Canvas panel: paper colour)
 │  ├─ presets/               shared presets store (from stage 3)
 │  └─ assets/                icon_256.png, plastron.ico
 ├─ tools/
@@ -189,7 +192,11 @@ Plastron/
   No status bar (messages show in the top bar).
 - Top bar: Plastron icon, File (New, Open, Open Recent, Save, Save As, Recover,
   Quit), undo/redo, mode switcher. Project name on the right.
-- Canvas: white paper; outside the camera frame dimmed (overlay, not render);
+- Canvas colour: Ollie found white too bright. Default is soft paper
+  `#d2cec6`; the Canvas panel (tools area) has swatches (CANVAS_PRESETS in
+  config/theme.py) and a picker; the choice is remembered in
+  `plastron_settings.json` (core/user_settings.py).
+- Canvas: outside the camera frame dimmed (overlay, not render);
   orthographic front view, rotation locked; Blender's camera drawing hidden.
   Canvas is 16 units wide (`CANVAS_WIDTH`).
 - Canvas options bar (replaces Blender's tool header): tool name, brush Size,

@@ -14,7 +14,7 @@ PALETTE = {
     "bg_light":     "#1b403c",   # sidebars, buttons
     "button":       "#1c413e",
     "button_hover": "#28524e",
-    "paper":        "#ffffff",   # the drawing surface
+    "paper":        "#d2cec6",   # default drawing surface (changeable in the Canvas panel)
     "text":         "#d6e2e0",
     "text_dim":     "#83a4a0",
     "orange":       "#de7520",   # selection, active
@@ -98,6 +98,16 @@ CANVAS = {
     "outside_frame": "#0d191766",   # dims the canvas outside the camera frame
     "frame_line":    "#00000055",
 }
+
+# Canvas colour swatches in the Canvas panel (tools area). Any colour can also
+# be picked there; the choice is remembered between sessions.
+CANVAS_PRESETS = [
+    # name          colour
+    ("White",       "#ffffff"),
+    ("Soft",        "#d2cec6"),
+    ("Grey",        "#9a9893"),
+    ("Dark",        "#4a4d4b"),
+]
 
 # Widget colours: every button type gets these, then WIDGET_OVERRIDES on top.
 WIDGET = {

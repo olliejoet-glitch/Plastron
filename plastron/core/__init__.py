@@ -4,9 +4,9 @@ keymaps registers separately (last), from plastron/__init__.py, once every
 feature's operators exist.
 """
 
-from . import handlers, preferences, theme, project, modes, hidden_ui, keymaps  # noqa: F401
+from . import handlers, preferences, theme, user_settings, project, modes, hidden_ui, keymaps  # noqa: F401
 
-_MODULES = (handlers, preferences, theme, project, modes, hidden_ui)
+_MODULES = (handlers, preferences, theme, user_settings, project, modes, hidden_ui)
 
 
 def register():
