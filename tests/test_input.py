@@ -24,7 +24,7 @@ def frame_px():
 
 
 def stroke_count():
-    gp = bpy.data.objects["Sketch"].data
+    gp = bpy.data.objects["Canvas"].data
     return sum(len(f.drawing.strokes) for layer in gp.layers for f in layer.frames)
 
 

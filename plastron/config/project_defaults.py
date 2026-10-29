@@ -24,3 +24,19 @@ CANVAS_WIDTH = 16.0
 
 SCRIPT_TEXT_NAME = "Script"
 STROKE_COLOR = (0.0, 0.0, 0.0, 1.0)
+
+# Tracks a new project starts with, top to bottom (as they appear).
+# kind: "VIDEO" or "AUDIO". Video tracks stack above audio tracks.
+DEFAULT_TRACKS = [
+    # name          kind      ripple
+    ("Panels",      "VIDEO",  True),
+    ("Background",  "VIDEO",  False),
+    ("Voice",       "AUDIO",  True),
+    ("Music",       "AUDIO",  False),
+]
+
+# A new project starts with one empty panel so you can draw straight away.
+STARTER_PANEL = True
+
+# Timeline snapping on by default.
+SNAPPING = True

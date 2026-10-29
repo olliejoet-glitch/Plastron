@@ -41,10 +41,8 @@ def setup_new_project(scene):
 
 
 def _add_canvas(scene):
-    """Stage 1 placeholder canvas: one camera and one drawing.
-
-    Stage 2-3 replace this with one drawing per storyboard panel.
-    """
+    """The canvas camera and drawing settings. The drawing objects come from
+    features/storyboard/canvas_sync.py."""
     cam_data = bpy.data.cameras.new("Canvas Camera")
     cam_data.type = 'ORTHO'
     cam_data.ortho_scale = cfg.CANVAS_WIDTH
@@ -55,23 +53,10 @@ def _add_canvas(scene):
     scene.collection.objects.link(camera)
     scene.camera = camera
 
-    gp = bpy.data.grease_pencils.new("Sketch")
-    layer = gp.layers.new("Layer")
-    layer.frames.new(cfg.FRAME_START)
-    mat = bpy.data.materials.new("Ink")
-    bpy.data.materials.create_gpencil_data(mat)
-    mat.grease_pencil.color = cfg.STROKE_COLOR
-    gp.materials.append(mat)
-    sketch = bpy.data.objects.new("Sketch", gp)
-    scene.collection.objects.link(sketch)
-
-    view_layer = scene.view_layers[0]
-    view_layer.objects.active = sketch
-    sketch.select_set(True, view_layer=view_layer)
-
     ts = scene.tool_settings
     ts.gpencil_stroke_placement_view3d = 'ORIGIN'
     ts.gpencil_sculpt.lock_axis = 'AXIS_Y'     # draw on the plane facing the camera
+    ts.use_keyframe_insert_auto = False        # panel timing lives in clips, not keyframes
 
 
 def ensure_project(scene):

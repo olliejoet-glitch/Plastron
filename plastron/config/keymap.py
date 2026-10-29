@@ -24,6 +24,7 @@ WHERE = {
     "canvas":     ("3D View", 'VIEW_3D', 'WINDOW'),
     "timeline":   ("Sequencer", 'SEQUENCE_EDITOR', 'WINDOW'),
     "timeline_view": ("View2D", 'EMPTY', 'WINDOW'),       # timeline pan / zoom
+    "track_headers": ("Sequencer Channels", 'SEQUENCE_EDITOR', 'WINDOW'),
 }
 
 SHORTCUTS = [
@@ -80,13 +81,17 @@ SHORTCUTS = [
     ("timeline_view", "Ctrl+-",          "view2d.zoom_out",              "Zoom out"),
     ("timeline",     "Ctrl+0",           "sequencer.view_all",           "Fit to screen"),
 
-    # --- Timeline: editing (stage 2) ---------------------------------------
+    # --- Timeline: editing -------------------------------------------------
+    ("timeline",     "LMB",              "plastron.clip_trim",           "Drag a clip edge to retime (else select / move)"),
     ("timeline",     "N",                "plastron.panel_new",           "New panel at playhead"),
+    ("canvas",       "N",                "plastron.panel_new",           "New panel at playhead"),
     ("timeline",     "Ctrl+K",           "plastron.clip_split",          "Split at playhead"),
+    ("canvas",       "Ctrl+K",           "plastron.clip_split",          "Split at playhead"),
     ("timeline",     "Delete",           "plastron.clip_delete",         "Delete clip"),
     ("timeline",     "Backspace",        "plastron.clip_delete",         "Delete clip"),
-    ("timeline",     "I",                "plastron.loop_in",             "Loop range start"),
-    ("timeline",     "O",                "plastron.loop_out",            "Loop range end"),
+    ("timeline",     "I",                "plastron.loop_set",            "Loop range start",       {"side": 'IN'}),
+    ("timeline",     "O",                "plastron.loop_set",            "Loop range end",         {"side": 'OUT'}),
+    ("track_headers", "LMB",             "plastron.track_header_click",  "Ripple / solo / volume; pick active track"),
 ]
 
 
@@ -106,7 +111,8 @@ BLENDER_KEEP = {
     "Grease Pencil Brush Stroke": ["grease_pencil.brush_stroke"],  # drawing itself
     "Grease Pencil Fill Tool": ["*"],
     "Sequencer":             ["sequencer.select", "sequencer.select_box",
-                              "sequencer.select_handle", "transform.seq_slide"],
+                              "transform.seq_slide"],
+    "Sequencer Channels":    ["*"],                       # rename a track (double-click)
     # Tool keymaps (what a tool does on click/drag) keep everything.
     "3D View Tool: *":       ["*"],
     "Sequencer Tool: *":     ["*"],

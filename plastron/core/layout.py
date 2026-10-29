@@ -120,6 +120,40 @@ def use_project_scene(window):
             workspace.sequencer_scene = window.scene
 
 
+def widen_channel_columns(window, placed):
+    """Generator: drag each timeline's track-header column edge to its configured
+    width (Blender has no setting for it). Needs --enable-event-simulate.
+    Retries from a few positions around the edge until the width changes."""
+    def channels(area):
+        return next((r for r in area.regions if r.type == 'CHANNELS'), None)
+
+    for name, area in placed.items():
+        want = cfg.AREAS[name].get("channels_width")
+        if not want or channels(area) is None:
+            continue
+        want *= bpy.context.preferences.system.ui_scale
+        for offset in (-1, -3, 0, -2, 1):
+            region = channels(area)
+            if abs(region.width - want) < 4:
+                break
+            x = region.x + region.width + offset
+            y = region.y + region.height // 2
+            target = int(x + want - region.width)
+            # Hover first (Blender must notice the mouse is over the edge), then drag.
+            for dy in (-2, 0):
+                window.event_simulate('MOUSEMOVE', 'NOTHING', x=x, y=y + dy)
+                yield
+            window.event_simulate('LEFTMOUSE', 'PRESS', x=x, y=y)
+            yield
+            for i in range(1, 6):
+                window.event_simulate('MOUSEMOVE', 'NOTHING', x=int(x + (target - x) * i / 5), y=y)
+                yield
+            window.event_simulate('LEFTMOUSE', 'RELEASE', x=target, y=y)
+            yield
+            yield
+        print("Plastron layout: track header column", channels(area).width, "px (wanted", int(want), ")")
+
+
 def hide_navigation_bars(window, placed):
     """Properties editors: hide the tab column (needs a UI refresh first)."""
     for area in placed.values():

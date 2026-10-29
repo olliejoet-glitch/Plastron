@@ -14,3 +14,9 @@ PREFERENCES = {
     "edit.undo_steps": 64,
     "use_preferences_save": False,
 }
+
+# Plastron's own autosave (on top of Blender's): a copy of the project every
+# few minutes, in a folder next to it ("<project>_autosave"). Untitled projects
+# go to Plastron's settings folder. File > Recover lists them.
+AUTOSAVE_MINUTES = 2
+AUTOSAVE_KEEP = 5

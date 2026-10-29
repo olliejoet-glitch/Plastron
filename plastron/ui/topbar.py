@@ -39,7 +39,7 @@ class PLASTRON_MT_file(bpy.types.Menu):
         layout.operator("wm.save_mainfile", text="Save", icon='FILE_TICK')
         layout.operator("wm.save_as_mainfile", text="Save As...")
         layout.separator()
-        layout.menu("TOPBAR_MT_file_recover")
+        layout.menu("PLASTRON_MT_recover")
         layout.separator()
         layout.operator("wm.quit_blender", text="Quit", icon='QUIT')
 

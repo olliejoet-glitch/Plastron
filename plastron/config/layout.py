@@ -30,6 +30,7 @@ DEFAULT_MODE = "Storyboard"
 #   toolbar      Blender's own tool column (Plastron uses its tool strip instead)
 #   sidebar      Blender's right-hand panel
 #   channels     timeline only: the track headers column
+#   channels_width  timeline only: its width in pixels (at 100 % UI scale)
 #   settings     any other editor setting, as "property path": value
 # The "tools" area is a panel holder that shows only Plastron's panels
 # (tool strip + layers); see plastron/features/storyboard/tools.py.
@@ -69,9 +70,12 @@ AREAS = {
     "timeline": {
         "editor": 'SEQUENCE_EDITOR',
         "header": True, "footer": False, "toolbar": False, "sidebar": False, "channels": True,
+        "channels_width": 260,
         "settings": {
             "view_type": 'SEQUENCER',
             "show_markers": True,
+            "timeline_overlay.show_strip_source": False,   # no file paths on clips
+            "timeline_overlay.show_strip_duration": False,
         },
     },
 }

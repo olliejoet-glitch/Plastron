@@ -56,6 +56,10 @@ def steps():
         h.check("canvas: grid and axes hidden",
                 not sp.overlay.show_floor and not sp.overlay.show_axis_x)
         h.check("timeline: track headers column shown", timeline.spaces.active.show_region_channels)
+        chan = h.region(timeline, 'CHANNELS')
+        want = layout_cfg.AREAS["timeline"]["channels_width"] * bpy.context.preferences.system.ui_scale
+        h.check("track headers column is wide enough", chan and abs(chan.width - want) < 12,
+                chan and (chan.width, want))
         h.check("script panel: no header", not script.spaces.active.show_region_header)
         h.check("script panel shows the project's Script",
                 script.spaces.active.text and script.spaces.active.text.name == defaults.SCRIPT_TEXT_NAME)
@@ -105,8 +109,12 @@ def steps():
             all(abs(a - b) < 0.01 for a, b in zip(back, want)), back)
 
     # Performance guard: nothing Plastron hooks may run every frame (stage 1).
-    per_frame = [(n, f) for n, f in handlers.registered() if n in handlers.PER_FRAME]
-    h.check("no per-frame handlers", not per_frame, per_frame)
+    # The only per-frame hooks allowed, each an O(1) "did anything change?" check
+    # (test_timeline proves the canvas one does no work inside a panel).
+    allowed = {("frame_change_post", "on_frame"),            # canvas: crossed a clip edge?
+               ("depsgraph_update_post", "_on_depsgraph")}   # timeline: flag edit (not during playback)
+    per_frame = {(n, f) for n, f in handlers.registered() if n in handlers.PER_FRAME}
+    h.check("only the allowed O(1) per-frame hooks", per_frame <= allowed, per_frame - allowed)
     drivers = sum(len(o.animation_data.drivers) for o in bpy.data.objects if o.animation_data)
     h.check("no drivers in a new project", drivers == 0, drivers)
 

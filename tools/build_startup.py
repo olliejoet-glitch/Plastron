@@ -19,7 +19,8 @@ except ImportError:
 def launch():
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
     import blender_env
-    code, out = blender_env.run(["--factory-startup", "--python", os.path.abspath(__file__)])
+    code, out = blender_env.run(["--factory-startup", "--enable-event-simulate",
+                                    "--python", os.path.abspath(__file__)])
     if code != 0 or "PLASTRON BUILD OK" not in out:
         print(out[-3000:])
         sys.exit("Build failed.")
@@ -31,6 +32,7 @@ def build_steps():
     sys.path.insert(0, REPO)
     from plastron.config import layout as cfg
     from plastron.core import layout, project
+    from plastron.features.storyboard import canvas_sync
 
     project.register()   # scene.plastron must exist to set up the project
     window = bpy.context.window_manager.windows[0]
@@ -50,6 +52,8 @@ def build_steps():
         layout.configure_mode(placed)
         yield
         layout.hide_navigation_bars(window, placed)
+        yield
+        yield from layout.widen_channel_columns(window, placed)
         window.workspace.name = mode
         window.screen.name = mode
         window.workspace[layout.HASH_KEY] = layout.build_hash()
@@ -61,6 +65,9 @@ def build_steps():
     for coll in list(scene.collection.children):
         bpy.data.collections.remove(coll)
     project.setup_new_project(scene)
+    canvas = canvas_sync.canvas_object(scene)
+    scene.view_layers[0].objects.active = canvas
+    canvas.select_set(True)
     layout.use_project_scene(window)
     bpy.data.orphans_purge(do_recursive=True)
     yield
