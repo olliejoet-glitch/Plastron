@@ -52,6 +52,11 @@ def steps():
             missing.append(f'{entry["key"]} -> {entry["action"]}')
     h.check("all built shortcuts are bound", not missing, missing)
 
+    # Held keys keep firing (brush size, undo / redo).
+    repeating = {(kmi.idname, kmi.ctrl, kmi.shift) for _km, kmi in keymaps._added if kmi.repeat}
+    want = {("brush.scale_size", False, False), ("ed.undo", True, False), ("ed.redo", True, True)}
+    h.check("holding Q / W / Ctrl+Z / Ctrl+Shift+Z repeats", want <= repeating, repeating)
+
     pending = sorted({e["action"] for e in keymaps.pending})
     h.check("only later-stage shortcuts are pending", set(pending) <= LATER_STAGES, pending)
 

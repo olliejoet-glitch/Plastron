@@ -50,5 +50,6 @@ DEFAULT_TRACKS = [
 # A new project starts with one empty panel so you can draw straight away.
 STARTER_PANEL = True
 
-# Timeline snapping on by default.
-SNAPPING = True
+# Timeline snapping off by default (Ollie): hold Ctrl while dragging / slicing
+# to snap. The header magnet switches it on (then Ctrl stops it snapping).
+SNAPPING = False

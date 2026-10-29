@@ -50,6 +50,7 @@ SHORTCUTS = [
     ("canvas",       "G",                "plastron.canvas_tool",         "Fill",                   {"tool": 'FILL'}),
     ("canvas",       "Shift+B",          "plastron.canvas_tool",         "Blur",                   {"tool": 'BLUR'}),
     ("canvas",       "Shift+S",          "plastron.canvas_tool",         "Smudge",                 {"tool": 'SMUDGE'}),
+    ("canvas",       "RMB",              "wm.call_asset_shelf_popover",  "Brush palette",          {"name": "VIEW3D_AST_brush_texture_paint"}),
     ("canvas",       "Alt+LMB",          "paint.sample_color",           "Pick colour (what you see)", {"merged": True}),
     ("canvas",       "Q",                "brush.scale_size",             "Smaller brush",          {"scalar": 0.8}),
     ("canvas",       "W",                "brush.scale_size",             "Bigger brush",           {"scalar": 1.25}),
@@ -85,6 +86,7 @@ SHORTCUTS = [
 
     # --- Timeline: editing -------------------------------------------------
     ("timeline",     "LMB",              "plastron.clip_trim",           "Drag a clip edge to retime (else select / move)"),
+    ("timeline",     "Ctrl+LMB",         "plastron.clip_trim",           "...snapping (Ctrl flips snapping)"),
     ("timeline",     "N",                "plastron.panel_new",           "New panel at playhead"),
     ("canvas",       "N",                "plastron.panel_new",           "New panel at playhead"),
     ("timeline",     "Ctrl+K",           "plastron.clip_split",          "Split at playhead"),
@@ -99,6 +101,10 @@ SHORTCUTS = [
     ("timeline",     "O",                "plastron.loop_set",            "Loop range end",         {"side": 'OUT'}),
     ("track_headers", "LMB",             "plastron.track_header_click",  "Ripple / solo / volume; pick active track"),
 ]
+
+
+# Keys that keep firing while held down (like holding a key in a text box).
+REPEAT = {"Q", "W", "Ctrl+Z", "Ctrl+Shift+Z", "Ctrl+=", "Ctrl+-"}
 
 
 # Blender shortcuts that stay switched on. Everything else is turned off.

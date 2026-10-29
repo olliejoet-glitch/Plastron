@@ -157,7 +157,8 @@ Plastron/
 │  │                         canvas_color (Canvas panel: paper colour = world colour),
 │  │                         panels (panel clips + layer-stack materials, New Panel),
 │  │                         panel_cache (cached images, re-made after edits),
-│  │                         canvas_sync (what the canvas shows at the playhead)
+│  │                         canvas_sync (what the canvas shows at the playhead),
+│  │                         brush_presets, brush_palette (import) + abr (.abr reader), onion
 │  ├─ presets/               ★ preset files, one folder per kind (brushes/ now); README
 │  │                         lists the fields. Store code: core/presets.py
 │  └─ assets/                icon_256.png, plastron.ico
@@ -233,6 +234,10 @@ Plastron/
 - Python workspace tools for the timeline: `bl_space_type='SEQUENCE_EDITOR'`,
   `bl_context_mode='SEQUENCER'`; their keymap is named "Sequence Editor Tool:
   Sequencer, <label>" (must be in BLENDER_KEEP).
+- New asset-library files aren't seen until `asset.library_refresh` runs
+  with the 3D view's ASSET_SHELF region as context (works while hidden).
+  Call `wm.call_asset_shelf_popover` straight from the keymap: called from
+  another operator, the pop-up never shows.
 - Making a panel image (numpy flatten + PNG) costs 0.3-0.8 s at 960×540:
   never do heavy work right after a stroke.
 - Keymap clashes: Plastron keys fire on PRESS; Blender items on the same key
@@ -347,8 +352,12 @@ Plastron/
 - Split (Ctrl+K): selected clips under the playhead, else the active track's.
   Delete: selected clips. Loop: I / O set Blender's preview range; header
   "Loop" toggles it.
-- Snapping (on by default, header toggle; hold Ctrl while dragging an edge to
-  not snap): playhead, clip edges, markers (beats later).
+- Snapping (Ollie: off by default; hold Ctrl while dragging an edge or
+  slicing to snap; the header magnet turns it on, then Ctrl stops it):
+  playhead, clip edges, markers (beats later). Projects saved before keep
+  their magnet setting. Blender's own clip move has the same Ctrl behaviour.
+- Held keys repeat (Ollie): Q / W, Ctrl+Z / Ctrl+Shift+Z, Ctrl+= / Ctrl+-
+  (REPEAT in config/keymap.py).
 - The timeline opens framed on the whole project. Blender's "adjust last
   operation" pop-up is hidden. Clip labels show names only.
 - Autosave every 2 min (not while playing or mid-drag), last 5 kept, in
@@ -370,6 +379,17 @@ Plastron/
   A = back to Move (move clips, drag edges). Header shows Move | Slice. Both
   keys work over the timeline and the canvas. Slice is a Blender workspace
   tool (timeline/edit_tools.py); clip_trim stands aside while it's on.
+  Blender's timeline resets the cursor itself, so in Slice mode a MOUSEMOVE
+  tool-keymap item sets the knife cursor and an orange line shows where the
+  cut would go (only the clip under the mouse; Shift: full height).
+- Brush palette (Ollie): right-click on the canvas opens Blender's texture
+  brush shelf as a pop-up (all libraries). The import button next to the
+  brush picker in the options bar takes Photoshop .abr (sampled tips, v1/2/6+),
+  images (a tip: light = paint, or the alpha if transparent) and Blender .blend
+  brushes. Each file becomes "<config>/plastron_brushes/<name>.blend"
+  (asset library "Plastron Brushes", added at every start), brushes marked
+  as assets; nothing is kept in the project. Tip brushes use a mask texture
+  in View Plane mapping, constant falloff, 25 % spacing, pressure size.
 - Painting speed (Ollie: "SO laggy"): panel images are re-made only after
   2.5 s without painting, at 480×270 (making one took 0.3-0.8 s at 960×540,
   which froze the start of the next stroke). Texture Paint occlusion,

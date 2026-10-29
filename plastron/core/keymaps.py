@@ -78,6 +78,7 @@ def _add_plastron_keys(kc):
         km = kc.keymaps.new(name=km_name, space_type=space, region_type=region)
         key_type, flags = parse_key(entry["key"])
         kmi = km.keymap_items.new(entry["action"], key_type, 'PRESS', **flags)
+        kmi.repeat = entry["key"] in cfg.REPEAT
         for prop, value in entry["settings"].items():
             setattr(kmi.properties, prop, value)
         _added.append((km, kmi))

@@ -23,6 +23,11 @@ TOOLS = [
 # Where Blender's built-in texture-paint brushes live.
 BRUSH_LIBRARY = "brushes/essentials_brushes-mesh_texture.blend/Brush/"
 
+# The brush palette (right-click the canvas) is this Blender brush shelf.
+# Imported brushes go into this asset library (a folder in Blender's config).
+BRUSH_SHELF = "VIEW3D_AST_brush_texture_paint"
+BRUSH_LIBRARY_NAME = "Plastron Brushes"
+
 # Onion skin: the panels before and after the one you're drawing on, shown
 # faintly behind it. Toggle in the options bar; strength in the Canvas panel.
 ONION_SKIN_ON = False         # starting state (your choice is remembered)

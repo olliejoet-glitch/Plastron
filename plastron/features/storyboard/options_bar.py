@@ -4,6 +4,7 @@ Replaces Blender's tool header: tool name, brush picker, colour, size,
 opacity (+ pen pressure toggles), smoothing.
 """
 
+from ...config.tools import BRUSH_SHELF
 from ...core import hidden_ui
 from .tools import CONTEXT_MODE, active_tool_id, tool_table
 
@@ -41,8 +42,9 @@ def _brush_options(layout, context):
     ups = ip.unified_paint_settings
     from .brush_presets import current_name
     layout.menu("PLASTRON_MT_brush_presets", text=current_name(context) or "Presets", icon='PRESET')
-    layout.template_asset_shelf_popover("VIEW3D_AST_brush_texture_paint", name=brush.name,
-                                        icon='BRUSH_DATA')
+    row = layout.row(align=True)
+    row.template_asset_shelf_popover(BRUSH_SHELF, name=brush.name, icon='BRUSH_DATA')
+    row.operator("plastron.brushes_import", text="", icon='IMPORT')
     if current != "ERASER" and brush.image_brush_type in {'DRAW', 'FILL'}:
         layout.prop(_owner(ups, brush, "use_unified_color"), "color", text="")
     if current == "FILL":

@@ -6,14 +6,15 @@
     canvas_view    canvas navigation; canvas_frame: frame overlay
     canvas_color   Canvas panel (paper colour, onion skin strength)
     onion          onion skin settings (canvas_sync shows it)
-    tools          tool switching, tool strip; options_bar; brush_presets
+    tools          tool switching, tool strip; options_bar; brush_presets;
+                   brush_palette (right-click palette, Import Brushes; abr reads .abr)
     (the Layers panel comes from plastron/layers)
 """
 
 import bpy
 
 from ...core import handlers
-from . import (brush_presets, canvas_color, canvas_frame, canvas_sync, canvas_view, onion,
+from . import (brush_palette, brush_presets, canvas_color, canvas_frame, canvas_sync, canvas_view, onion,
                options_bar, panel_cache, panels, tools)
 
 _CLASSES = canvas_view.classes + tools.classes
@@ -29,6 +30,7 @@ def register():
         bpy.utils.register_class(cls)
     onion.register()
     brush_presets.register()
+    brush_palette.register()
     options_bar.register()
     canvas_frame.register()
     canvas_color.register()
@@ -45,6 +47,7 @@ def unregister():
     canvas_color.unregister()
     canvas_frame.unregister()
     options_bar.unregister()
+    brush_palette.unregister()
     brush_presets.unregister()
     onion.unregister()
     for cls in reversed(_CLASSES):

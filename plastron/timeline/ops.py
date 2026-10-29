@@ -114,7 +114,7 @@ class PLASTRON_OT_clip_trim(bpy.types.Operator):
     def _update(self, context, event):
         scene, region = context.scene, context.region
         frame = _frame_at(region, event.mouse_region_x)
-        if snapping.enabled(scene) and not event.ctrl:      # hold Ctrl to not snap
+        if snapping.enabled(scene) != event.ctrl:      # Ctrl flips snapping while held
             frame = snapping.snap(frame, self.targets,
                                   cfg.SNAP_PX * snapping.frames_per_pixel(region))
         plan = ripple.plan_trim(scene, self.orig, self.strip, self.side, frame)

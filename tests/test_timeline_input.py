@@ -121,7 +121,14 @@ def steps():
     yield from h.drag((start[0] - 1, start[1]), end)
     yield 0.3
     ps = sorted(panels.all_panels(sc), key=clips.start)
-    h.check("edge snaps to the playhead", clips.end(ps[0]) == 70, span(ps[0]))
+    h.check("snapping is off by default", clips.end(ps[0]) == round(near), (span(ps[0]), near))
+    h.key('Z', ctrl=True)
+    yield 0.5
+    sc = scene()
+    yield from h.drag((start[0] - 1, start[1]), end, ctrl=True)
+    yield 0.3
+    ps = sorted(panels.all_panels(sc), key=clips.start)
+    h.check("holding Ctrl snaps the edge to the playhead", clips.end(ps[0]) == 70, span(ps[0]))
     h.key('Z', ctrl=True)
     yield 0.5
     sc = scene()   # undo reloads project data
@@ -229,6 +236,11 @@ def steps():
     h.key('S')
     yield 0.2
     h.check("S switches the timeline to the Slice tool", tool() == 'SLICE', tool())
+    h.move(*at(cut, ch("Panels")))
+    yield 0.2
+    h.check("with Slice on, moving over the timeline shows where it would cut",
+            edit_tools._hover["area"] == h.area('SEQUENCE_EDITOR').as_pointer())
+    h.screenshot("slice_preview")
     n = len(panels.all_panels(sc))
     h._event('LEFTMOUSE', 'PRESS')
     h._event('LEFTMOUSE', 'RELEASE')

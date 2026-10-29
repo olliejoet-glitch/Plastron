@@ -18,6 +18,7 @@ ROW_HEIGHT_PX = 64
 # Timeline tools (S = Slice, A = back to this one): Blender's tool for
 # clicking / dragging clips; Plastron adds edge dragging on top.
 MOVE_TOOL = "builtin.select_box"
+SLICE_LINE_COLOR = "orange"   # where a slice would cut (palette name or hex)
 
 # Snap targets used while dragging clips and clip edges.
 SNAP_TO_PLAYHEAD = True
