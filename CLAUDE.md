@@ -34,7 +34,12 @@ theme, and keymap, with Photoshop-style drawing shortcuts.
   layers / groups / fills / adjustments / masks / Blend If (`plastron/layers`),
   cached panel images re-made after edits (shown on the timeline clips),
   onion skin, brush presets (shared presets store).
-- **Next: stage 4** (voiceover and transcript). Wait for Ollie to ask.
+- **Stage 4 done** (voiceover and transcript): record at playhead with
+  retakes (Ctrl+R), local transcription (faster-whisper, own process),
+  transcript bars, hover / click / select / cut by words, script linking.
+  Real microphone + real Whisper can't run here (no mic; Hugging Face
+  blocked): tests use stand-ins (PLASTRON_FAKE_MIC / _TRANSCRIBE).
+- **Next: stage 5** (transform and selection). Wait for Ollie to ask.
 - **DONE: drawing switched from grease pencil to RASTER** (Ollie: wants to
   select/move pixels, lay down blobs of colour, erase precisely). Brush engine
   = **Blender's own Texture Paint** (fast, Ollie likes the feel, can add his own
@@ -123,7 +128,8 @@ Plastron/
 │  │  ├─ keymap.py           every shortcut (+ which Blender keys survive: BLENDER_KEEP)
 │  │  ├─ timeline.py         snapping, edge grab distance, new panel length, track header look
 │  │  ├─ layout.py           each mode's areas, sizes, visible regions
-│  │  ├─ tools.py            drawing tools, tool strip order
+│  │  ├─ tools.py            drawing tools, tool strip order, brush palette / library
+│  │  ├─ voice.py            recording, transcription model + prompt, transcript bar look
 │  │  ├─ theme.py            palette + where each colour is used; canvas overlay colours
 │  │  ├─ hidden_ui.py        Blender panels/shelves to hide, headers to replace
 │  │  ├─ preferences.py      Blender preferences set at every start
@@ -135,6 +141,7 @@ Plastron/
 │  │  ├─ project.py          scene.plastron data; new-project setup; ensure on load
 │  │  ├─ autosave.py         autosave copies, crash marker + prompt, File > Recover
 │  │  ├─ presets.py          shared presets store: kinds, built-in + saved JSON, menu
+│  │  ├─ deps.py             extra pip packages, installed once in the background
 │  │  ├─ windows_taskbar.py  Windows: Plastron's own taskbar group, icon, relaunch (ctypes)
 │  │  ├─ user_settings.py    in-app choices Ollie makes that must persist (JSON in
 │  │  │                      portable config; Blender prefs aren't saved)
@@ -159,6 +166,10 @@ Plastron/
 │  │                         panel_cache (cached images, re-made after edits),
 │  │                         canvas_sync (what the canvas shows at the playhead),
 │  │                         brush_presets, brush_palette (import) + abr (.abr reader), onion
+│  │  └─ voice/              recorder (mic), takes (voice clips + takes), record
+│  │                         (Ctrl+R, switch takes), transcribe (+ _worker: own
+│  │                         process), transcript_layout (pure) + transcript_bar,
+│  │                         script_link (script <-> transcript)
 │  ├─ presets/               ★ preset files, one folder per kind (brushes/ now); README
 │  │                         lists the fields. Store code: core/presets.py
 │  └─ assets/                icon_256.png, plastron.ico
@@ -240,6 +251,14 @@ Plastron/
   another operator, the pop-up never shows.
 - Making a panel image (numpy flatten + PNG) costs 0.3-0.8 s at 960×540:
   never do heavy work right after a stroke.
+- `clips._set` must MOVE content for a pure shift (content_start += d):
+  moving handles instead trims, which slides a sound clip's audio.
+- Strip.split copies Plastron's PointerProperties (voice takes, panel data).
+- A Plastron action that passes clicks on (PASSES_ON in config/keymap.py)
+  doesn't count as a clash, so Blender's own item on that key stays on
+  (e.g. the script click still places the text cursor).
+- Timer callbacks have no window in context: wrap ops in a temp_override
+  with a window (voice/record.py `_window_override`).
 - Keymap clashes: Plastron keys fire on PRESS; Blender items on the same key
   with CLICK / CLICK_DRAG / DOUBLE_CLICK aren't clashes (keymaps.py).
 
@@ -304,7 +323,7 @@ Plastron/
   temp folder until first save) + its own layer-stack material
   (`strip.plastron_panel.material`). Split copies the painting. The cached
   image is the camera frame flattened (numpy, layers/flatten.py) over the
-  paper colour at 960×540, re-made 0.4 s after the last stroke / layer edit
+  paper colour at 480×270, re-made 2.5 s after the last stroke / layer edit
   / undo (and for every panel when the paper colour changes).
   Opaque for now; the animatic export may want alpha later.
 - Brush presets: Pencil, Ink, Marker, Soft shading (plastron/presets/brushes/
@@ -401,6 +420,32 @@ Plastron/
   each Plastron window gets AppUserModelID "Plastron.App", the Plastron icon
   and a relaunch command (launch.ps1), so it has its own taskbar button and
   pinning it pins the launcher. Untestable here (Linux).
+- Voice recording (stage 4): Ctrl+R records onto the active audio track
+  (else the top one) from the playhead while the timeline plays; Ctrl+R or
+  Space stops. Over an existing voice clip it records a new take of it from
+  the clip's start (old take muted while recording); the header shows
+  Take n/m arrows for the selected clip; switching takes changes the clip's
+  length following ripple. A new clip makes room like New Panel. Takes are
+  packed into the project (no audio folder to lose). 48 kHz mono.
+- Packages (sounddevice, faster-whisper) install themselves into Blender's
+  config folder (plastron_python/) in the background at the first start;
+  the Whisper model ("small.en", config/voice.py) downloads at the first
+  transcription into plastron_models/. CPU int8. A prompt full of "um"s
+  keeps fluffs in the transcript. Failures: header message + Transcribe
+  Again on the clip.
+- Transcript bars (Blender can't add a row under a track): the bottom half
+  of each audio track's row (BAR_FRACTION); words wrap in as many lines as
+  fit (taller rows = more lines, Ctrl+Alt+drag), the last line ending "…";
+  the header's "…" button collapses a track's bar to one line. Zoomed in
+  far enough, words sit at their exact times. Trimmed words show greyed and
+  struck through (wrapped view only). Layout is cached and redone only when
+  the view or the clips / transcripts change.
+- Cut by words: click a word (playhead jumps there), Shift+click to extend,
+  Delete / Backspace cuts from midway after the previous word to midway
+  before the next (follows ripple). Clicking elsewhere clears the selection.
+- Script linking: words matched with difflib (fluffs skipped). Clicking a
+  script line jumps to its first heard word; unheard script words are
+  underlined orange.
 - Blender keymap stripped to essentials (BLENDER_KEEP in config/keymap.py):
   area resizing, UI widgets, scrolling, ruler scrubbing, typing in the script,
   painting strokes, tool click/drag behaviour, strip select/move. No right-click
