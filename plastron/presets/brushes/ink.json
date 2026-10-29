@@ -1,0 +1,2 @@
+{"name": "Ink", "order": 2, "base": "Paint Hard Pressure", "size": 6, "opacity": 1.0,
+ "pressure_size": true, "pressure_opacity": false, "smooth": true, "smooth_radius": 30, "spacing": 5}

@@ -28,13 +28,13 @@ theme, and keymap, with Photoshop-style drawing shortcuts.
   Blender's name / mute / lock), add tracks, per-track ripple, lock, split,
   delete, loop range, audio mix, canvas follows the playhead (backgrounds
   underneath), undo, autosave + crash recovery.
-- **Stage 3 in progress** (drawing basics). Done: RASTER switch (below),
+- **Stage 3 done** (drawing basics): RASTER switch (below),
   tools B / E / G / Shift+B blur / Shift+S smudge, Alt+click colour pick,
   options bar (brush picker, colour, size, opacity, pressure, smoothing),
   layers / groups / fills / adjustments / masks / Blend If (`plastron/layers`),
   cached panel images re-made after edits (shown on the timeline clips),
-  onion skin. Left: brush presets.
-  Wait for Ollie to ask before starting a stage.
+  onion skin, brush presets (shared presets store).
+- **Next: stage 4** (voiceover and transcript). Wait for Ollie to ask.
 - **DONE: drawing switched from grease pencil to RASTER** (Ollie: wants to
   select/move pixels, lay down blobs of colour, erase precisely). Brush engine
   = **Blender's own Texture Paint** (fast, Ollie likes the feel, can add his own
@@ -134,6 +134,7 @@ Plastron/
 │  │  ├─ layout.py           builds mode workspaces (used by the build script)
 │  │  ├─ project.py          scene.plastron data; new-project setup; ensure on load
 │  │  ├─ autosave.py         autosave copies, crash marker + prompt, File > Recover
+│  │  ├─ presets.py          shared presets store: kinds, built-in + saved JSON, menu
 │  │  ├─ user_settings.py    in-app choices Ollie makes that must persist (JSON in
 │  │  │                      portable config; Blender prefs aren't saved)
 │  │  ├─ hidden_ui.py        hides panels (never-poll) and swaps header draws
@@ -156,7 +157,8 @@ Plastron/
 │  │                         panels (panel clips + layer-stack materials, New Panel),
 │  │                         panel_cache (cached images, re-made after edits),
 │  │                         canvas_sync (what the canvas shows at the playhead)
-│  ├─ presets/               shared presets store (from stage 3)
+│  ├─ presets/               ★ preset files, one folder per kind (brushes/ now); README
+│  │                         lists the fields. Store code: core/presets.py
 │  └─ assets/                icon_256.png, plastron.ico
 ├─ tools/
 │  ├─ build_startup.py       python tools/build_startup.py → plastron/startup.blend
@@ -294,6 +296,12 @@ Plastron/
   paper colour at 960×540, re-made 0.4 s after the last stroke / layer edit
   / undo (and for every panel when the paper colour changes).
   Opaque for now; the animatic export may want alpha later.
+- Brush presets: Pencil, Ink, Marker, Soft shading (plastron/presets/brushes/
+  *.json: base texture brush + size, opacity, pressure, smoothing, spacing).
+  Presets menu in the options bar; "Save current as preset..." writes to
+  the config folder (plastron_presets/brushes/), deletable there. A preset
+  sets the shared base brush's settings (Pencil and Ink share
+  "Paint Hard Pressure").
 - Onion skin: Onion Skin toggle at the right of the options bar; strength
   (default 25 %) in the Canvas panel; both remembered (user_settings). Shows
   the panels just before and after the one being drawn on (same track),

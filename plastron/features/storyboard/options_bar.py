@@ -39,6 +39,8 @@ def _brush_options(layout, context):
     if brush is None:
         return
     ups = ip.unified_paint_settings
+    from .brush_presets import current_name
+    layout.menu("PLASTRON_MT_brush_presets", text=current_name(context) or "Presets", icon='PRESET')
     layout.template_asset_shelf_popover("VIEW3D_AST_brush_texture_paint", name=brush.name,
                                         icon='BRUSH_DATA')
     if current != "ERASER" and brush.image_brush_type in {'DRAW', 'FILL'}:

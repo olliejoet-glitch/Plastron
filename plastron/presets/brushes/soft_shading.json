@@ -1,0 +1,2 @@
+{"name": "Soft shading", "order": 4, "base": "Paint Soft Pressure", "size": 90, "opacity": 0.3,
+ "pressure_size": false, "pressure_opacity": true, "smooth": false, "smooth_radius": 20, "spacing": 10}

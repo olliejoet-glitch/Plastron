@@ -1,5 +1,6 @@
 """Panel paintings: the layers panel acts on the panel on the canvas, painting
-follows the active layer, paint survives saving and reopening, onion skin."""
+follows the active layer, brush presets, paint survives saving and reopening,
+onion skin."""
 
 import os
 import sys
@@ -12,6 +13,7 @@ import harness as h  # noqa: E402
 panels = h.module("features.storyboard.panels")
 panel_cache = h.module("features.storyboard.panel_cache")
 canvas_sync = h.module("features.storyboard.canvas_sync")
+presets = h.module("core.presets")
 
 
 def canvas_mat():
@@ -49,6 +51,39 @@ def steps():
         bpy.ops.plastron.layer_remove()
     yield
     st.active_index = 0
+
+    # --- Brush presets -----------------------------------------------------------------
+    names = [p["name"] for p in presets.all_presets("brushes")]
+    h.check("built-in brush presets", names[:4] == ["Pencil", "Ink", "Marker", "Soft shading"], names)
+    ip = bpy.context.scene.tool_settings.image_paint
+    ups = ip.unified_paint_settings
+    for name in names[:4]:
+        want = presets.get("brushes", name)
+        with h.override('VIEW_3D'):
+            bpy.ops.plastron.preset_apply(kind="brushes", name=name)
+        b = ip.brush
+        size = ups.size if ups.use_unified_size else b.size
+        strength = ups.strength if ups.use_unified_strength else b.strength
+        h.check(f"preset {name}: brush, size, opacity, pressure, smoothing",
+                b.name == want["base"] and size == want["size"] and abs(strength - want["opacity"]) < 1e-3
+                and b.use_pressure_size == want["pressure_size"]
+                and b.use_pressure_strength == want["pressure_opacity"]
+                and b.use_smooth_stroke == want["smooth"],
+                (b.name, size, strength, b.use_pressure_size, b.use_pressure_strength, b.use_smooth_stroke))
+    with h.override('VIEW_3D'):
+        bpy.ops.plastron.preset_apply(kind="brushes", name="Ink")
+        (ups if ups.use_unified_size else ip.brush).size = 17
+        presets.save("brushes", "Fat ink", bpy.context)
+        bpy.ops.plastron.preset_apply(kind="brushes", name="Pencil")
+        bpy.ops.plastron.preset_apply(kind="brushes", name="Fat ink")
+    size = ups.size if ups.use_unified_size else ip.brush.size
+    h.check("saving the current brush as a preset, and using it",
+            "Fat ink" in [p["name"] for p in presets.all_presets("brushes")] and size == 17, size)
+    h.check("saved presets can be deleted, built-in ones can't",
+            presets.delete("brushes", "Fat ink") and not presets.delete("brushes", "Ink")
+            and "Fat ink" not in [p["name"] for p in presets.all_presets("brushes")])
+    with h.override('VIEW_3D'):
+        bpy.ops.plastron.canvas_tool(tool='PENCIL')
 
     # Paint (directly), save, reopen.
     img = st.layers[0].paint_image
