@@ -88,10 +88,10 @@ def steps():
             bpy.context.view_layer.objects.active == canvas and canvas.mode == 'PAINT_GREASE_PENCIL')
 
     # --- New panel at playhead -----------------------------------------------
-    sc.frame_current = 10
+    sc.frame_current = 49
     p2 = panels.new_at_playhead(sc)
-    h.check("New Panel inside a panel goes right after it", span(p2) == (49, 97), span(p2))
-    h.check("...and moves the playhead to it", sc.frame_current == 49)
+    h.check("New Panel starts at the playhead", span(p2) == (49, 97), span(p2))
+    h.check("...and the playhead stays on it", sc.frame_current == 49)
     yield
     h.check("canvas switches to the new panel", canvas.data == p2.plastron_panel.drawing)
     h.check("project end follows the last clip", sc.frame_end == 96, sc.frame_end)
@@ -174,14 +174,32 @@ def steps():
     h.check("...and its own cached image",
             panel_cache.strip_path(r) != panel_cache.strip_path(p3) and os.path.exists(panel_cache.strip_path(r)))
 
-    # --- No room without ripple -------------------------------------------------------
+    # --- New Panel at a playhead inside a panel -------------------------------------
+    clear_clips()
+    tracks.set_active(sc, track("Panels"))
+    a = add_panel(ch("Panels"), 1, 48)
+    b = add_panel(ch("Panels"), 49, 48)
+    sc.frame_current = 20
+    n = panels.new_at_playhead(sc)
+    h.check("ripple: inside a panel, it's cut at the playhead and the new one starts there",
+            (span(a), span(n), span(b)) == ((1, 20), (20, 68), (68, 116)), (span(a), span(n), span(b)))
+    sc.frame_current = 20
+    n2 = panels.new_at_playhead(sc)
+    h.check("ripple: at a panel's start, the new one goes in front and the rest move along",
+            (span(n2), span(n), span(b)) == ((20, 68), (68, 116), (116, 164)), (span(n2), span(n), span(b)))
+
     clear_clips()
     tracks.set_active(sc, track("Background"))
-    add_panel(ch("Background"), 1, 48)
-    add_panel(ch("Background"), 49, 48)
+    c = add_panel(ch("Background"), 1, 48)
+    d = add_panel(ch("Background"), 49, 48)
     sc.frame_current = 10
+    n = panels.new_at_playhead(sc)
+    h.check("no ripple: cut at the playhead, the new panel fills the rest of the gap",
+            (span(c), span(n), span(d)) == ((1, 10), (10, 49), (49, 97)), (span(c), span(n), span(d)))
+    sc.frame_current = 49
     result = panels.new_at_playhead(sc)
-    h.check("no room on a non-ripple track: explains instead of overlapping", isinstance(result, str), result)
+    h.check("no ripple, a panel starts right at the playhead: explains instead of overlapping",
+            isinstance(result, str), result)
     tracks.set_active(sc, track("Panels"))
 
     # --- Adding tracks keeps every clip on its track -----------------------------------------

@@ -45,9 +45,10 @@ theme, and keymap, with Photoshop-style drawing shortcuts.
   (ops/layers.py `sync_paint_target`). NOT its lights, masks, analysis,
   outline, bake, library, 3D decal transform. Plan proposed to Ollie (canvas =
   textured plane; one material per panel; numpy flatten into the panel's
-  cached image; packed layer images). Waiting on: paint resolution (proposed
-  2400×1350 = 1080p frame + 25 % margin) and confirming masks / adjustment
-  layers / Blend If stay out. Overrides the brief's "grease pencil v3".
+  cached image; packed layer images). Paint resolution and masks / adjustment
+  layers / Blend If. Ollie: 2400×1350 OK; bring masks, adjustment layers and
+  Blend If in too (masks: 2D sources only — paint, image; noise maybe).
+  Overrides the brief's "grease pencil v3".
 
 ## Ollie's standing preferences (always apply)
 
@@ -267,8 +268,11 @@ Plastron/
   last clicked track row / header).
 - New projects: tracks Panels (ripple), Background, Voice (ripple), Music;
   one 2 s starter panel (so drawing works straight away; the project then
-  shows as unsaved "*"). New Panel = 2 s; if the playhead is inside a clip,
-  it goes right after it; ripple tracks make room, others shrink to the gap.
+  shows as unsaved "*"). New Panel (Ollie: "at the playhead") = 2 s starting
+  exactly at the playhead; a panel the playhead is inside is cut short there
+  (keeps its drawing); one starting exactly at the playhead stays whole and the
+  new panel goes in front. Ripple tracks move later clips just enough; others
+  shrink the new panel to the gap (none: explain, don't overlap).
 - Ripple: right-edge drag / delete / insert shift later clips on all ripple
   tracks (locked tracks never move). Left-edge drag with ripple ON is
   Premiere's ripple trim: the clip keeps its place, its length changes, later

@@ -114,26 +114,31 @@ def delete(scene, strips):
 
 
 def make_room(scene, channel, frame, length):
-    """Where to put a new clip of `length` on channel at frame.
+    """Make room for a new clip of `length` starting exactly at frame.
 
-    If frame is inside a clip, the new clip goes right after it. On a ripple
-    track later clips move along to make room; otherwise the new clip is
-    shortened to fit the gap. Returns (start, length) or None if no room.
+    A clip the playhead is inside is cut short at frame (a clip starting
+    exactly at frame stays whole: the new clip goes in front of it). On a
+    ripple track later clips move along just enough to fit the new clip;
+    otherwise it shrinks to fit the gap. Returns (start, length), or None
+    if there's no room (no ripple and a clip starts right at frame).
     """
     inside = clips.at(scene, channel, frame)
-    start = clips.end(inside) if inside else frame
-    nxt = clips.next_after(scene, channel, start)
-    if nxt is None or clips.start(nxt) >= start + length:
-        return start, length
+    cut = inside if inside is not None and clips.start(inside) < frame else None
+    nxt = clips.next_after(scene, channel, frame, exclude=cut)
     track = tracks.track_of_channel(scene, channel)
-    if track and track.ripple:
+    ripples = bool(track and track.ripple)
+    if nxt is not None and clips.start(nxt) < frame + length and not ripples:
+        length = clips.start(nxt) - frame
+        if length < MIN_LENGTH:
+            return None
+    if cut is not None:
+        clips.apply(scene, {cut: (clips.start(cut), frame)})
+    if ripples and nxt is not None and clips.start(nxt) < frame + length:
         orig = snapshot(scene)
         changes = {}
-        _shift_after(scene, orig, start, start + length - clips.start(nxt), changes)
+        _shift_after(scene, orig, frame, frame + length - clips.start(nxt), changes)
         clips.apply(scene, changes)
-        return start, length
-    room = clips.start(nxt) - start
-    return (start, room) if room >= MIN_LENGTH else None
+    return frame, length
 
 
 def split(scene, strips, frame):
