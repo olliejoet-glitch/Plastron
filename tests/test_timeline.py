@@ -229,6 +229,23 @@ def steps():
             canvas.data == top.plastron_panel.drawing and disp.data == under.plastron_panel.drawing
             and not disp.hide_viewport and disp.location.y > canvas.location.y)
 
+    # --- Scrubbing onto a panel makes it drawable, whatever track was active -----------
+    tracks.set_active(sc, track("Voice"))          # e.g. after clicking an audio track
+    sc.frame_current = 60                          # past the background, over nothing...
+    yield
+    sc.frame_current = 10                          # ...then onto the panel
+    yield
+    h.check("scrubbing onto a panel puts it on the canvas even if another track was active",
+            canvas.data == top.plastron_panel.drawing, canvas.data.name)
+    h.check("...without changing the active track (where new panels go)",
+            tracks.active(sc).uid == track("Voice").uid)
+    tracks.set_active(sc, track("Background"))     # chose the background on purpose
+    sc.frame_current = 11
+    yield
+    h.check("an active track with a clip there keeps priority",
+            canvas.data == under.plastron_panel.drawing)
+    tracks.set_active(sc, track("Panels"))
+
     # --- Performance: playback inside one stretch does no work ---------------------------
     clear_clips()
     add_panel(ch("Panels"), 1, 400)

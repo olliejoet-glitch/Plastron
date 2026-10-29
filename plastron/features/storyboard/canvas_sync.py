@@ -66,16 +66,35 @@ def _drawing_at(scene, track, frame):
     return None
 
 
+def _drawable(scene, track, frame, sed):
+    ch = sed.channels[tracks.channel_of(scene, track)]
+    return not ch.mute and not ch.lock and _drawing_at(scene, track, frame) is not None
+
+
+def _drawing_track(scene, videos, frame, sed):
+    """The track you draw on: the active track if it has a panel under the
+    playhead, else the topmost visible, unlocked video track that does. So
+    scrubbing onto any panel is enough to draw on it; the active track
+    (where new panels go) isn't changed."""
+    active = tracks.active(scene)
+    if active and active.kind == 'VIDEO' and _drawable(scene, active, frame, sed):
+        return active
+    for track in reversed(videos):
+        if _drawable(scene, track, frame, sed):
+            return track
+    if active and active.kind == 'VIDEO':
+        return active
+    return videos[-1] if videos else None
+
+
 def sync(scene):
     """Recompute what the canvas shows at the current frame."""
     _state["work"] += 1
     frame = scene.frame_current
     empty = empty_drawing()
     videos = tracks.video_tracks(scene)
-    active = tracks.active(scene)
-    if active is None or active.kind != 'VIDEO':
-        active = videos[-1] if videos else None
     sed = clips.editor(scene)
+    active = _drawing_track(scene, videos, frame, sed)
 
     for depth, track in enumerate(videos):
         y = -depth * DEPTH_STEP

@@ -243,8 +243,11 @@ Plastron/
   plain placeholders; stage 3 renders drawings into them.
 - Canvas: one "Canvas" object (always active, in drawing mode) is handed the
   active panel's drawing; other video tracks get display-only objects, higher
-  tracks nearer the camera. Active panel = active track's clip under the
-  playhead (active track = last clicked track row / header).
+  tracks nearer the camera. You draw on the active track's clip under the
+  playhead; if it has none there, on the topmost visible, unlocked video
+  track's clip (Ollie: scrubbing onto a panel must be enough to draw on it).
+  That fallback doesn't change the active track (= where new panels go;
+  last clicked track row / header).
 - New projects: tracks Panels (ripple), Background, Voice (ripple), Music;
   one 2 s starter panel (so drawing works straight away; the project then
   shows as unsaved "*"). New Panel = 2 s; if the playhead is inside a clip,
