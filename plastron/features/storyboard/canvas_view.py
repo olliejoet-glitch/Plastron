@@ -9,6 +9,8 @@ import bpy
 from bpy_extras.view3d_utils import location_3d_to_region_2d
 from mathutils import Quaternion, Vector
 
+from ...timeline import view as timeline_view
+
 FIT_MARGIN = 0.9      # fit leaves 10 % breathing room
 ZOOM_STEP = 1.25      # one zoom step = 25 %
 
@@ -189,8 +191,7 @@ def fit_all_canvases():
                 fit(window.scene, region, space, space.region_3d)
                 area.tag_redraw()
             elif area.type == 'SEQUENCE_EDITOR':
-                with bpy.context.temp_override(window=window, area=area, region=region):
-                    bpy.ops.anim.scene_range_frame()   # whole project, tracks stay in view
+                timeline_view.frame(window, area, region, window.scene)
 
 
 classes = (

@@ -4,7 +4,8 @@
     panel_cache    cached panel images shown on the timeline (re-made after edits)
     canvas_sync    shows the panel(s) under the playhead on the canvas
     canvas_view    canvas navigation; canvas_frame: frame overlay
-    canvas_color   Canvas panel (paper colour)
+    canvas_color   Canvas panel (paper colour, onion skin strength)
+    onion          onion skin settings (canvas_sync shows it)
     tools          tool switching, tool strip; options_bar
     (the Layers panel comes from plastron/layers)
 """
@@ -12,8 +13,8 @@
 import bpy
 
 from ...core import handlers
-from . import (canvas_color, canvas_frame, canvas_sync, canvas_view, options_bar, panel_cache,
-               panels, tools)
+from . import (canvas_color, canvas_frame, canvas_sync, canvas_view, onion, options_bar,
+               panel_cache, panels, tools)
 
 _CLASSES = canvas_view.classes + tools.classes
 
@@ -26,6 +27,7 @@ def _after_load(_scene):
 def register():
     for cls in _CLASSES:
         bpy.utils.register_class(cls)
+    onion.register()
     options_bar.register()
     canvas_frame.register()
     canvas_color.register()
@@ -42,5 +44,6 @@ def unregister():
     canvas_color.unregister()
     canvas_frame.unregister()
     options_bar.unregister()
+    onion.unregister()
     for cls in reversed(_CLASSES):
         bpy.utils.unregister_class(cls)

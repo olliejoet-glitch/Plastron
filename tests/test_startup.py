@@ -60,6 +60,15 @@ def steps():
         want = layout_cfg.AREAS["timeline"]["channels_width"] * bpy.context.preferences.system.ui_scale
         h.check("track headers column is wide enough", chan and abs(chan.width - want) < 12,
                 chan and (chan.width, want))
+        main = h.region(timeline)
+        tl_view = h.module("timeline.view")
+        rows = tl_view.row_height(main)
+        h.check("timeline rows are tall enough to show panel pictures",
+                rows >= min(h.module("config.timeline").ROW_HEIGHT_PX, main.height / 5) * 0.9, rows)
+        h.check("...with every track in view",
+                main.view2d.region_to_view(0, 0)[1] <= 1.0 and
+                main.view2d.region_to_view(0, main.height)[1] >= 5.0,
+                (main.view2d.region_to_view(0, 0)[1], main.view2d.region_to_view(0, main.height)[1]))
         h.check("script panel: no header", not script.spaces.active.show_region_header)
         h.check("script panel shows the project's Script",
                 script.spaces.active.text and script.spaces.active.text.name == defaults.SCRIPT_TEXT_NAME)

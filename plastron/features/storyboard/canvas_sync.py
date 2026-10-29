@@ -7,6 +7,9 @@
   paint mode, so you can scrub and draw straight away.
 - Each other video track has a display-only sheet showing its clip under the
   playhead, stacked by track order, so backgrounds show under panels.
+- Onion skin (if on): two more sheets just behind the canvas show the panels
+  before and after the one you're drawing on, faintly (object alpha, which
+  every panel material multiplies in).
 
 Performance: the frame-change hook is O(1) while the playhead stays inside
 the same stretch of panels (between two clip edges); it only does work when
@@ -22,6 +25,7 @@ from ...timeline import clips, events, tracks
 
 CANVAS = "Canvas"
 DISPLAY_PREFIX = "Canvas Track "
+ONION = ("Canvas Onion Before", "Canvas Onion After")
 SHEET = "Canvas Sheet"
 EMPTY = "Plastron Empty Panel"
 DEPTH_STEP = 0.01     # higher tracks sit slightly nearer the camera
@@ -87,8 +91,10 @@ def _display_object(scene, track):
     return _sheet_object(scene, DISPLAY_PREFIX + track.uid, False)
 
 
-def _set(obj, material=None, y=None, hidden=None):
+def _set(obj, material=None, y=None, hidden=None, alpha=None):
     """Change only what differs (every change costs a scene update)."""
+    if alpha is not None and abs(obj.color[3] - alpha) > 1e-4:
+        obj.color[3] = alpha
     slot = obj.material_slots[0]
     if material is not None and slot.material != material:
         slot.material = material
@@ -104,6 +110,22 @@ def _material_at(scene, track, frame):
     if clip and is_panel(clip) and clip.plastron_panel.material:
         return clip.plastron_panel.material
     return None
+
+
+def _onion(scene, track, frame, y):
+    """Show the panels either side of track's clip at frame (or hide them)."""
+    from . import onion
+    from .panels import is_panel
+    channel = tracks.channel_of(scene, track) if track else None
+    current = clips.at(scene, channel, frame) if track else None
+    show = onion.enabled() and current is not None and is_panel(current)
+    near = (clips.previous_before(scene, channel, clips.start(current)) if show else None,
+            clips.next_after(scene, channel, clips.end(current)) if show else None)
+    for name, clip in zip(ONION, near):
+        mat = clip.plastron_panel.material if clip is not None and is_panel(clip) else None
+        obj = _sheet_object(scene, name, False)
+        _set(obj, material=mat or empty_material(), y=y + DEPTH_STEP / 2, hidden=mat is None,
+             alpha=onion.opacity())
 
 
 def _drawable(scene, track, frame, sed):
@@ -146,6 +168,8 @@ def sync(scene):
         else:
             _set(_display_object(scene, track), material=material or empty, y=y,
                  hidden=material is None)
+    canvas_y = -[t.uid for t in videos].index(active.uid) * DEPTH_STEP if active else 0.0
+    _onion(scene, active, frame, canvas_y)
     paint_target.sync(scene=scene)
 
     # Remember the stretch of frames where this stays true.

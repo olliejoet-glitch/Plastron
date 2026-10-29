@@ -19,6 +19,15 @@ def _pressure(row, brush, prop):
 
 def draw(self, context):
     layout = self.layout
+    _brush_options(layout, context)
+    # Drawing aids at the right end of the bar.
+    layout.separator_spacer()
+    wm = context.window_manager
+    layout.prop(wm, "plastron_onion", text="Onion Skin", toggle=True,
+                icon='ONIONSKIN_ON' if wm.plastron_onion else 'ONIONSKIN_OFF')
+
+
+def _brush_options(layout, context):
     current = active_tool_id(context)
     label = next((t["label"] for t in tool_table() if t["id"] == current), "")
     layout.label(text=label)

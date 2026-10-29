@@ -11,6 +11,10 @@ NEW_PANEL_SECONDS = 2.0
 EDGE_GRAB_PX = 8
 SNAP_PX = 10
 
+# Track row height when a project opens (screen pixels at 100 % UI scale).
+# Tall enough for the timeline to show each panel's picture.
+ROW_HEIGHT_PX = 64
+
 # Snap targets used while dragging clips and clip edges.
 SNAP_TO_PLAYHEAD = True
 SNAP_TO_CLIP_EDGES = True

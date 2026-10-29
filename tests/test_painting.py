@@ -1,5 +1,5 @@
 """Panel paintings: the layers panel acts on the panel on the canvas, painting
-follows the active layer, and paint survives saving and reopening."""
+follows the active layer, paint survives saving and reopening, onion skin."""
 
 import os
 import sys
@@ -10,6 +10,8 @@ import numpy as np  # noqa: E402
 import harness as h  # noqa: E402
 
 panels = h.module("features.storyboard.panels")
+panel_cache = h.module("features.storyboard.panel_cache")
+canvas_sync = h.module("features.storyboard.canvas_sync")
 
 
 def canvas_mat():
@@ -56,6 +58,10 @@ def steps():
     img.pixels.foreach_set(dab.ravel())
     img.update()
     count = painted(img)
+    panel_cache.request(mat)
+    panel_cache.flush_now()
+    yield 1.0
+    h.screenshot("thumbnails")
     path = os.path.join(bpy.app.tempdir, "paint_test", "Painted.blend")
     os.makedirs(os.path.dirname(path), exist_ok=True)
     bpy.ops.wm.save_as_mainfile(filepath=path)
@@ -73,7 +79,38 @@ def steps():
             (painted(st.layers[0].paint_image), count))
     h.check("...ready to paint on", bpy.context.mode == 'PAINT_TEXTURE' and
             bpy.context.scene.tool_settings.image_paint.canvas == st.active.paint_image)
+
+    # --- Onion skin ----------------------------------------------------------------
+    sc = bpy.context.scene
+    p1 = panels.all_panels(sc)[0]
+    sc.frame_current = 49
+    p2 = panels.new_at_playhead(sc)
+    sc.frame_current = 30
+    p0 = panels.new_at_playhead(sc)            # cuts panel 1 short: p1 | p0 | p2
+    sc.frame_current = 40
+    yield
+    before, after = (bpy.data.objects[n] for n in canvas_sync.ONION)
+    h.check("onion skin is off to start with", before.hide_viewport and after.hide_viewport)
+    wm = bpy.context.window_manager
+    wm.plastron_onion = True
+    yield
+    h.check("onion skin shows the panels before and after, faintly",
+            not before.hide_viewport and not after.hide_viewport
+            and before.material_slots[0].material == p1.plastron_panel.material
+            and after.material_slots[0].material == p2.plastron_panel.material
+            and abs(before.color[3] - 0.25) < 1e-3 and abs(after.color[3] - 0.25) < 1e-3)
+    h.check("...behind the panel being drawn on",
+            before.location.y > bpy.data.objects["Canvas"].location.y)
+    wm.plastron_onion_opacity = 0.5
+    h.check("onion skin strength", abs(before.color[3] - 0.5) < 1e-3, before.color[3])
+    sc.frame_current = 10
+    yield
+    h.check("on the first panel there's nothing before it",
+            before.hide_viewport and after.material_slots[0].material == p0.plastron_panel.material)
     h.screenshot("painting")
+    wm.plastron_onion = False
+    yield
+    h.check("turning it off hides it", before.hide_viewport and after.hide_viewport)
 
 
 h.run(steps())

@@ -22,3 +22,8 @@ TOOLS = [
 
 # Where Blender's built-in texture-paint brushes live.
 BRUSH_LIBRARY = "brushes/essentials_brushes-mesh_texture.blend/Brush/"
+
+# Onion skin: the panels before and after the one you're drawing on, shown
+# faintly behind it. Toggle in the options bar; strength in the Canvas panel.
+ONION_SKIN_ON = False         # starting state (your choice is remembered)
+ONION_SKIN_OPACITY = 0.25

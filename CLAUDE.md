@@ -32,7 +32,8 @@ theme, and keymap, with Photoshop-style drawing shortcuts.
   tools B / E / G / Shift+B blur / Shift+S smudge, Alt+click colour pick,
   options bar (brush picker, colour, size, opacity, pressure, smoothing),
   layers / groups / fills / adjustments / masks / Blend If (`plastron/layers`),
-  cached panel images re-made after edits. Left: brush presets, onion skin.
+  cached panel images re-made after edits (shown on the timeline clips),
+  onion skin. Left: brush presets.
   Wait for Ollie to ask before starting a stage.
 - **DONE: drawing switched from grease pencil to RASTER** (Ollie: wants to
   select/move pixels, lay down blobs of colour, erase precisely). Brush engine
@@ -141,7 +142,8 @@ Plastron/
 │  ├─ timeline/              the one shared timeline (see its __init__ for the module list)
 │  │                         tracks (model over channels), clips (overlap-safe moves),
 │  │                         ripple (pure planners), snapping, mix, track_headers,
-│  │                         header, ops, events (features listen; timeline knows no features)
+│  │                         header, ops, view (framing), events (features listen;
+│  │                         timeline knows no features)
 │  ├─ layers/                Photoshop-style layer stacks on materials (from CaraPainter):
 │  │                         props, blend_lib, layer_trees, compiler (node trees),
 │  │                         flatten (same maths in numpy), stack (edits), paint_target
@@ -292,6 +294,14 @@ Plastron/
   paper colour at 960×540, re-made 0.4 s after the last stroke / layer edit
   / undo (and for every panel when the paper colour changes).
   Opaque for now; the animatic export may want alpha later.
+- Onion skin: Onion Skin toggle at the right of the options bar; strength
+  (default 25 %) in the Canvas panel; both remembered (user_settings). Shows
+  the panels just before and after the one being drawn on (same track),
+  faintly (object alpha), just behind it. No colour tint.
+- Timeline thumbnails: Blender's "strip ends" thumbnails show each panel's
+  cached image. They only appear on tall rows, so projects open with track
+  rows ROW_HEIGHT_PX (64) high, bottom track at the bottom
+  (timeline/view.py).
 - Stage-2 (grease pencil) projects: panels get an empty painting on load;
   their old drawings aren't converted.
 - Canvas: one "Canvas" sheet (a flat mesh, camera frame + bleed, always

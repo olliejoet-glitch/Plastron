@@ -82,6 +82,7 @@ AREAS = {
             "show_markers": True,
             "timeline_overlay.show_strip_source": False,   # no file paths on clips
             "timeline_overlay.show_strip_duration": False,
+            "timeline_overlay.thumbnail_display_style": 'STRIP_ENDS',  # panels show their images
         },
     },
 }
