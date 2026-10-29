@@ -18,12 +18,21 @@ PLAYBACK_SYNC = 'AUDIO_SYNC'  # keep picture locked to sound, dropping frames if
 # "Standard" shows greys exactly as drawn (Blender's default, AgX, shifts them).
 VIEW_TRANSFORM = 'Standard'
 
-# Canvas: the camera frame is CANVAS_WIDTH units wide; drawing happens on the
-# flat plane facing the camera.
+# Canvas: the camera frame is CANVAS_WIDTH units wide; drawing happens on a
+# flat sheet facing the camera.
 CANVAS_WIDTH = 16.0
 
+# Panels are painted at PAINT_RESOLUTION pixels. PAINT_FRAME of them fill the
+# camera frame; the rest is bleed around it (room to reframe later).
+PAINT_RESOLUTION = (2400, 1350)
+PAINT_FRAME = (1920, 1080)
+FIRST_LAYER_NAME = "Sketch"   # every new panel starts with this paint layer
+
+# Cached panel images (what the timeline shows): the camera frame, this size.
+PANEL_IMAGE_SIZE = (960, 540)
+
 SCRIPT_TEXT_NAME = "Script"
-STROKE_COLOR = (0.0, 0.0, 0.0, 1.0)
+BRUSH_COLOR = (0.0, 0.0, 0.0)  # starting paint colour
 
 # Tracks a new project starts with, top to bottom (as they appear).
 # kind: "VIDEO" or "AUDIO". Video tracks stack above audio tracks.

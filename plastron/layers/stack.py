@@ -150,17 +150,25 @@ def _copy_layer_props(src, dst):
         nm.ensure_uid()
 
 
+def _clone_image(img):
+    """A copy with the image's current pixels (Image.copy() would reload the
+    packed file, losing anything painted since the last save)."""
+    new = img.copy()
+    px = np.empty(len(img.pixels), np.float32)
+    img.pixels.foreach_get(px)
+    new.pixels.foreach_set(px)
+    new.update()
+    new["plastron_owned"] = True
+    return new
+
+
 def _copy_images(layer):
     """Give a copied layer its own copies of the images it paints into."""
     if layer.paint_image is not None and layer.paint_image.get("plastron_owned"):
-        img = layer.paint_image.copy()
-        img["plastron_owned"] = True
-        layer.paint_image = img
+        layer.paint_image = _clone_image(layer.paint_image)
     for m in layer.masks:
         if m.image is not None and m.image.get("plastron_owned"):
-            img = m.image.copy()
-            img["plastron_owned"] = True
-            m.image = img
+            m.image = _clone_image(m.image)
 
 
 def duplicate_layer(mat, uid):

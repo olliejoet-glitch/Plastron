@@ -41,7 +41,7 @@ def setup_new_project(scene):
 
 
 def _add_canvas(scene):
-    """The canvas camera and drawing settings. The drawing objects come from
+    """The canvas camera. The sheets painted on come from
     features/storyboard/canvas_sync.py."""
     cam_data = bpy.data.cameras.new("Canvas Camera")
     cam_data.type = 'ORTHO'
@@ -54,8 +54,6 @@ def _add_canvas(scene):
     scene.camera = camera
 
     ts = scene.tool_settings
-    ts.gpencil_stroke_placement_view3d = 'ORIGIN'
-    ts.gpencil_sculpt.lock_axis = 'AXIS_Y'     # draw on the plane facing the camera
     ts.use_keyframe_insert_auto = False        # panel timing lives in clips, not keyframes
 
 

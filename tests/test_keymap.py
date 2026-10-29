@@ -13,9 +13,9 @@ keymaps = h.module("core.keymaps")
 util = h.module("core.util")
 
 # Actions that are expected to be missing until later stages.
-LATER_STAGES = {
-    "plastron.transform", "plastron.strokes_copy", "plastron.strokes_paste",
-    "plastron.strokes_flip", "plastron.eyedropper",
+LATER_STAGES = {   # stage 5: pixel selection and transform
+    "plastron.select_lasso", "plastron.select_rect", "plastron.pixels_move",
+    "plastron.transform", "plastron.pixels_copy", "plastron.pixels_paste", "plastron.layer_flip",
 }
 # Plastron actions on a plain click that pass the click on to Blender when
 # they don't apply (e.g. clip_trim lets Blender select / move a clip unless
@@ -83,7 +83,8 @@ def steps():
         ("Object Mode", "transform.translate"),             # G
         ("Object Non-modal", "object.mode_set"),            # Tab
         ("3D View", "view3d.rotate"),                       # orbit
-        ("Grease Pencil Draw Mode", "grease_pencil.erase_box"),
+        ("Image Paint", "paint.sample_color"),               # S (Plastron: Alt+click)
+        ("Image Paint", "paint.brush_colors_flip"),          # X
         ("Frames", "screen.frame_offset"),
         ("Markers", "marker.add"),
         ("Region Context Menu", "screen.region_context_menu"),  # right-click menus
@@ -96,7 +97,7 @@ def steps():
         ("Screen Editing", "screen.area_move"),             # resizing areas
         ("Screen", "screen.animation_step"),                # playback timer
         ("Time Scrub", "anim.change_frame"),                # scrubbing on the ruler
-        ("Grease Pencil Brush Stroke", "grease_pencil.brush_stroke"),  # drawing
+        ("Image Paint", "paint.image_paint"),               # painting
         ("User Interface", "ui.eyedropper_color"),
         ("Sequencer", "sequencer.select"),                  # click a clip
         ("Sequencer", "transform.seq_slide"),               # drag a clip to move it

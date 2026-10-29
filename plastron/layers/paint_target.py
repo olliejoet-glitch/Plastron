@@ -1,13 +1,18 @@
 """Aims Blender's Texture Paint at the active layer's image (single-image mode),
-as CaraPainter does. Locked, hidden or non-paint layers paint nothing."""
+as CaraPainter does. Locked, hidden or non-paint layers paint nothing.
+
+The stack being painted is the active object's material (read live, so it
+survives undo and file loads)."""
 
 import bpy
 
-_current = {"material": None}
 
-
-def active_material():
-    return _current["material"]
+def active_material(context=None):
+    """The layer-stack material on the active object, or None."""
+    view_layer = getattr(context or bpy.context, "view_layer", None)
+    obj = view_layer.objects.active if view_layer else None
+    mat = obj.active_material if obj else None
+    return mat if mat is not None and mat.plastron_stack.enabled else None
 
 
 def target_image(mat):
@@ -23,16 +28,17 @@ def target_image(mat):
 
 
 def sync(mat=None, scene=None):
-    """Point painting at mat's active layer (mat None = the current canvas material)."""
-    if mat is not None:
-        _current["material"] = mat
-    mat = _current["material"]
+    """Point painting at the active layer of the material on the canvas.
+    mat: only re-aim if that material is the one on the canvas."""
+    current = active_material()
+    if mat is not None and mat != current:
+        return
     scene = scene or bpy.context.scene
     if scene is None:
         return
     ip = scene.tool_settings.image_paint
     if ip.mode != 'IMAGE':
         ip.mode = 'IMAGE'
-    img = target_image(mat)
+    img = target_image(current)
     if ip.canvas != img:
         ip.canvas = img

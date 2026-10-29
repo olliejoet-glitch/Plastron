@@ -93,8 +93,19 @@ def steps():
     h.check("audio scrubbing on", scene.use_audio_scrub)
     h.check("colour view transform is Standard", scene.view_settings.view_transform == 'Standard')
     h.check("project has a sequencer", scene.sequence_editor is not None)
-    h.check("canvas opens in drawing mode with the pencil",
-            bpy.context.mode == 'PAINT_GREASE_PENCIL', bpy.context.mode)
+    h.check("canvas opens in paint mode with the pencil",
+            bpy.context.mode == 'PAINT_TEXTURE', bpy.context.mode)
+    ip = scene.tool_settings.image_paint
+    h.check("...painting with Blender's pencil brush, in black",
+            ip.brush is not None and ip.brush.name == "Paint Hard Pressure"
+            and tuple(ip.unified_paint_settings.color) == (0.0, 0.0, 0.0), ip.brush and ip.brush.name)
+    shelf = next((r for r in h.area('VIEW_3D').regions if r.type == 'ASSET_SHELF'), None)
+    h.check("the brush shelf strip under the canvas is hidden (it opens from the options bar)",
+            shelf is None or shelf.height <= 1, shelf and shelf.height)
+    world = scene.world
+    h.check("the paper colour is the world colour (Material Preview shows it)",
+            world is not None and h.area('VIEW_3D').spaces.active.shading.type == 'MATERIAL'
+            and h.area('VIEW_3D').spaces.active.shading.use_scene_world)
 
     # Preferences
     h.check("no splash screen", not prefs.view.show_splash)
@@ -112,7 +123,8 @@ def steps():
     # The only per-frame hooks allowed, each an O(1) "did anything change?" check
     # (test_timeline proves the canvas one does no work inside a panel).
     allowed = {("frame_change_post", "on_frame"),            # canvas: crossed a clip edge?
-               ("depsgraph_update_post", "_on_depsgraph")}   # timeline: flag edit (not during playback)
+               ("depsgraph_update_post", "_on_depsgraph"),   # timeline: flag edit (not during playback)
+               ("depsgraph_update_post", "_on_stroke")}      # panel image: was an image painted?
     per_frame = {(n, f) for n, f in handlers.registered() if n in handlers.PER_FRAME}
     h.check("only the allowed O(1) per-frame hooks", per_frame <= allowed, per_frame - allowed)
     drivers = sum(len(o.animation_data.drivers) for o in bpy.data.objects if o.animation_data)

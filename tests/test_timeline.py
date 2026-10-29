@@ -8,6 +8,7 @@ import wave
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import bpy  # noqa: E402
+import numpy as np  # noqa: E402
 import harness as h  # noqa: E402
 
 tracks = h.module("timeline.tracks")
@@ -60,8 +61,28 @@ def clear_clips():
         sed.strips.remove(s)
 
 
-def strokes(drawing):
-    return sum(len(f.drawing.strokes) for layer in drawing.layers for f in layer.frames)
+def strokes(mat):
+    """Painted pixels in a panel's layers."""
+    total = 0
+    for layer in mat.plastron_stack.layers:
+        if layer.paint_image is not None:
+            px = np.empty(len(layer.paint_image.pixels), np.float32)
+            layer.paint_image.pixels.foreach_get(px)
+            total += int((px[3::4] > 0.05).sum())
+    return total
+
+
+def shows(obj):
+    return obj.material_slots[0].material
+
+
+def cached_darkness(strip):
+    """How much of a panel's cached image is dark (painted)."""
+    img = bpy.data.images.load(panel_cache.strip_path(strip), check_existing=False)
+    px = np.empty(len(img.pixels), np.float32)
+    img.pixels.foreach_get(px)
+    bpy.data.images.remove(img)
+    return float((px.reshape(-1, 4)[:, :3].mean(1) < 0.3).mean())
 
 
 def steps():
@@ -80,12 +101,18 @@ def steps():
     h.check("new project has one starter panel", len(starters) == 1, len(starters))
     p1 = starters[0]
     h.check("starter panel: Panels track, frame 1, 2 s", p1.channel == ch("Panels") and span(p1) == (1, 49), span(p1))
-    h.check("panel has its own drawing", p1.plastron_panel.drawing is not None)
+    mat1 = p1.plastron_panel.material
+    h.check("panel has its own layer stack, one paint layer at the paint resolution",
+            mat1 is not None and [l.name for l in mat1.plastron_stack.layers] == ["Sketch"]
+            and tuple(mat1.plastron_stack.layers[0].paint_image.size) == (2400, 1350))
     h.check("panel's cached image exists", os.path.exists(panel_cache.strip_path(p1)), panel_cache.strip_path(p1))
     canvas = bpy.data.objects["Canvas"]
-    h.check("canvas shows the starter panel", canvas.data == p1.plastron_panel.drawing)
-    h.check("canvas is the active object, in drawing mode",
-            bpy.context.view_layer.objects.active == canvas and canvas.mode == 'PAINT_GREASE_PENCIL')
+    h.check("canvas shows the starter panel", shows(canvas) == mat1)
+    h.check("canvas is the active object, in paint mode",
+            bpy.context.view_layer.objects.active == canvas and canvas.mode == 'TEXTURE_PAINT')
+    ip = sc.tool_settings.image_paint
+    h.check("painting goes to the panel's active layer",
+            ip.mode == 'IMAGE' and ip.canvas == mat1.plastron_stack.layers[0].paint_image)
 
     # --- New panel at playhead -----------------------------------------------
     sc.frame_current = 49
@@ -93,7 +120,9 @@ def steps():
     h.check("New Panel starts at the playhead", span(p2) == (49, 97), span(p2))
     h.check("...and the playhead stays on it", sc.frame_current == 49)
     yield
-    h.check("canvas switches to the new panel", canvas.data == p2.plastron_panel.drawing)
+    mat2 = p2.plastron_panel.material
+    h.check("canvas switches to the new panel", shows(canvas) == mat2)
+    h.check("...and painting follows", ip.canvas == mat2.plastron_stack.layers[0].paint_image)
     h.check("project end follows the last clip", sc.frame_end == 96, sc.frame_end)
 
     # Draw on panel 2, then scrub to panel 1 and back.
@@ -101,14 +130,18 @@ def steps():
     cx, cy = h.center(h.region(area))
     yield from h.drag((cx - 120, cy), (cx + 120, cy + 40))
     yield 0.3
-    h.check("drawing goes into the panel under the playhead",
-            strokes(p2.plastron_panel.drawing) == 1 and strokes(p1.plastron_panel.drawing) == 0)
+    h.check("painting goes into the panel under the playhead",
+            strokes(mat2) > 100 and strokes(mat1) == 0, (strokes(mat2), strokes(mat1)))
+    yield 1.0                                   # the panel image is re-made after a pause
+    h.check("the panel's cached image shows the painting", cached_darkness(p2) > 0.001,
+            cached_darkness(p2))
+    h.check("...other panels' images are untouched", cached_darkness(p1) == 0.0)
     sc.frame_current = 20
     yield
-    h.check("scrubbing to panel 1 shows panel 1", canvas.data == p1.plastron_panel.drawing)
+    h.check("scrubbing to panel 1 shows panel 1", shows(canvas) == mat1)
     sc.frame_current = 60
     yield
-    h.check("scrubbing back shows panel 2's drawing", canvas.data == p2.plastron_panel.drawing)
+    h.check("scrubbing back shows panel 2's painting", shows(canvas) == mat2)
 
     # --- Ripple ON (Panels) ----------------------------------------------------
     p3 = add_panel(ch("Panels"), 97, 48)
@@ -151,26 +184,31 @@ def steps():
     clips.apply(sc, {voice: (clips.start(p3), clips.start(p3) + 40)})   # Voice starts with P3
     voice_before, music_before = span(voice), span(music)
     p3_before = span(p3)
-    gone = p2.plastron_panel.drawing
+    gone = p2.plastron_panel.material
     ripple.delete(sc, [p2])
     h.check("ripple delete closes the gap", span(p3) == (30, 78), (p3_before, span(p3)))
     h.check("...on every ripple track", span(voice) == (voice_before[0] - 38, voice_before[1] - 38), span(voice))
     h.check("...but not on others", span(music) == music_before)
-    h.check("deleted panel's drawing is no longer used", gone.users == 0, gone.users)
+    h.check("deleted panel's painting is no longer used", gone.users == 0, gone.users)
     ripple.delete(sc, [b1])
     h.check("delete without ripple leaves a gap", span(bg) == (30, 145))
 
     # --- Split ---------------------------------------------------------------------
     sc.frame_current = 50
-    canvas.data = p3.plastron_panel.drawing
-    left_strokes = strokes(p3.plastron_panel.drawing)
+    img = p3.plastron_panel.material.plastron_stack.layers[0].paint_image
+    dab = np.zeros((img.size[1], img.size[0], 4), np.float32)
+    dab[100:200, 100:300] = 1.0
+    img.pixels.foreach_set(dab.ravel())
+    left_strokes = strokes(p3.plastron_panel.material)
     right = ripple.split(sc, [p3], 50)
     h.check("split cuts a clip in two", len(right) == 1 and span(p3) == (30, 50) and span(right[0]) == (50, 78),
             (span(p3), right and span(right[0])))
     r = right[0]
-    h.check("each half has its own drawing (a copy)",
-            r.plastron_panel.drawing is not None and r.plastron_panel.drawing != p3.plastron_panel.drawing
-            and strokes(r.plastron_panel.drawing) == left_strokes)
+    rm = r.plastron_panel.material
+    h.check("each half has its own painting (a copy)",
+            rm is not None and rm != p3.plastron_panel.material and left_strokes > 0
+            and strokes(rm) == left_strokes
+            and rm.plastron_stack.layers[0].paint_image != img)
     h.check("...and its own cached image",
             panel_cache.strip_path(r) != panel_cache.strip_path(p3) and os.path.exists(panel_cache.strip_path(r)))
 
@@ -244,7 +282,7 @@ def steps():
     canvas_sync.invalidate(sc)
     disp = bpy.data.objects[canvas_sync.DISPLAY_PREFIX + track("Background").uid]
     h.check("background track shows under the panel",
-            canvas.data == top.plastron_panel.drawing and disp.data == under.plastron_panel.drawing
+            shows(canvas) == top.plastron_panel.material and shows(disp) == under.plastron_panel.material
             and not disp.hide_viewport and disp.location.y > canvas.location.y)
 
     # --- Scrubbing onto a panel makes it drawable, whatever track was active -----------
@@ -254,14 +292,14 @@ def steps():
     sc.frame_current = 10                          # ...then onto the panel
     yield
     h.check("scrubbing onto a panel puts it on the canvas even if another track was active",
-            canvas.data == top.plastron_panel.drawing, canvas.data.name)
+            shows(canvas) == top.plastron_panel.material, shows(canvas).name)
     h.check("...without changing the active track (where new panels go)",
             tracks.active(sc).uid == track("Voice").uid)
     tracks.set_active(sc, track("Background"))     # chose the background on purpose
     sc.frame_current = 11
     yield
     h.check("an active track with a clip there keeps priority",
-            canvas.data == under.plastron_panel.drawing)
+            shows(canvas) == under.plastron_panel.material)
     tracks.set_active(sc, track("Panels"))
 
     # --- Performance: playback inside one stretch does no work ---------------------------
@@ -270,11 +308,20 @@ def steps():
     sc.frame_end = 400
     sc.frame_current = 5
     canvas_sync.invalidate(sc)
-    yield 0.5      # let the setup edits' debounced update finish first
-    work = canvas_sync._state["work"]
+    yield 0.6
+    panel_cache.flush_now()   # the new panel's image (re-making it tags the timeline)
+    # Let the setup edits' debounced updates settle (shaders compile slowly here).
+    work = -1
+    for _ in range(20):
+        if canvas_sync._state["work"] == work:
+            break
+        work = canvas_sync._state["work"]
+        yield 0.5
     frames_before = sc.frame_current
     h.move(cx, cy)
     h.key('SPACE')
+    yield 0.3      # (starting playback is an edit: one debounced update may follow)
+    work = canvas_sync._state["work"]
     yield 1.5
     h.key('SPACE')
     yield 0.3

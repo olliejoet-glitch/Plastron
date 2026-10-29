@@ -1,11 +1,20 @@
 """Canvas options bar (like Photoshop's): settings for the current tool.
 
-Replaces Blender's tool header. Stage 3 adds brush presets, smoothing and
-pressure settings here.
+Replaces Blender's tool header: tool name, brush picker, colour, size,
+opacity (+ pen pressure toggles), smoothing.
 """
 
 from ...core import hidden_ui
-from .tools import active_tool_id, tool_table
+from .tools import CONTEXT_MODE, active_tool_id, tool_table
+
+
+def _owner(ups, brush, unified_flag):
+    return ups if getattr(ups, unified_flag, False) else brush
+
+
+def _pressure(row, brush, prop):
+    if hasattr(brush, prop):
+        row.prop(brush, prop, text="", icon='STYLUS_PRESSURE')
 
 
 def draw(self, context):
@@ -14,19 +23,33 @@ def draw(self, context):
     label = next((t["label"] for t in tool_table() if t["id"] == current), "")
     layout.label(text=label)
 
-    if context.mode != 'PAINT_GREASE_PENCIL':
+    if context.mode != CONTEXT_MODE:
         return
-    brush = context.tool_settings.gpencil_paint.brush
+    ip = context.tool_settings.image_paint
+    brush = ip.brush
     if brush is None:
         return
-    size = "unprojected_size" if brush.use_locked_size == 'SCENE' else "size"
+    ups = ip.unified_paint_settings
+    layout.template_asset_shelf_popover("VIEW3D_AST_brush_texture_paint", name=brush.name,
+                                        icon='BRUSH_DATA')
+    if current != "ERASER" and brush.image_brush_type in {'DRAW', 'FILL'}:
+        layout.prop(_owner(ups, brush, "use_unified_color"), "color", text="")
+    if current == "FILL":
+        return
     row = layout.row(align=True)
     row.ui_units_x = 8
-    row.prop(brush, size, slider=True, text="Size")
-    if brush.gpencil_brush_type != 'FILL':
-        row = layout.row(align=True)
-        row.ui_units_x = 8
-        row.prop(brush, "strength", slider=True, text="Opacity")
+    row.prop(_owner(ups, brush, "use_unified_size"), "size", slider=True, text="Size")
+    _pressure(row, brush, "use_pressure_size")
+    row = layout.row(align=True)
+    row.ui_units_x = 8
+    row.prop(_owner(ups, brush, "use_unified_strength"), "strength", slider=True, text="Opacity")
+    _pressure(row, brush, "use_pressure_strength")
+    row = layout.row(align=True)
+    row.prop(brush, "use_smooth_stroke", text="Smooth", toggle=True)
+    if brush.use_smooth_stroke:
+        sub = row.row(align=True)
+        sub.ui_units_x = 6
+        sub.prop(brush, "smooth_stroke_radius", text="Radius", slider=True)
 
 
 def register():

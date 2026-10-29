@@ -17,6 +17,8 @@ HIDE_PANELS_IN = [
 
 # Hide Blender's asset shelves (e.g. the brush shelf under the canvas) in these editors.
 HIDE_ASSET_SHELVES_IN = ['VIEW_3D']
+# ...except these, which the options bar opens as pop-ups (the brush picker).
+KEEP_ASSET_SHELVES = ['VIEW3D_AST_brush_texture_paint']
 
 # Blender headers replaced with Plastron's slimmer versions (see plastron/ui/).
 REPLACE_HEADERS = [

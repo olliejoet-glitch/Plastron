@@ -34,7 +34,8 @@ def panels_to_hide():
     for cls in set(_all_subclasses(bpy.types.AssetShelf)):
         if cls.__name__.startswith("PLASTRON_") or not getattr(cls, "is_registered", False):
             continue
-        if getattr(cls, "bl_space_type", None) in cfg.HIDE_ASSET_SHELVES_IN:
+        if getattr(cls, "bl_space_type", None) in cfg.HIDE_ASSET_SHELVES_IN and \
+                getattr(cls, "bl_idname", cls.__name__) not in cfg.KEEP_ASSET_SHELVES:
             found.append(cls)
     by_id = {getattr(c, "bl_idname", c.__name__): c for c in found}
 

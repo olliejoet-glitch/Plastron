@@ -60,7 +60,11 @@ AREAS = {
             "overlay.show_text": False,
             "overlay.show_stats": False,
             "overlay.show_extras": False,     # Plastron draws the camera frame itself
-            "shading.type": 'SOLID',
+            # Material Preview shows the panels' layer stacks; the paper
+            # colour is the project's world colour (Canvas panel).
+            "shading.type": 'MATERIAL',
+            "shading.use_scene_world": True,
+            "shading.use_scene_lights": True,
         },
     },
     "tools": {

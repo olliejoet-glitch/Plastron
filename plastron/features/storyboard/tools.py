@@ -1,20 +1,23 @@
 """Photoshop-style tool switching and the canvas tool strip.
 
-One operator picks any tool from config/tools.py, switching between
-drawing and selecting modes automatically.
+Tools are Blender's Texture Paint tools + brushes (config/tools.py). Each
+tool remembers the last brush you used with it, so B after picking another
+pencil brush brings that one back.
 """
 
 import bpy
 from bl_ui.space_toolsystem_common import ToolSelectPanelHelper
 
-from ...config.tools import TOOLS
+from ...config.tools import BRUSH_LIBRARY, TOOLS
 
-_MODES = {"PAINT": 'PAINT_GREASE_PENCIL', "EDIT": 'EDIT'}
-_CONTEXT_MODES = {"PAINT": 'PAINT_GREASE_PENCIL', "EDIT": 'EDIT_GREASE_PENCIL'}
+PAINT_MODE = 'TEXTURE_PAINT'      # object mode
+CONTEXT_MODE = 'PAINT_TEXTURE'    # context.mode while painting
+
+_last_brush = {}   # tool id -> (library type, library id, relative id)
 
 
 def tool_table():
-    return [dict(zip(("id", "label", "mode", "blender_tool", "icon", "in_strip"), row))
+    return [dict(zip(("id", "label", "blender_tool", "brush", "icon", "in_strip"), row))
             for row in TOOLS]
 
 
@@ -24,23 +27,53 @@ def _tool(tool_id):
 
 def drawing_object(context):
     obj = context.view_layer.objects.active
-    return obj if obj and obj.type == 'GREASEPENCIL' else None
+    return obj if obj and obj.type == 'MESH' else None
+
+
+def brush(context):
+    return context.tool_settings.image_paint.brush
 
 
 def active_tool_id(context):
     """Plastron id of the active tool, or None."""
-    for mode, context_mode in _CONTEXT_MODES.items():
-        if context.mode != context_mode:
+    if context.mode != CONTEXT_MODE:
+        return None
+    active = context.workspace.tools.from_space_view3d_mode(CONTEXT_MODE, create=False)
+    if active is None:
+        return None
+    b = brush(context)
+    erasing = b is not None and b.blend == 'ERASE_ALPHA'
+    for tool in tool_table():
+        if active.idname != tool["blender_tool"]:
             continue
-        active = context.workspace.tools.from_space_view3d_mode(context_mode, create=False)
-        for tool in tool_table():
-            if tool["mode"] == mode and active and active.idname == tool["blender_tool"]:
-                return tool["id"]
+        if tool["blender_tool"] == "builtin.brush" and erasing != (tool["id"] == "ERASER"):
+            continue
+        return tool["id"]
     return None
 
 
+def _remember(context):
+    tool_id = active_tool_id(context)
+    ref = context.tool_settings.image_paint.brush_asset_reference
+    if tool_id and ref and ref.relative_asset_identifier:
+        _last_brush[tool_id] = (ref.asset_library_type, ref.asset_library_identifier,
+                                ref.relative_asset_identifier)
+
+
+def activate_brush(tool):
+    lib_type, lib_id, rel = _last_brush.get(
+        tool["id"], ('ESSENTIALS', "", BRUSH_LIBRARY + tool["brush"]))
+    try:
+        bpy.ops.brush.asset_activate(asset_library_type=lib_type, asset_library_identifier=lib_id,
+                                     relative_asset_identifier=rel)
+    except RuntimeError:          # a remembered brush that's gone: back to the default
+        _last_brush.pop(tool["id"], None)
+        bpy.ops.brush.asset_activate(asset_library_type='ESSENTIALS',
+                                     relative_asset_identifier=BRUSH_LIBRARY + tool["brush"])
+
+
 class PLASTRON_OT_canvas_tool(bpy.types.Operator):
-    """Pick a drawing tool"""
+    """Pick a painting tool"""
     bl_idname = "plastron.canvas_tool"
     bl_label = "Pick Tool"
     bl_options = {'INTERNAL'}
@@ -59,9 +92,13 @@ class PLASTRON_OT_canvas_tool(bpy.types.Operator):
     def execute(self, context):
         tool = _tool(self.tool)
         obj = drawing_object(context)
-        if obj.mode != _MODES[tool["mode"]]:
-            bpy.ops.object.mode_set(mode=_MODES[tool["mode"]])
-        bpy.ops.wm.tool_set_by_id(name=tool["blender_tool"], space_type='VIEW_3D')
+        if obj.mode != PAINT_MODE:
+            bpy.ops.object.mode_set(mode=PAINT_MODE)
+        _remember(context)
+        activate_brush(tool)
+        if context.workspace.tools.from_space_view3d_mode(CONTEXT_MODE, create=False).idname \
+                != tool["blender_tool"]:
+            bpy.ops.wm.tool_set_by_id(name=tool["blender_tool"], space_type='VIEW_3D')
         return {'FINISHED'}
 
 
@@ -86,21 +123,4 @@ class PLASTRON_PT_tool_strip(bpy.types.Panel):
                          depress=(tool["id"] == current)).tool = tool["id"]
 
 
-class PLASTRON_PT_layers(bpy.types.Panel):
-    """Stage 1: Blender's layer tree. Stage 3 replaces it with Plastron's."""
-    # Shown in the tools area: Blender's Properties "Tool" tab draws the
-    # canvas sidebar's "Tool" category (Blender's own panels there are hidden).
-    bl_space_type = 'VIEW_3D'
-    bl_region_type = 'UI'
-    bl_category = "Tool"
-    bl_label = "Layers"
-
-    @classmethod
-    def poll(cls, context):
-        return drawing_object(context) is not None
-
-    def draw(self, context):
-        self.layout.template_grease_pencil_layer_tree()
-
-
-classes = (PLASTRON_OT_canvas_tool, PLASTRON_PT_tool_strip, PLASTRON_PT_layers)
+classes = (PLASTRON_OT_canvas_tool, PLASTRON_PT_tool_strip)

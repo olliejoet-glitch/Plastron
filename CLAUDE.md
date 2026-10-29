@@ -28,10 +28,13 @@ theme, and keymap, with Photoshop-style drawing shortcuts.
   Blender's name / mute / lock), add tracks, per-track ripple, lock, split,
   delete, loop range, audio mix, canvas follows the playhead (backgrounds
   underneath), undo, autosave + crash recovery.
-- **Next: stage 3** (drawing basics: tools, shortcuts, layers and groups,
-  brush presets, smoothing, pressure, onion skin, cached panel images).
+- **Stage 3 in progress** (drawing basics). Done: RASTER switch (below),
+  tools B / E / G / Shift+B blur / Shift+S smudge, Alt+click colour pick,
+  options bar (brush picker, colour, size, opacity, pressure, smoothing),
+  layers / groups / fills / adjustments / masks / Blend If (`plastron/layers`),
+  cached panel images re-made after edits. Left: brush presets, onion skin.
   Wait for Ollie to ask before starting a stage.
-- **DECIDED: drawing switches from grease pencil to RASTER** (Ollie: wants to
+- **DONE: drawing switched from grease pencil to RASTER** (Ollie: wants to
   select/move pixels, lay down blobs of colour, erase precisely). Brush engine
   = **Blender's own Texture Paint** (fast, Ollie likes the feel, can add his own
   brushes). Panels hold a Photoshop-style layer stack instead of a GP drawing;
@@ -139,12 +142,17 @@ Plastron/
 │  │                         tracks (model over channels), clips (overlap-safe moves),
 │  │                         ripple (pure planners), snapping, mix, track_headers,
 │  │                         header, ops, events (features listen; timeline knows no features)
+│  ├─ layers/                Photoshop-style layer stacks on materials (from CaraPainter):
+│  │                         props, blend_lib, layer_trees, compiler (node trees),
+│  │                         flatten (same maths in numpy), stack (edits), paint_target
+│  │                         (aims Texture Paint at the active layer), ops, ui (Layers panel)
 │  ├─ widgets/               shared UI components (dot graph later)
 │  ├─ features/              one package per feature; list in features/__init__.py
 │  │  └─ storyboard/         canvas_view (navigation), canvas_frame (overlay),
-│  │                         tools (tool switching, tool strip, layers), options_bar,
-│  │                         canvas_color (Canvas panel: paper colour), panels (panel
-│  │                         clips + drawings, New Panel), panel_cache (cached images),
+│  │                         tools (tool switching, tool strip), options_bar,
+│  │                         canvas_color (Canvas panel: paper colour = world colour),
+│  │                         panels (panel clips + layer-stack materials, New Panel),
+│  │                         panel_cache (cached images, re-made after edits),
 │  │                         canvas_sync (what the canvas shows at the playhead)
 │  ├─ presets/               shared presets store (from stage 3)
 │  └─ assets/                icon_256.png, plastron.ico
@@ -160,9 +168,11 @@ Plastron/
 ## Coding conventions
 
 - Target **Blender 5.2 API**. Sequencer strips are `bpy.types.Strip` (not
-  `Sequence`). Grease pencil is **v3**: ID type `bpy.types.GreasePencil`
-  (`bpy.data.grease_pencils`), object type `'GREASEPENCIL'`, modes
-  `'PAINT_GREASE_PENCIL'` / `'EDIT'`. Ignore pre-4.3 GP code and tutorials.
+  `Sequence`). Painting is Texture Paint: object mode `'TEXTURE_PAINT'`,
+  `context.mode` `'PAINT_TEXTURE'`, `image_paint.mode = 'IMAGE'` with
+  `image_paint.canvas` = the image painted. Brushes are assets:
+  `bpy.ops.brush.asset_activate(asset_library_type='ESSENTIALS',
+  relative_asset_identifier="brushes/essentials_brushes-mesh_texture.blend/Brush/<name>")`.
 - Naming: operators `plastron.<area>_<verb>` (e.g. `plastron.panel_new`),
   classes `PLASTRON_OT_*`, `PLASTRON_PT_*`, `PLASTRON_MT_*`, property groups
   `PLASTRON_PG_*`. Project data hangs off `scene.plastron`. Anything named
@@ -202,8 +212,19 @@ Plastron/
 - Its width can't be set from Python: the startup builder drags the edge with
   simulated events (needs two hover moves first; retries a few offsets).
 - Undo reloads data: re-fetch `bpy.context.scene` etc. after undo in tests.
-- Swapping a GP object's data while in drawing mode is fine (canvas_sync
-  relies on it); new strokes go to the swapped-in drawing.
+- Swapping the canvas object's (object-linked) material while in Texture Paint
+  is fine (canvas_sync relies on it); strokes go to `image_paint.canvas`.
+- A finished stroke fires `depsgraph_update_post` once with the painted image
+  in `depsgraph.updates` (panel_cache uses it to re-make the panel image).
+- `Image.copy()` of a packed image reloads the packed file, losing unsaved
+  paint: copy pixels too (layers/stack.py `_clone_image`). Painted packed
+  images must be re-packed on save (layers `_save_pre`).
+- Brush strokes need "Image Paint" `paint.image_paint` in BLENDER_KEEP.
+- Anything reading the screen (Alt+click colour pick with merged, Blender's
+  screenshot) gets black under Xvfb; test it loosely.
+- Material Preview under Xvfb (llvmpipe) is slow to compile shaders, so
+  debounced updates arrive late in tests; it has also crashed once on exit
+  (Mesa, after all checks passed). Re-run before suspecting the code.
 - Keymap clashes: Plastron keys fire on PRESS; Blender items on the same key
   with CLICK / CLICK_DRAG / DOUBLE_CLICK aren't clashes (keymaps.py).
 
@@ -247,21 +268,36 @@ Plastron/
 - Canvas colour: Ollie found white too bright. Default is soft paper
   `#d2cec6`; the Canvas panel (tools area) has swatches (CANVAS_PRESETS in
   config/theme.py) and a picker; the choice is remembered in
-  `plastron_settings.json` (core/user_settings.py).
+  `plastron_settings.json` (core/user_settings.py). It's the project's world
+  colour (the canvas is in Material Preview with the scene world).
 - Canvas: outside the camera frame dimmed (overlay, not render);
   orthographic front view, rotation locked; Blender's camera drawing hidden.
   Canvas is 16 units wide (`CANVAS_WIDTH`).
-- Canvas options bar (replaces Blender's tool header): tool name, brush Size,
-  Opacity (= brush strength). Stage 3 adds presets/smoothing/pressure.
-- Layers panel is Blender's GP layer tree for now; stage 3 replaces it.
+- Canvas options bar (replaces Blender's tool header): tool name, brush
+  picker (Blender's texture brush shelf as a pop-up; the shelf strip under
+  the canvas is hidden), colour, Size, Opacity (= brush strength) with pen
+  pressure toggles, Smooth (stroke smoothing + radius).
+- Tools: Pencil = "Paint Hard Pressure", Eraser = "Erase Hard", Fill, Blur,
+  Smudge (Blender's essential texture brushes; config/tools.py). Each tool
+  remembers the last brush used with it for the session (B brings back your
+  last pencil brush). Photoshop's blur/smudge key R is the view rotate, so
+  they're Shift+B / Shift+S. Alt+click picks the colour you see (merged).
+- Paint resolution 2400×1350 (PAINT_RESOLUTION); the camera frame is the
+  middle 1920×1080, the rest is bleed. New panels start with one paint layer
+  "Sketch". Layer images are 8-bit, packed into the project.
 - Panels: image clip (cached image, "<project>_cache/panel_<uid>.png",
-  temp folder until first save) + its own grease pencil drawing
-  (`strip.plastron_panel.drawing`), holding one keyframe far in the past so
-  timing lives only in the clip. Split copies the drawing. Stage 2 images are
-  plain placeholders; stage 3 renders drawings into them.
-- Canvas: one "Canvas" object (always active, in drawing mode) is handed the
-  active panel's drawing; other video tracks get display-only objects, higher
-  tracks nearer the camera. You draw on the active track's clip under the
+  temp folder until first save) + its own layer-stack material
+  (`strip.plastron_panel.material`). Split copies the painting. The cached
+  image is the camera frame flattened (numpy, layers/flatten.py) over the
+  paper colour at 960×540, re-made 0.4 s after the last stroke / layer edit
+  / undo (and for every panel when the paper colour changes).
+  Opaque for now; the animatic export may want alpha later.
+- Stage-2 (grease pencil) projects: panels get an empty painting on load;
+  their old drawings aren't converted.
+- Canvas: one "Canvas" sheet (a flat mesh, camera frame + bleed, always
+  active, in Texture Paint) is handed the active panel's material; other
+  video tracks get display-only sheets (same mesh, object-linked materials),
+  higher tracks nearer the camera. You draw on the active track's clip under the
   playhead; if it has none there, on the topmost visible, unlocked video
   track's clip (Ollie: scrubbing onto a panel must be enough to draw on it).
   That fallback doesn't change the active track (= where new panels go;
@@ -300,12 +336,14 @@ Plastron/
   Ctrl+= / Ctrl+-). Ctrl+0 fit (frame fills 90 %), Ctrl+1 100 % (preview
   pixels). R hold + move = rotate view, snaps back on release. Ctrl+F flip
   view. **G = Fill** (Photoshop's bucket key). Q/W scale brush ×0.8 / ×1.25.
+  L / M / V / Ctrl+T / Ctrl+C / Ctrl+V / Ctrl+Alt+F are reserved for stage 5's
+  pixel selection and transform.
   Same pan/zoom drags work on the timeline.
 - Timeline keys (stage 2): N new panel, Ctrl+K split, Delete/Backspace delete,
   I / O loop range.
 - Blender keymap stripped to essentials (BLENDER_KEEP in config/keymap.py):
   area resizing, UI widgets, scrolling, ruler scrubbing, typing in the script,
-  drawing strokes, tool click/drag behaviour, strip select/move. No right-click
+  painting strokes, tool click/drag behaviour, strip select/move. No right-click
   menus, no F3 search.
 - Timeline: Plastron header (transport + frame), Blender footer hidden, ruler
   shows timecode, Blender's channel headers until stage 2's track headers.

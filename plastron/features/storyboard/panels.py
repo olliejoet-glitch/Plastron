@@ -1,8 +1,9 @@
 """Storyboard panels: each panel is an image clip on a video track (showing
-its cached image) linked to its own drawing (a grease pencil datablock).
+its cached image) linked to its own painting: a layer-stack material
+(plastron/layers) whose layers are images painted with Texture Paint.
 
-strip.plastron_panel.drawing -> the panel's drawing
-strip.plastron_panel.uid     -> names its cache image
+strip.plastron_panel.material -> the panel's layer stack
+strip.plastron_panel.uid      -> names its cache image
 """
 
 import os
@@ -12,18 +13,14 @@ import bpy
 
 from ...config import project_defaults as defaults, timeline as timeline_cfg
 from ...core import handlers
+from ...layers import stack
 from ...timeline import clips, events, ripple, tracks
 from . import panel_cache
-
-INK = "Ink"
-# Drawings hold one keyframe far in the past, so they show at any frame the
-# panel clip is placed at (panel timing lives in the clip, not in keyframes).
-HOLD_FRAME = -100000
 
 
 class PLASTRON_PG_panel(bpy.types.PropertyGroup):
     uid: bpy.props.StringProperty()
-    drawing: bpy.props.PointerProperty(type=bpy.types.GreasePencil)
+    material: bpy.props.PointerProperty(type=bpy.types.Material)
 
 
 def is_panel(strip):
@@ -34,21 +31,11 @@ def all_panels(scene):
     return [s for s in clips.top_clips(scene) if is_panel(s)]
 
 
-def ink():
-    mat = bpy.data.materials.get(INK)
-    if mat is None:
-        mat = bpy.data.materials.new(INK)
-        bpy.data.materials.create_gpencil_data(mat)
-        mat.grease_pencil.color = defaults.STROKE_COLOR
+def new_painting(name):
+    """An empty layer stack at the paint resolution, with one paint layer."""
+    mat = bpy.data.materials.new(name)
+    stack.init(mat, *defaults.PAINT_RESOLUTION, first_layer=defaults.FIRST_LAYER_NAME)
     return mat
-
-
-def new_drawing(name):
-    gp = bpy.data.grease_pencils.new(name)
-    layer = gp.layers.new("Layer")
-    layer.frames.new(HOLD_FRAME)
-    gp.materials.append(ink())
-    return gp
 
 
 def _next_number(scene):
@@ -70,7 +57,7 @@ def create(scene, channel, start, length):
     strip = clips.editor(scene).strips.new_image(name, path, channel, start, fit_method='FIT')
     strip.right_handle = start + length
     strip.plastron_panel.uid = uid
-    strip.plastron_panel.drawing = new_drawing(name)
+    strip.plastron_panel.material = new_painting(name)
     return strip
 
 
@@ -117,7 +104,7 @@ class PLASTRON_OT_panel_new(bpy.types.Operator):
 # --- Reacting to timeline edits ---------------------------------------------
 
 def _on_split(scene, original, new):
-    """The right half of a split panel gets its own copy of the drawing."""
+    """The right half of a split panel gets its own copy of the painting."""
     if not is_panel(original):
         return
     new.name = f"Panel {_next_number(scene)}"
@@ -125,11 +112,9 @@ def _on_split(scene, original, new):
     panel_cache.copy_for(original.plastron_panel.uid, uid)
     new.plastron_panel.uid = uid
     panel_cache.point_at(new, panel_cache.cache_dir(), uid)
-    drawing = original.plastron_panel.drawing
-    if drawing:
-        copy = drawing.copy()
-        copy.name = new.name
-        new.plastron_panel.drawing = copy
+    painting = original.plastron_panel.material
+    if painting:
+        new.plastron_panel.material = stack.copy_material(painting, new.name)
 
 
 def _on_project_created(scene):
@@ -145,8 +130,12 @@ def ensure_cache(scene, folder=None):
 
 
 def _on_load(scene):
-    if scene is not None:
-        ensure_cache(scene)
+    if scene is None:
+        return
+    for strip in all_panels(scene):
+        if strip.plastron_panel.material is None:     # a stage-2 (grease pencil) panel
+            strip.plastron_panel.material = new_painting(strip.name)
+    ensure_cache(scene)
 
 
 def _save_pre(filepath, *_args):

@@ -71,7 +71,7 @@ def steps():
     h.check("the recovered project still opens in Storyboard mode", h.window().workspace.name == "Storyboard")
     canvas = bpy.data.objects.get("Canvas")
     h.check("...with its panel on the canvas",
-            canvas and canvas.data == panels.all_panels(bpy.context.scene)[0].plastron_panel.drawing)
+            canvas and canvas.material_slots[0].material == panels.all_panels(bpy.context.scene)[0].plastron_panel.material)
 
     # --- Crash detection ------------------------------------------------------------
     h.check("File > Recover menu exists", hasattr(bpy.types, "PLASTRON_MT_recover"))

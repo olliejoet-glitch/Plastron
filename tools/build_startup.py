@@ -32,7 +32,9 @@ def build_steps():
     sys.path.insert(0, REPO)
     from plastron.config import layout as cfg
     from plastron.core import layout, project
-    from plastron.features.storyboard import canvas_sync
+    from plastron.config import project_defaults, tools as tools_cfg
+    from plastron.core.theme import _color
+    from plastron.features.storyboard import canvas_color, canvas_sync
 
     project.register()   # scene.plastron must exist to set up the project
     window = bpy.context.window_manager.windows[0]
@@ -65,6 +67,7 @@ def build_steps():
     for coll in list(scene.collection.children):
         bpy.data.collections.remove(coll)
     project.setup_new_project(scene)
+    canvas_color._world_color(scene, _color("paper")[:3])
     canvas = canvas_sync.canvas_object(scene)
     scene.view_layers[0].objects.active = canvas
     canvas.select_set(True)
@@ -72,12 +75,26 @@ def build_steps():
     bpy.data.orphans_purge(do_recursive=True)
     yield
 
-    # Open in drawing mode with the pencil.
+    # Open in paint mode with the pencil.
     canvas = next(a for a in window.screen.areas if a.type == 'VIEW_3D')
     region = next(r for r in canvas.regions if r.type == 'WINDOW')
+    pencil = tools_cfg.TOOLS[0]
     with bpy.context.temp_override(window=window, area=canvas, region=region):
-        bpy.ops.object.mode_set(mode='PAINT_GREASE_PENCIL')
-        bpy.ops.wm.tool_set_by_id(name="builtin.brush", space_type='VIEW_3D')
+        bpy.ops.object.mode_set(mode='TEXTURE_PAINT')
+        bpy.ops.brush.asset_activate(asset_library_type='ESSENTIALS',
+                                     relative_asset_identifier=tools_cfg.BRUSH_LIBRARY + pencil[3])
+        bpy.ops.wm.tool_set_by_id(name=pencil[2], space_type='VIEW_3D')
+    yield
+    # The brush shelf opens from the options bar; its strip under the canvas stays hidden.
+    shelf = next((r for r in canvas.regions if r.type == 'ASSET_SHELF'), None)
+    if shelf is not None and shelf.height > 1:
+        with bpy.context.temp_override(window=window, area=canvas, region=region):
+            bpy.ops.screen.region_toggle(region_type='ASSET_SHELF')
+    ip = scene.tool_settings.image_paint
+    ip.mode = 'IMAGE'
+    ups = ip.unified_paint_settings
+    ups.use_unified_color = True
+    ups.color = project_defaults.BRUSH_COLOR
     yield
 
     bpy.ops.wm.save_as_mainfile(filepath=OUT, compress=True)

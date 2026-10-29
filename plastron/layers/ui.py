@@ -89,6 +89,7 @@ class PLASTRON_UL_masks(bpy.types.UIList):
 class PLASTRON_PT_layers(_Tools, bpy.types.Panel):
     bl_label = "Layers"
     bl_idname = "PLASTRON_PT_layers"
+    bl_order = 10          # under the tool strip
 
     @classmethod
     def poll(cls, context):
@@ -104,7 +105,7 @@ class PLASTRON_PT_layers(_Tools, bpy.types.Panel):
                 top.prop(act, "group_mode", text="")
             else:
                 top.prop(act, "blend_mode", text="")
-            top.prop(act, "opacity", text="Opacity", slider=True)
+            top.prop(act, "opacity", text="", slider=True)
         row = lay.row()
         row.template_list("PLASTRON_UL_layers", "", st, "layers", st, "active_index", rows=6)
         col = row.column(align=True)

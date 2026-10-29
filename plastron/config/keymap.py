@@ -48,9 +48,9 @@ SHORTCUTS = [
     ("canvas",       "B",                "plastron.canvas_tool",         "Pencil",                 {"tool": 'PENCIL'}),
     ("canvas",       "E",                "plastron.canvas_tool",         "Eraser",                 {"tool": 'ERASER'}),
     ("canvas",       "G",                "plastron.canvas_tool",         "Fill",                   {"tool": 'FILL'}),
-    ("canvas",       "L",                "plastron.canvas_tool",         "Lasso select",           {"tool": 'LASSO'}),
-    ("canvas",       "M",                "plastron.canvas_tool",         "Rectangle select",       {"tool": 'RECT'}),
-    ("canvas",       "V",                "plastron.canvas_tool",         "Move",                   {"tool": 'MOVE'}),
+    ("canvas",       "Shift+B",          "plastron.canvas_tool",         "Blur",                   {"tool": 'BLUR'}),
+    ("canvas",       "Shift+S",          "plastron.canvas_tool",         "Smudge",                 {"tool": 'SMUDGE'}),
+    ("canvas",       "Alt+LMB",          "paint.sample_color",           "Pick colour (what you see)", {"merged": True}),
     ("canvas",       "Q",                "brush.scale_size",             "Smaller brush",          {"scalar": 0.8}),
     ("canvas",       "W",                "brush.scale_size",             "Bigger brush",           {"scalar": 1.25}),
 
@@ -68,11 +68,13 @@ SHORTCUTS = [
     ("canvas",       "Ctrl+F",           "plastron.canvas_flip_view",    "Flip view (drawing unchanged)"),
 
     # --- Canvas: later stages ----------------------------------------------
+    ("canvas",       "L",                "plastron.select_lasso",        "Lasso select"),
+    ("canvas",       "M",                "plastron.select_rect",         "Rectangle select"),
+    ("canvas",       "V",                "plastron.pixels_move",         "Move"),
     ("canvas",       "Ctrl+T",           "plastron.transform",           "Transform"),
-    ("canvas",       "Ctrl+C",           "plastron.strokes_copy",        "Copy strokes"),
-    ("canvas",       "Ctrl+V",           "plastron.strokes_paste",       "Paste strokes in place"),
-    ("canvas",       "Ctrl+Alt+F",       "plastron.strokes_flip",        "Flip strokes / layers"),
-    ("canvas",       "Alt+LMB",          "plastron.eyedropper",          "Eyedropper"),
+    ("canvas",       "Ctrl+C",           "plastron.pixels_copy",         "Copy pixels"),
+    ("canvas",       "Ctrl+V",           "plastron.pixels_paste",        "Paste pixels in place"),
+    ("canvas",       "Ctrl+Alt+F",       "plastron.layer_flip",          "Flip layer"),
 
     # --- Timeline: view ---------------------------------------------------
     ("timeline_view", "Alt+Shift+LMB",   "view2d.pan",                   "Pan (drag)"),
@@ -108,8 +110,7 @@ BLENDER_KEEP = {
     "Time Scrub":            ["*"],                       # click/drag the ruler to scrub
     "Text":                  ["*"],                       # typing in the script panel
     "Text Generic":          ["text.start_find", "text.replace"],
-    "Grease Pencil Brush Stroke": ["grease_pencil.brush_stroke"],  # drawing itself
-    "Grease Pencil Fill Tool": ["*"],
+    "Image Paint":           ["paint.image_paint"],       # painting itself
     "Sequencer":             ["sequencer.select", "sequencer.select_box",
                               "transform.seq_slide"],
     "Sequencer Channels":    ["*"],                       # rename a track (double-click)

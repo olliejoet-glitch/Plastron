@@ -1,5 +1,5 @@
 """Presses the real shortcuts and drags the mouse (simulated input) and checks
-what happens: tools, brush size, canvas navigation, drawing, undo, playback,
+what happens: tools, brush size, canvas navigation, painting, undo, playback,
 typing in the script, timeline pan/zoom/scrub."""
 
 import os
@@ -7,6 +7,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import bpy  # noqa: E402
+import numpy as np  # noqa: E402
 import harness as h  # noqa: E402
 
 canvas_view = h.module("features.storyboard.canvas_view")
@@ -23,9 +24,16 @@ def frame_px():
     return canvas_view.frame_size_px(region, r3d(), canvas_view.camera_frame(bpy.context.scene))
 
 
+def layer_image():
+    return bpy.data.objects["Canvas"].active_material.plastron_stack.active.paint_image
+
+
 def stroke_count():
-    gp = bpy.data.objects["Canvas"].data
-    return sum(len(f.drawing.strokes) for layer in gp.layers for f in layer.frames)
+    """Painted pixels on the active layer (the test's measure of "a stroke")."""
+    img = layer_image()
+    px = np.empty(len(img.pixels), np.float32)
+    img.pixels.foreach_get(px)
+    return int((px[3::4] > 0.05).sum())
 
 
 def tool_now():
@@ -34,8 +42,9 @@ def tool_now():
 
 
 def brush_size():
-    brush = bpy.context.scene.tool_settings.gpencil_paint.brush
-    return brush.unprojected_size if brush.use_locked_size == 'SCENE' else brush.size
+    ip = bpy.context.scene.tool_settings.image_paint
+    ups = ip.unified_paint_settings
+    return ups.size if ups.use_unified_size else ip.brush.size
 
 
 def steps():
@@ -46,12 +55,15 @@ def steps():
     yield
 
     # --- Tools (Photoshop keys) ---------------------------------------------
-    for key, tool in [('E', 'ERASER'), ('G', 'FILL'), ('L', 'LASSO'), ('M', 'RECT'),
-                      ('V', 'MOVE'), ('B', 'PENCIL')]:
-        h.key(key)
+    for key, shift, tool in [('E', False, 'ERASER'), ('G', False, 'FILL'), ('B', True, 'BLUR'),
+                             ('S', True, 'SMUDGE'), ('B', False, 'PENCIL')]:
+        h.key(key, shift=shift)
         yield 0.2
-        h.check(f"{key} picks {tool.lower()}", tool_now() == tool, tool_now())
-    h.check("back in drawing mode after B", bpy.context.object.mode == 'PAINT_GREASE_PENCIL')
+        name = ("Shift+" if shift else "") + key
+        h.check(f"{name} picks {tool.lower()}", tool_now() == tool, tool_now())
+    h.check("still in paint mode after B", bpy.context.object.mode == 'TEXTURE_PAINT')
+    brush = bpy.context.scene.tool_settings.image_paint.brush
+    h.check("B picks a paint brush, not the eraser", brush.blend == 'MIX', brush.blend)
 
     before = brush_size()
     h.key('W')
@@ -62,17 +74,43 @@ def steps():
     h.check("W makes the brush bigger", bigger > before, (before, bigger))
     h.check("Q makes it smaller again", h.close(brush_size(), before, 0.05), (bigger, brush_size()))
 
-    # --- Drawing + undo -----------------------------------------------------
+    # --- Painting + undo ----------------------------------------------------
     n = stroke_count()
     yield from h.drag((cx - 150, cy), (cx + 150, cy + 60))
     yield 0.3
-    h.check("dragging with the pencil draws a stroke", stroke_count() == n + 1, (n, stroke_count()))
+    painted = stroke_count()
+    h.check("dragging with the pencil paints on the layer", painted > n + 100, (n, painted))
     h.key('Z', ctrl=True)
     yield 0.5
     h.check("Ctrl+Z undoes the stroke", stroke_count() == n, stroke_count())
     h.key('Z', ctrl=True, shift=True)
     yield 0.5
-    h.check("Ctrl+Shift+Z redoes it", stroke_count() == n + 1, stroke_count())
+    h.check("Ctrl+Shift+Z redoes it", stroke_count() == painted, stroke_count())
+
+    # Eraser takes paint away; B brings the pencil back.
+    h.key('E')
+    yield 0.2
+    yield from h.drag((cx - 150, cy), (cx + 150, cy + 60))
+    yield 0.3
+    h.check("the eraser removes paint", stroke_count() < painted * 0.5, (painted, stroke_count()))
+    h.key('Z', ctrl=True)
+    yield 0.5
+    h.key('B')
+    yield 0.2
+
+    # Alt+click picks the colour under the mouse. (It reads the screen, which
+    # is black under the test display, so only check that it picked.)
+    ups = bpy.context.scene.tool_settings.image_paint.unified_paint_settings
+    owner = ups if ups.use_unified_color else bpy.context.scene.tool_settings.image_paint.brush
+    owner.color = (1.0, 0.0, 0.0)
+    h.move(cx - 300, cy - 200)              # bare paper
+    yield
+    h.key('LEFTMOUSE', alt=True)
+    yield 0.3
+    picked = tuple(owner.color)
+    h.check("Alt+click picks a colour", picked != (1.0, 0.0, 0.0), picked)
+    owner.color = (0.0, 0.0, 0.0)
+    h.screenshot("painted")
 
     # --- Canvas view --------------------------------------------------------
     h.move(cx, cy)
@@ -141,7 +179,7 @@ def steps():
     back = r3d().view_rotation.rotation_difference(rot).angle
     h.check("releasing R snaps the view back", back < 1e-4, back)
 
-    # Flip view: Ctrl+F mirrors the view, again restores. Drawing untouched.
+    # Flip view: Ctrl+F mirrors the view, again restores. Painting untouched.
     h.move(cx, cy)
     n = stroke_count()
     h.key('F', ctrl=True)
@@ -153,7 +191,7 @@ def steps():
     same = all(abs(a - b) < 1e-4 for ra, rb in zip(r3d().view_rotation.to_matrix(), rot.to_matrix())
                for a, b in zip(ra, rb))
     h.check("Ctrl+F twice restores it", same)
-    h.check("flipping doesn't change the drawing", stroke_count() == n)
+    h.check("flipping doesn't change the painting", stroke_count() == n)
 
     # --- Playback -----------------------------------------------------------
     h.move(cx, cy)
