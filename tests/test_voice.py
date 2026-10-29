@@ -73,6 +73,21 @@ def steps():
     h.check("...and waiting to be transcribed", take.status in {'WAITING', 'RUNNING'}, take.status)
     transcribe.wait_all()
     words = takes.words(takes.active_take(first))
+    worker = h.module("features.voice.transcribe_worker")
+    wav_path = os.path.join(bpy.app.tempdir, "plastron_test_tone.wav")
+    import numpy as np
+    import wave as wavmod
+    tone = (np.sin(2 * np.pi * 440 * np.arange(48000) / 48000) * 16000).astype(np.int16)
+    with wavmod.open(wav_path, "wb") as w:
+        w.setnchannels(1)
+        w.setsampwidth(2)
+        w.setframerate(48000)
+        w.writeframes(tone.tobytes())
+    audio = worker.load_audio(wav_path)
+    spectrum = np.abs(np.fft.rfft(audio))
+    h.check("recordings are handed to Whisper as 16 kHz audio (no audio decoder needed)",
+            audio.dtype == np.float32 and len(audio) == 16000 and 0.4 < np.abs(audio).max() < 0.55
+            and abs(np.argmax(spectrum) - 440) <= 1, (len(audio), float(np.abs(audio).max())))
     h.check("the transcript arrives (words with times)",
             [w for w, _s, _e in words] == "hello there this is my first line".split()
             and all(0 <= s < e <= take.duration + 0.01 for _w, s, e in words), words)
@@ -133,9 +148,12 @@ def steps():
     h.redraw()
     boxes, _ell, bands = bar.layout_for(region, sc)
     first_words = [b for b in boxes if b["strip"] == first.name]
-    h.check("each voice clip's words show in its track's transcript bar",
-            [b["text"] for b in first_words] == ["hello", "there", "this", "is", "my", "first", "line"]
-            and len(bands) == 2, [b["text"] for b in first_words])
+    said = "hello there this is my first line".split()
+    shown = [b["text"] for b in first_words]
+    _boxes, ellipses, _bands = bar.layout_for(region, sc)
+    h.check("each voice clip's words show in its track's transcript bar (in order, '…' if they don't all fit)",
+            len(bands) == 2 and len(shown) >= 3 and shown == said[:len(shown)]
+            and (len(shown) == len(said) or ellipses), shown)
     x0 = region.view2d.view_to_region(clips.start(first), 0, clip=False)[0]
     x1 = region.view2d.view_to_region(clips.end(first), 0, clip=False)[0]
     h.check("...inside the clip's edges", all(x0 <= b["x"] and b["x"] + b["w"] <= x1 + 1 for b in first_words))
@@ -189,9 +207,9 @@ def steps():
     texts = heard(pieces[0]) + heard(pieces[1])
     h.check("...and those words are gone (the rest still line up with their audio)",
             texts == ["hello", "there", "my", "first", "line"], texts)
-    trimmed = [b["text"] for b in boxes if b["strip"] in {p.name for p in pieces} and b["trimmed"]]
-    h.check("...shown greyed out where trimmed (wrapped view)", "this" in trimmed or "is" in trimmed
-            or not trimmed, trimmed)
+    wrong = [(b["strip"], b["text"]) for b in boxes if b["strip"] in {p.name for p in pieces}
+             and b["trimmed"] == (b["text"] in heard(sc.sequence_editor.strips_all[b["strip"]]))]
+    h.check("...each piece greys out exactly the words trimmed off it", not wrong, wrong)
 
     # Collapse: one line with "…".
     voice = track("Voice")

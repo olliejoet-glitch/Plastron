@@ -39,6 +39,33 @@ def fake(path, out_path):
     return [[n, round(i * step + 0.02, 3), round((i + 0.8) * step, 3)] for i, n in enumerate(names)]
 
 
+def load_audio(path, rate=16000):
+    """Our WAV recordings -> mono float32 at 16 kHz, what Whisper wants.
+    (Done here, not by faster-whisper, whose PyAV-based loader breaks with
+    newer PyAV versions.)"""
+    import numpy as np
+    with wave.open(path) as w:
+        channels, width, src = w.getnchannels(), w.getsampwidth(), w.getframerate()
+        data = w.readframes(w.getnframes())
+    kind = {1: np.uint8, 2: np.int16, 4: np.int32}[width]
+    audio = np.frombuffer(data, kind).astype(np.float32)
+    if width == 1:
+        audio -= 128.0
+    audio /= float(2 ** (8 * width - 1))
+    audio = audio.reshape(-1, channels).mean(axis=1)
+    if src == rate:
+        return audio
+    if src % rate == 0:
+        # Low-pass (windowed sinc, cut at the new Nyquist) then keep every n-th sample.
+        n = src // rate
+        taps = np.arange(-32, 33)
+        kernel = np.sinc(taps / n) * np.hamming(len(taps))
+        kernel /= kernel.sum()
+        return np.convolve(audio, kernel, mode="same")[::n].astype(np.float32)
+    t = np.arange(int(len(audio) * rate / src)) * (src / rate)
+    return np.interp(t, np.arange(len(audio)), audio).astype(np.float32)
+
+
 def _model_cached(model_name):
     hub = os.path.join(os.environ.get("HF_HOME", ""), "hub")
     return os.path.isdir(hub) and any(model_name in d for d in os.listdir(hub))
@@ -53,7 +80,7 @@ def whisper(path, model_name, prompt, out_path):
         status(out_path, "Loading the speech model...")
     model = WhisperModel(model_name, device="cpu", compute_type="int8")
     status(out_path, "Transcribing 0%")
-    segments, info = model.transcribe(path, word_timestamps=True, initial_prompt=prompt or None,
+    segments, info = model.transcribe(load_audio(path), word_timestamps=True, initial_prompt=prompt or None,
                                       vad_filter=False, condition_on_previous_text=False)
     out = []
     for segment in segments:

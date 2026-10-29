@@ -267,6 +267,10 @@ Plastron/
   added LATER first (SHORTCUTS order reversed).
 - Stripping keymaps must keep "File Browser*" or Open / Save / Import
   dialogs can't be clicked.
+- faster-whisper's own audio loader passes `metadata_errors` to PyAV's
+  `av.open`, which PyAV 19 removed (TypeError). The worker reads our WAVs
+  itself (numpy, resampled to 16 kHz) and hands Whisper an array, which
+  skips that loader.
 - Keymap clashes: Plastron keys fire on PRESS; Blender items on the same key
   with CLICK / CLICK_DRAG / DOUBLE_CLICK aren't clashes (keymaps.py).
 
