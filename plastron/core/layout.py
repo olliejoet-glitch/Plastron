@@ -92,6 +92,7 @@ def configure_area(area, spec):
         "header": "show_region_header", "footer": "show_region_footer",
         "tool_header": "show_region_tool_header", "toolbar": "show_region_toolbar",
         "sidebar": "show_region_ui", "channels": "show_region_channels",
+        "hud": "show_region_hud",
     }
     for key, attr in flags.items():
         if key in spec and hasattr(space, attr):

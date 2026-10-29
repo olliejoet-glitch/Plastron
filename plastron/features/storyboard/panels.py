@@ -120,6 +120,7 @@ def _on_split(scene, original, new):
     """The right half of a split panel gets its own copy of the drawing."""
     if not is_panel(original):
         return
+    new.name = f"Panel {_next_number(scene)}"
     uid = uuid.uuid4().hex[:10]
     panel_cache.copy_for(original.plastron_panel.uid, uid)
     new.plastron_panel.uid = uid

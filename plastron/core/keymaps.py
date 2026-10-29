@@ -95,7 +95,10 @@ def _strip_blender_keys(user_kc, addon_kc, taken):
             if (km.name, kmi.idname) + _signature(km.name, kmi)[1:] in ours:
                 continue
             kept = any(fnmatch.fnmatchcase(kmi.idname, p) for p in keep)
-            if kept and _signature(km.name, kmi) not in taken:
+            # Plastron's keys fire on press; a kept Blender item on the same key
+            # only clashes if it also fires on press (click / drag items don't).
+            clashes = _signature(km.name, kmi) in taken and kmi.value in {'PRESS', 'ANY'}
+            if kept and not clashes:
                 continue
             if kmi.active:
                 kmi.active = False

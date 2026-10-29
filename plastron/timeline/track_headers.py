@@ -22,18 +22,27 @@ def _ui(px):
     return px * bpy.context.preferences.system.ui_scale
 
 
-def row_span(region, ch):
-    """(bottom, top) pixel y of a channel row in a channel-column region."""
-    v2d = region.view2d
-    return v2d.view_to_region(0, ch, clip=False)[1], v2d.view_to_region(0, ch + 1, clip=False)[1]
+def _main(area):
+    return next(r for r in area.regions if r.type == 'WINDOW')
 
 
-def widgets(region, scene):
+# Rows are measured on the timeline's main region: the channel column's own
+# view isn't kept in step with it by Blender, but their rows always line up.
+def row_span(area, region, ch):
+    """(bottom, top) pixel y, in region's coordinates, of a channel row."""
+    main = _main(area)
+    v2d = main.view2d
+    offset = main.y - region.y
+    return (v2d.view_to_region(0, ch, clip=False)[1] + offset,
+            v2d.view_to_region(0, ch + 1, clip=False)[1] + offset)
+
+
+def widgets(area, region, scene):
     """[(track index, widget id, (x0, y0, x1, y1))] for every visible widget."""
     out = []
     size = _ui(cfg.HEADER_TOGGLE_PX)
     for i, track in enumerate(tracks.all_tracks(scene)):
-        y0, y1 = row_span(region, tracks.channel(i))
+        y0, y1 = row_span(area, region, tracks.channel(i))
         if y1 < 0 or y0 > region.height:
             continue
         h = min(size, (y1 - y0) * 0.8)
@@ -48,16 +57,17 @@ def widgets(region, scene):
     return out
 
 
-def hit(region, scene, x, y):
-    for i, wid, (x0, y0, x1, y1) in widgets(region, scene):
+def hit(area, region, scene, x, y):
+    for i, wid, (x0, y0, x1, y1) in widgets(area, region, scene):
         if x0 <= x <= x1 and y0 <= y <= y1:
             return i, wid, (x0, y0, x1, y1)
     return None
 
 
-def row_at(region, scene, y):
-    """Track index of the row at pixel y, or None."""
-    ch = int(region.view2d.region_to_view(0, y)[1])
+def row_at(area, region, scene, y):
+    """Track index of the row at pixel y (region coordinates), or None."""
+    main = _main(area)
+    ch = int(main.view2d.region_to_view(0, y + region.y - main.y)[1])
     return tracks.index_of_channel(scene, ch)
 
 
@@ -74,7 +84,7 @@ def _c(name):
 def draw():
     context = bpy.context
     scene = context.scene
-    region = context.region
+    area, region = context.area, context.region
     if scene is None or not hasattr(scene, "plastron_timeline"):
         return
     shader = gpu.shader.from_builtin('UNIFORM_COLOR')
@@ -83,14 +93,14 @@ def draw():
     labels = {wid: label for wid, label, _k in cfg.HEADER_WIDGETS}
 
     for i, track in enumerate(tracks.all_tracks(scene)):
-        y0, y1 = row_span(region, tracks.channel(i))
+        y0, y1 = row_span(area, region, tracks.channel(i))
         marker = "active_track" if active and track.uid == active.uid else (
             "video_track" if track.kind == 'VIDEO' else "audio_track")
         _rect(shader, 0, y0 + 1, _ui(3), y1 - 1, _c(marker))
 
     font = 0
     blf.size(font, _ui(11))
-    for i, wid, (x0, y0, x1, y1) in widgets(region, scene):
+    for i, wid, (x0, y0, x1, y1) in widgets(area, region, scene):
         track = scene.plastron_timeline.tracks[i]
         if wid == "VOLUME":
             _rect(shader, x0, y0, x1, y1, _c("volume_back"))

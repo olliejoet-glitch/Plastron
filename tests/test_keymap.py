@@ -15,9 +15,12 @@ util = h.module("core.util")
 # Actions that are expected to be missing until later stages.
 LATER_STAGES = {
     "plastron.transform", "plastron.strokes_copy", "plastron.strokes_paste",
-    "plastron.strokes_flip", "plastron.eyedropper", "plastron.panel_new",
-    "plastron.clip_split", "plastron.clip_delete", "plastron.loop_in", "plastron.loop_out",
+    "plastron.strokes_flip", "plastron.eyedropper",
 }
+# Plastron actions on a plain click that pass the click on to Blender when
+# they don't apply (e.g. clip_trim lets Blender select / move a clip unless
+# the click is on a clip edge), so sharing that key is intended.
+PASS_THROUGH = {"plastron.clip_trim", "plastron.track_header_click"}
 
 
 def find(km, action, key):
@@ -56,7 +59,7 @@ def steps():
     #    (one of the two would never fire).
     clashes = []
     for entry in keymaps.entries():
-        if not util.operator_exists(entry["action"]):
+        if not util.operator_exists(entry["action"]) or entry["action"] in PASS_THROUGH:
             continue
         km = user.keymaps.get(cfg.WHERE[entry["where"]][0])
         key_type, flags = keymaps.parse_key(entry["key"])
@@ -95,6 +98,9 @@ def steps():
         ("Time Scrub", "anim.change_frame"),                # scrubbing on the ruler
         ("Grease Pencil Brush Stroke", "grease_pencil.brush_stroke"),  # drawing
         ("User Interface", "ui.eyedropper_color"),
+        ("Sequencer", "sequencer.select"),                  # click a clip
+        ("Sequencer", "transform.seq_slide"),               # drag a clip to move it
+        ("Sequencer Channels", "sequencer.rename_channel"), # double-click a track name
     ]
     off = [f"{km}: {op}" for km, op in kept if not active(km, op)]
     h.check("essential Blender shortcuts kept", not off, off)

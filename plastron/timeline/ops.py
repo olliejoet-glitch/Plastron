@@ -41,9 +41,9 @@ class PLASTRON_OT_track_header_click(bpy.types.Operator):
             return {'PASS_THROUGH'}
         scene = context.scene
         x, y = event.mouse_region_x, event.mouse_region_y
-        found = track_headers.hit(region, scene, x, y)
+        found = track_headers.hit(context.area, region, scene, x, y)
         if found is None:
-            index = track_headers.row_at(region, scene, y)
+            index = track_headers.row_at(context.area, region, scene, y)
             if index is not None:
                 tracks.set_active(scene, scene.plastron_timeline.tracks[index])
                 region.tag_redraw()

@@ -190,7 +190,7 @@ def fit_all_canvases():
                 area.tag_redraw()
             elif area.type == 'SEQUENCE_EDITOR':
                 with bpy.context.temp_override(window=window, area=area, region=region):
-                    bpy.ops.sequencer.view_all()
+                    bpy.ops.anim.scene_range_frame()   # whole project, tracks stay in view
 
 
 classes = (

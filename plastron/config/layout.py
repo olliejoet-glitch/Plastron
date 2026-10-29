@@ -29,6 +29,7 @@ DEFAULT_MODE = "Storyboard"
 #   tool_header  canvas only: Plastron's options bar (like Photoshop's)
 #   toolbar      Blender's own tool column (Plastron uses its tool strip instead)
 #   sidebar      Blender's right-hand panel
+#   hud          Blender's "adjust last operation" pop-up panel
 #   channels     timeline only: the track headers column
 #   channels_width  timeline only: its width in pixels (at 100 % UI scale)
 #   settings     any other editor setting, as "property path": value
@@ -47,7 +48,7 @@ AREAS = {
     },
     "canvas": {
         "editor": 'VIEW_3D',
-        "header": False, "tool_header": True, "toolbar": False, "sidebar": False,
+        "header": False, "tool_header": True, "toolbar": False, "sidebar": False, "hud": False,
         "settings": {
             "show_gizmo_navigate": False,
             "overlay.show_floor": False,
@@ -69,7 +70,8 @@ AREAS = {
     },
     "timeline": {
         "editor": 'SEQUENCE_EDITOR',
-        "header": True, "footer": False, "toolbar": False, "sidebar": False, "channels": True,
+        "header": True, "footer": False, "toolbar": False, "sidebar": False, "hud": False,
+        "channels": True,
         "channels_width": 260,
         "settings": {
             "view_type": 'SEQUENCER',
