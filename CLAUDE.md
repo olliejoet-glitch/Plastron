@@ -17,101 +17,203 @@ theme, and keymap, with Photoshop-style drawing shortcuts.
   project, timeline, and media.
 - GPL-3.0, personal use.
 
+## Status
+
+- **Stage 1 done**: app template, Windows installer + self-updating launcher,
+  storyboard layout, theme, top bar, keymap (Blender's stripped), canvas
+  navigation, Photoshop tool keys, tool strip, test runner.
+- **Next: stage 2** (panels as clips: create, resize, scrub, multiple tracks,
+  per-track ripple and lock, split, snapping, undo, autosave). Wait for Ollie
+  to ask before starting a stage.
+
 ## Ollie's standing preferences (always apply)
 
 1. **Never make Blender re-evaluate every frame.** Cache, bake, and recalculate
    only on edits. Concretely:
    - No drivers. No per-frame `frame_change_*` / `depsgraph_update_*` work
      unless it's an O(1) "did anything relevant change?" check that returns early.
+     All handlers go through `core/handlers.py`; a test fails if any per-frame
+     handler appears (update that test deliberately if one is ever justified).
    - Panels show on the timeline as cached images, re-rendered only when edited.
    - Destructive edits (warp, perspective, flips) are applied to strokes on
      confirm, never as live modifiers.
    - Derived values (e.g. strip volume = clip × track volume) are written on
      edit, not computed live.
 2. **Minimal manual testing.** Test everything possible by running Blender
-   headless (or under Xvfb) from scripts. At the end of each stage, give Ollie a
-   **short** list of only the things that need checking by eye.
+   from scripts (see Testing). At the end of each stage, give Ollie a **short**
+   list of only the things that need checking by eye.
 3. **Easy to change.** Ollie regularly asks to move, remove, or change things.
-   Layout, keymap, theme, presets, and hidden UI live in `plastron/config/` and
-   `plastron/presets/`, one obvious file each. Feature code never hard-codes a
-   key, colour, or area size.
+   Layout, keymap, tools, theme, presets, and hidden UI live in
+   `plastron/config/` (and later `plastron/presets/`), one obvious file each.
+   Feature code never hard-codes a key, colour, or area size.
 4. **Commit after each working step** with clear messages.
 5. Where the brief doesn't specify a detail, pick the simplest option that fits
    and log it in "Decisions log" below so it can be changed later.
+6. Ollie wants as little manual setup as humanly possible.
 
 ## Ollie's setup
 
 - Windows 10, NVIDIA GPU, Wacom Intuos Pro.
 - Uses Blender's "Emulate 3 button mouse" navigation: **Alt+Shift+drag = pan**,
-  **Ctrl+Alt+drag = zoom**. Plastron uses these, not Space+drag.
+  **Ctrl+Alt+drag = zoom**. Plastron binds these itself (emulation is off).
 - Final renders are 4K; storyboard work runs at a lighter preview resolution.
+
+## Install and updates (Windows)
+
+- One-time: `irm https://raw.githubusercontent.com/olliejoet-glitch/Plastron/main/install/install.ps1 | iex`
+- Everything lives in `C:\Plastron`: `blender\` (portable: has a `portable\`
+  folder, so Ollie's normal Blender is untouched), `app\` (this repo at a
+  commit), `launch.ps1`, `plastron.ico`.
+- The desktop/Start-menu shortcut runs `launch.ps1` (hidden): it downloads the
+  latest `main` from GitHub if changed, copies `plastron/` into
+  `blender\portable\scripts\startup\bl_app_templates_user\plastron`, makes sure
+  the Blender version in `install/blender_version.txt` is installed, then starts
+  Blender with `--app-template plastron`. Offline: starts the installed copy.
+- **Ollie gets new work only when it reaches `main`.** Bumping
+  `install/blender_version.txt` makes every launcher download that Blender.
+- The PowerShell scripts can't be run here (no PowerShell allowed); keep them
+  ASCII-only (PowerShell 5.1) and review them carefully.
 
 ## Folder structure
 
-> Status: **proposed, awaiting Ollie's OK** (see the proposal in the session).
-> Update this section once agreed.
-
 ```
-Plastron/                         repo root (Ollie's clone)
-├─ CLAUDE.md                      this file
+Plastron/
+├─ CLAUDE.md, README.md, LICENSE (GPL-3.0)
 ├─ Plastron storyboard mode build brief.md
-├─ install/                       Windows installer (portable Blender + shortcut)
-├─ plastron/                      THE app template (linked into portable Blender)
-│  ├─ __init__.py                 register()/unregister(): core, then features
-│  ├─ config/                     ★ everything Ollie asks to tweak
-│  │  ├─ keymap.py                every shortcut, one table
-│  │  ├─ layout.py                each mode's areas, sizes, visible regions
-│  │  ├─ theme.py                 colours
-│  │  ├─ hidden_ui.py             Blender menus/panels/headers to hide
-│  │  └─ project_defaults.py      resolution, fps, autosave settings
-│  ├─ presets/                    shared presets store (JSON), one folder per kind
-│  ├─ core/                       shared systems (no feature logic)
-│  ├─ timeline/                   the one shared timeline + track system
-│  ├─ widgets/                    shared UI components (dot graph, drawing helpers)
-│  ├─ features/                   one package per feature, each self-registering
-│  └─ assets/                     icon, images
-└─ tests/                         headless + Xvfb test runner and tests
+├─ install/
+│  ├─ install.ps1            one-time bootstrap (downloads launch.ps1, runs it with -Install)
+│  ├─ launch.ps1             self-updating launcher (shortcut target)
+│  └─ blender_version.txt    pinned Blender version
+├─ plastron/                 THE app template
+│  ├─ __init__.py            register: core → ui → timeline → features → keymaps (last)
+│  ├─ startup.blend          GENERATED by tools/build_startup.py; never edit by hand
+│  ├─ config/                ★ everything Ollie asks to tweak
+│  │  ├─ keymap.py           every shortcut (+ which Blender keys survive: BLENDER_KEEP)
+│  │  ├─ layout.py           each mode's areas, sizes, visible regions
+│  │  ├─ tools.py            drawing tools, tool strip order
+│  │  ├─ theme.py            palette + where each colour is used; canvas overlay colours
+│  │  ├─ hidden_ui.py        Blender panels/shelves to hide, headers to replace
+│  │  ├─ preferences.py      Blender preferences set at every start
+│  │  └─ project_defaults.py resolution, fps, audio, canvas size (new projects)
+│  ├─ core/                  shared systems, no feature logic
+│  │  ├─ handlers.py         the only place app handlers are added (on_load etc.)
+│  │  ├─ keymaps.py          builds keymap from config, strips Blender's
+│  │  ├─ layout.py           builds mode workspaces (used by the build script)
+│  │  ├─ project.py          scene.plastron data; new-project setup; ensure on load
+│  │  ├─ hidden_ui.py        hides panels (never-poll) and swaps header draws
+│  │  ├─ theme.py, preferences.py, modes.py, util.py
+│  ├─ ui/topbar.py           slim top bar: File menu, undo/redo, mode switcher
+│  ├─ timeline/              the one shared timeline (stage 1: header only)
+│  ├─ widgets/               shared UI components (dot graph later)
+│  ├─ features/              one package per feature; list in features/__init__.py
+│  │  └─ storyboard/         canvas_view (navigation), canvas_frame (overlay),
+│  │                         tools (tool switching, tool strip, layers), options_bar
+│  ├─ presets/               shared presets store (from stage 3)
+│  └─ assets/                icon_256.png, plastron.ico
+├─ tools/
+│  ├─ build_startup.py       python tools/build_startup.py → plastron/startup.blend
+│  └─ blender_env.py         portable test Blender under Xvfb
+└─ tests/
+   ├─ run_tests.py           python tests/run_tests.py [name-filter]
+   ├─ harness.py             in-Blender helpers: checks, simulated keys/drags, screenshots
+   └─ test_*.py              one Blender session per file
 ```
 
 ## Coding conventions
 
 - Target **Blender 5.2 API**. Sequencer strips are `bpy.types.Strip` (not
-  `Sequence`). Grease pencil is **v3**: ID type `bpy.types.GreasePencil`,
-  object type `'GREASEPENCIL'`. Ignore pre-4.3 GP code and tutorials.
+  `Sequence`). Grease pencil is **v3**: ID type `bpy.types.GreasePencil`
+  (`bpy.data.grease_pencils`), object type `'GREASEPENCIL'`, modes
+  `'PAINT_GREASE_PENCIL'` / `'EDIT'`. Ignore pre-4.3 GP code and tutorials.
 - Naming: operators `plastron.<area>_<verb>` (e.g. `plastron.panel_new`),
   classes `PLASTRON_OT_*`, `PLASTRON_PT_*`, `PLASTRON_MT_*`, property groups
-  `PLASTRON_PG_*`. Project data hangs off `scene.plastron`.
+  `PLASTRON_PG_*`. Project data hangs off `scene.plastron`. Anything named
+  `PLASTRON_*` is never hidden by hidden_ui.
 - Every package exposes `register()` / `unregister()` and cleans up fully
   (handlers, keymaps, draw handlers, timers).
-- All app handlers go through `core` (one place to audit for per-frame cost).
-- Keep modules small and single-purpose. Prefer plain data tables in `config/`
-  over logic.
+- New features: add a package under `features/`, add its name to
+  `features/__init__.py`, put its shortcuts in `config/keymap.py`.
+- Operators that change a view must call `context.area.tag_redraw()`.
+- Keep modules small and single-purpose. Prefer plain data tables in `config/`.
+- After changing `config/layout.py`, `config/project_defaults.py`,
+  `core/layout.py` or `core/project.py`: run `python tools/build_startup.py`
+  (a test fails until you do) and commit the new `startup.blend`.
 
 ## Testing
 
-- Blender here: `/usr/local/bin/blender` (5.2.3 LTS, Linux). Headless:
-  `blender -b --factory-startup --python <script>`. GUI tests (layout, screen,
-  screenshots): `xvfb-run -a -s "-screen 0 1920x1080x24" blender ...`.
-- Keyconfigs are fully populated in `-b` mode, so keymap tests can run headless.
-- Run all tests: see `tests/` (runner added in stage 1).
+- `python tests/run_tests.py` runs every `tests/test_*.py` in a fresh portable
+  Blender (hard-linked copy in `.cache/blender`, template symlinked in, config
+  wiped) with the real UI under Xvfb and `--enable-event-simulate`. Any
+  traceback/error in the console fails the test. Logs, JSON results and
+  screenshots go to `tests/output/` (look at the screenshots: Read the PNG).
+- Tests are generators: `yield` lets Blender process events and redraw.
+  Simulate input with `h.key()`, `h.drag()`, `h.type_text()`; force a draw with
+  `h.redraw()` before reading view matrices.
+
+### Blender gotchas learned (don't relearn them)
+
+- In `-b` (background) mode keymaps have **no items**: keymap tests need the UI.
+- Blender imports the template as `bl_app_templates_user.plastron`
+  (use `h.module("core.layout")` in tests).
+- Add-ons (Cycles) register **after** the template, and Blender finishes its
+  keymaps after too: panel hiding and keymap stripping run from a timer.
+- Never unregister Blender's panels (add-ons `append` to them); hidden_ui
+  re-registers them with a never-true `poll`. Same for asset shelves
+  (`show_region_asset_shelf` is read-only).
+- C-defined panels (e.g. the 3D view's Item/Transform) can't be hidden, so the
+  canvas sidebar stays off. The tools area is a Properties editor on its "Tool"
+  tab, which draws `VIEW_3D`/`UI` panels with `bl_category = "Tool"`.
+- Area geometry updates only after a UI refresh; setting region flags on an
+  area whose type just changed crashes Blender. The layout builder yields
+  between steps.
+- Loading a file cancels non-persistent timers (`persistent=True` if needed).
+- Blender 5 timelines show `workspace.sequencer_scene`, not the window scene;
+  `core/project.py` points it at the project scene on every load.
+- View matrices (`region_data.perspective_matrix`) are stale until a redraw;
+  canvas zoom maths uses Blender's ortho formula instead (canvas_view.py).
+- `bpy.ops.screen.screenshot` is black under Xvfb; the harness uses
+  ImageMagick `import -window root`.
+- Blender 5.2 ships a "Storyboarding" app template with scene strips +
+  `workspace.use_scene_time_sync` (Storypencil built in). Consider it for the
+  stage 2-3 panel design, but panels must show as cached images on the timeline.
 
 ## Decisions log (unspecified details, changeable later)
 
-- Blender pinned to **5.2.3 LTS**.
-- Frame rate **24 fps** (YouTube has no default; it keeps the upload's rate,
-  and 24 is the animation standard). Project resolution **3840×2160** (final
-  4K), storyboard preview and cached panel images at **50 % (1920×1080)**.
-- Space = play/pause only. Pan = Alt+Shift+drag (also middle-mouse drag),
-  zoom = Ctrl+Alt+drag (also wheel). R (hold) + drag = rotate canvas view,
-  snapping back on release. Ctrl+= / Ctrl+- zoom, Ctrl+0 fit, Ctrl+1 100 %.
-- Timeline keys: N = new panel at playhead, Ctrl+K = split, Delete/Backspace =
-  delete, I / O = loop range in / out.
-- Blender's keymap is stripped to Plastron's keys plus essentials (text
-  editing, UI widgets, modal maps).
-- Top bar: slim, with File menu, mode switcher, undo/redo.
-- Autosave every 2 min, keep last 5, in a folder beside the project, with
-  File > Recover.
-- Theme: dark teal throughout, orange and blue highlights (based on Ollie's
-  current Blender theme).
+- Blender pinned to **5.2.3 LTS** (`install/blender_version.txt`).
+- Install root `C:\Plastron`; shortcuts on desktop and Start menu; Ollie's
+  copy updates from `main` at every launch.
+- Frame rate **24 fps** (YouTube keeps the upload's rate; 24 is the animation
+  standard). Project resolution **3840×2160**, previews at **50 %**.
+- Colour view transform **Standard** (AgX shifts greys).
+- Layout: script 18 % | canvas 70 % | tools 12 %, timeline 30 % high.
+  No status bar (messages show in the top bar).
+- Top bar: Plastron icon, File (New, Open, Open Recent, Save, Save As, Recover,
+  Quit), undo/redo, mode switcher. Project name on the right.
+- Canvas: white paper; outside the camera frame dimmed (overlay, not render);
+  orthographic front view, rotation locked; Blender's camera drawing hidden.
+  Canvas is 16 units wide (`CANVAS_WIDTH`).
+- Canvas options bar (replaces Blender's tool header): tool name, brush Size,
+  Opacity (= brush strength). Stage 3 adds presets/smoothing/pressure.
+- Layers panel is Blender's GP layer tree for now; stage 3 replaces it.
+- Stage 1 canvas is one placeholder camera + "Sketch" GP object; stage 2-3
+  replace it with one drawing per panel.
+- Keys: Space = play/pause (types a space in the script panel). Pan =
+  Alt+Shift+drag (also middle-mouse drag), zoom = Ctrl+Alt+drag (also wheel,
+  Ctrl+= / Ctrl+-). Ctrl+0 fit (frame fills 90 %), Ctrl+1 100 % (preview
+  pixels). R hold + move = rotate view, snaps back on release. Ctrl+F flip
+  view. **G = Fill** (Photoshop's bucket key). Q/W scale brush ×0.8 / ×1.25.
+  Same pan/zoom drags work on the timeline.
+- Timeline keys (stage 2): N new panel, Ctrl+K split, Delete/Backspace delete,
+  I / O loop range.
+- Blender keymap stripped to essentials (BLENDER_KEEP in config/keymap.py):
+  area resizing, UI widgets, scrolling, ruler scrubbing, typing in the script,
+  drawing strokes, tool click/drag behaviour, strip select/move. No right-click
+  menus, no F3 search.
+- Timeline: Plastron header (transport + frame), Blender footer hidden, ruler
+  shows timecode, Blender's channel headers until stage 2's track headers.
+- Blender preferences aren't saved; `config/preferences.py` is applied at each
+  start (no splash, opening projects keeps Plastron's layout, 64 undo steps).
+- Theme: dark teal, orange (selection/active) and blue (playhead/secondary),
+  sampled from Ollie's Blender theme.
 - Value swatches (value groups sampled from an image) are **deferred** to the
   later "value group editor" feature. Don't build them in storyboard mode.

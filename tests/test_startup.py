@@ -22,6 +22,11 @@ def steps():
     screen = win.screen
 
     h.check("app template is Plastron", prefs.app_template == "plastron", prefs.app_template)
+    pinned_file = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                               "install", "blender_version.txt")
+    pinned = open(pinned_file).read().strip()
+    h.check("tested on the Blender version the installer pins",
+            bpy.app.version_string.split()[0] == pinned, (bpy.app.version_string, pinned))
     h.check("opens in Storyboard mode", win.workspace.name == "Storyboard", win.workspace.name)
     h.check("only Plastron's workspaces exist",
             sorted(w.name for w in bpy.data.workspaces) == sorted(layout_cfg.MODES),
