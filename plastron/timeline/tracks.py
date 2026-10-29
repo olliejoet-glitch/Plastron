@@ -111,7 +111,12 @@ def active(scene):
 def set_active(scene, track):
     for i, t in enumerate(scene.plastron_timeline.tracks):
         if t.uid == track.uid:
-            scene.plastron_timeline.active_track = i
+            if scene.plastron_timeline.active_track != i:
+                scene.plastron_timeline.active_track = i
+                for window in bpy.context.window_manager.windows:   # its highlight moves
+                    for area in window.screen.areas:
+                        if area.type == 'SEQUENCE_EDITOR':
+                            area.tag_redraw()
             events.active_track_changed(scene)
             return
 

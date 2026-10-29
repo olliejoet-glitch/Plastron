@@ -46,10 +46,19 @@ def status():
     return _state["status"]
 
 
-def _python():
+def python():
+    """Blender's bundled Python executable (never Blender itself), or None."""
     exe = sys.executable
-    # Blender's sys.executable is its bundled Python; never Blender itself.
-    return exe if "python" in os.path.basename(exe).lower() else None
+    if exe and "python" in os.path.basename(exe).lower() and os.path.exists(exe):
+        return exe
+    import glob
+    here = os.path.dirname(bpy.app.binary_path)
+    version = f"{bpy.app.version[0]}.{bpy.app.version[1]}"
+    for pattern in ("python.exe", "python3.*[0-9]", "python3"):
+        found = sorted(glob.glob(os.path.join(here, version, "python", "bin", pattern)))
+        if found:
+            return found[0]
+    return None
 
 
 def ensure(packages, label):
@@ -60,15 +69,15 @@ def ensure(packages, label):
         return True
     if installing() or os.environ.get("PLASTRON_NO_INSTALL"):
         return False
-    python = _python()
-    if python is None:
+    py = python()
+    if py is None:
         _state.update(status=f"Can't install {label}: Blender's Python not found", failed=True)
         return False
     log_path = os.path.join(folder(), "install.log")
     log = open(log_path, "w", encoding="utf-8")
     flags = 0x08000000 if sys.platform == "win32" else 0      # no console window
     _state["proc"] = subprocess.Popen(
-        [python, "-m", "pip", "install", "--disable-pip-version-check", "--no-input",
+        [py, "-m", "pip", "install", "--disable-pip-version-check", "--no-input",
          "--target", folder(), *need],
         stdout=log, stderr=subprocess.STDOUT, creationflags=flags)
     _state.update(status=f"Setting up {label} (one time, needs internet)...", failed=False, log=log)

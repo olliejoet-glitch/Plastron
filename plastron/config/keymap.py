@@ -92,10 +92,12 @@ SHORTCUTS = [
 
     # --- Timeline: editing -------------------------------------------------
     ("timeline",     "MouseMove",        "plastron.transcript_hover",    "Light up the transcript word under the mouse"),
-    ("timeline",     "LMB",              "plastron.transcript_click",    "Click a transcript word: playhead there, select it"),
-    ("timeline",     "Shift+LMB",        "plastron.transcript_click",    "Select words up to this one", {"extend": True}),
     ("timeline",     "LMB",              "plastron.clip_trim",           "Drag a clip edge to retime (else select / move)"),
     ("timeline",     "Ctrl+LMB",         "plastron.clip_trim",           "...snapping (Ctrl flips snapping)"),
+    ("timeline",     "Shift+LMB",        "plastron.clip_trim",           "Shift+click: add a clip to the selection", {"extend": True}),
+    # (after the edge drag: of two actions on one key, the later line is tried first)
+    ("timeline",     "LMB",              "plastron.transcript_click",    "Click a transcript word: playhead there, select it"),
+    ("timeline",     "Shift+LMB",        "plastron.transcript_click",    "Select words up to this one", {"extend": True}),
     ("timeline",     "N",                "plastron.panel_new",           "New panel at playhead"),
     ("canvas",       "N",                "plastron.panel_new",           "New panel at playhead"),
     ("timeline",     "Ctrl+K",           "plastron.clip_split",          "Split at playhead"),
@@ -115,8 +117,14 @@ SHORTCUTS = [
 # Plastron actions that act and then pass the click on, so Blender's own
 # item on the same key keeps working (e.g. the script click still places
 # the text cursor).
-PASSES_ON = {"plastron.clip_trim", "plastron.script_click", "plastron.transcript_click",
-             "plastron.transcript_hover"}
+PASSES_ON = {"plastron.script_click", "plastron.transcript_click", "plastron.transcript_hover"}
+
+# Blender items switched off even though BLENDER_KEEP keeps their keymap.
+BLENDER_DROP = {
+    # Its press-to-select grabs clip edges itself (a plain resize, no ripple)
+    # before Plastron's edge drag sees the click.
+    "Sequencer Tool: Select Box*": ["sequencer.select"],
+}
 
 # Keys that keep firing while held down (like holding a key in a text box).
 REPEAT = {"Q", "W", "Ctrl+Z", "Ctrl+Shift+Z", "Ctrl+=", "Ctrl+-"}
@@ -142,6 +150,7 @@ BLENDER_KEEP = {
     # Tool keymaps (what a tool does on click/drag) keep everything.
     "3D View Tool: *":       ["*"],
     "Sequencer Tool: *":     ["*"],
+    "File Browser*":         ["*"],                       # Open / Save / Import dialogs
     "Sequence Editor Tool: Sequencer, Slice": ["*"],      # Plastron's Slice tool
     "Generic Gizmo*":        ["*"],
 }

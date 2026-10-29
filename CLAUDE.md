@@ -259,6 +259,14 @@ Plastron/
   (e.g. the script click still places the text cursor).
 - Timer callbacks have no window in context: wrap ops in a temp_override
   with a window (voice/record.py `_window_override`).
+- Blender's "Sequencer Tool: Select Box" press-select grabs clip edges itself
+  (~14 px inside a clip) before Plastron's edge drag: it's switched off
+  (BLENDER_DROP) and clip_trim runs Blender's select itself when the click
+  isn't on an edge (EXEC at the mouse, then PASS_THROUGH so a drag moves).
+- Of two Plastron items on one key in one keymap, Blender tries the one
+  added LATER first (SHORTCUTS order reversed).
+- Stripping keymaps must keep "File Browser*" or Open / Save / Import
+  dialogs can't be clicked.
 - Keymap clashes: Plastron keys fire on PRESS; Blender items on the same key
   with CLICK / CLICK_DRAG / DOUBLE_CLICK aren't clashes (keymaps.py).
 
@@ -393,6 +401,13 @@ Plastron/
   Same pan/zoom drags work on the timeline.
 - Timeline keys (stage 2): N new panel, Ctrl+K split, Delete/Backspace delete,
   I / O loop range.
+- Edge drags grab EDGE_GRAB_PX (8) outside a clip and EDGE_GRAB_INSIDE_PX
+  (16, at most a third of the clip) inside it; further in, a click selects
+  and a drag moves (Blender). Transcript word clicks win except within 8 px
+  of a clip edge.
+- Active track (Ollie wanted clearer feedback): its header row is tinted
+  orange and its timeline row has a faint orange tint with orange edges
+  (ACTIVE_* in config/timeline.py).
 - Timeline tools (Ollie): S = Slice tool (knife cursor; click a clip to cut it
   there, snapping like edge drags, Ctrl = no snap, Shift+click = every track),
   A = back to Move (move clips, drag edges). Header shows Move | Slice. Both
@@ -431,8 +446,11 @@ Plastron/
   config folder (plastron_python/) in the background at the first start;
   the Whisper model ("small.en", config/voice.py) downloads at the first
   transcription into plastron_models/. CPU int8. A prompt full of "um"s
-  keeps fluffs in the transcript. Failures: header message + Transcribe
-  Again on the clip.
+  keeps fluffs in the transcript. The header shows what the worker is doing
+  (getting the model, %) and how long; its output goes to
+  "<config>/plastron_transcribe.log". Jobs over 30 min are stopped.
+  Failures: header message + Transcribe Again on the clip. Blender's Python
+  is found from sys.executable or next to Blender (deps.python()).
 - Transcript bars (Blender can't add a row under a track): the bottom half
   of each audio track's row (BAR_FRACTION); words wrap in as many lines as
   fit (taller rows = more lines, Ctrl+Alt+drag), the last line ending "…";

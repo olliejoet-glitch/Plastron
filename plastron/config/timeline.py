@@ -9,6 +9,7 @@ NEW_PANEL_SECONDS = 2.0
 # How close (in screen pixels) the mouse must be to a clip edge to grab it,
 # and to a snap target (playhead, clip edge, marker) to snap to it.
 EDGE_GRAB_PX = 8
+EDGE_GRAB_INSIDE_PX = 16      # ...and this far inside a clip (at most a third of it)
 SNAP_PX = 10
 
 # Track row height when a project opens (screen pixels at 100 % UI scale).
@@ -38,6 +39,11 @@ HEADER_VOLUME_PX = 54         # volume bar width
 HEADER_GAP_PX = 4
 HEADER_NATIVE_BUTTONS_PX = 44  # room Blender's mute + lock buttons take at the right
 
+# How strongly the active track (where New Panel / Record go) stands out.
+ACTIVE_HEADER_ALPHA = 0.30    # its header
+ACTIVE_ROW_ALPHA = 0.07       # its row across the timeline
+ACTIVE_ROW_EDGE_ALPHA = 0.6   # thin lines along the row's top and bottom
+
 # Track header colours (palette names or hex, see theme.py).
 HEADER_COLORS = {
     "toggle_off":    "bg",
@@ -46,6 +52,7 @@ HEADER_COLORS = {
     "volume_back":   "bg_dark",
     "volume_fill":   "blue",
     "active_track":  "orange",     # bar at the left edge of the active track
+    "active_row":    "orange",     # the active track's header and row are tinted with this
     "video_track":   "#5d7a76",    # small kind marker
     "audio_track":   "#2f6a8a",
 }

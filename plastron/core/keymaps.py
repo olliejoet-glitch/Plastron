@@ -60,6 +60,12 @@ def _signature(km_name, kmi):
     return (km_name, kmi.type, bool(kmi.ctrl), bool(kmi.alt), bool(kmi.shift), bool(kmi.oskey))
 
 
+def _dropped(km_name, kmi):
+    return any(fnmatch.fnmatchcase(km_name, name) and
+               any(fnmatch.fnmatchcase(kmi.idname, p) for p in actions)
+               for name, actions in cfg.BLENDER_DROP.items())
+
+
 def _keep_patterns(km_name):
     patterns = []
     for name_pattern, actions in cfg.BLENDER_KEEP.items():
@@ -103,7 +109,7 @@ def _strip_blender_keys(user_kc, addon_kc, taken):
             # Plastron's keys fire on press; a kept Blender item on the same key
             # only clashes if it also fires on press (click / drag items don't).
             clashes = _signature(km.name, kmi) in taken and kmi.value in {'PRESS', 'ANY'}
-            if kept and not clashes:
+            if kept and not clashes and not _dropped(km.name, kmi):
                 continue
             if kmi.active:
                 kmi.active = False

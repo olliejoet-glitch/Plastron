@@ -210,6 +210,18 @@ class PLASTRON_OT_transcript_hover(bpy.types.Operator):
         return {'PASS_THROUGH'}
 
 
+def _near_clip_edge(context, box, x):
+    from ...config import timeline as timeline_cfg
+    sed = context.scene.sequence_editor
+    strip = sed.strips_all.get(box["strip"]) if sed else None
+    if strip is None:
+        return False
+    v2d = context.region.view2d
+    grab = _ui(timeline_cfg.EDGE_GRAB_PX)
+    return any(abs(x - v2d.view_to_region(f, 0, clip=False)[0]) <= grab
+               for f in (clips.start(strip), clips.end(strip)))
+
+
 class PLASTRON_OT_transcript_click(bpy.types.Operator):
     """Click a word: jump the playhead there and select it (Shift: select up to it)"""
     bl_idname = "plastron.transcript_click"
@@ -222,6 +234,8 @@ class PLASTRON_OT_transcript_click(bpy.types.Operator):
         if not _main_region(context):
             return {'PASS_THROUGH'}
         box = hit(context.region, context.scene, event.mouse_region_x, event.mouse_region_y)
+        if box is not None and _near_clip_edge(context, box, event.mouse_region_x):
+            box = None                   # a clip edge: let the edge drag have it
         if box is None:
             if _sel["indices"]:
                 clear_selection()

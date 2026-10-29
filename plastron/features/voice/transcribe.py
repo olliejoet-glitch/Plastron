@@ -7,6 +7,7 @@ import json
 import os
 import subprocess
 import sys
+import time
 
 import bpy
 
@@ -17,7 +18,8 @@ from . import takes
 WORKER = os.path.join(os.path.dirname(os.path.abspath(__file__)), "transcribe_worker.py")
 
 _queue = []                    # [(take uid, wav path)]
-_job = {"proc": None, "uid": None, "wav": None, "out": None}
+_job = {"proc": None, "uid": None, "wav": None, "out": None, "started": 0.0, "log": None}
+TIMEOUT = 30 * 60              # seconds: a job running longer than this is stuck
 _listeners = []                # func() after a transcript arrives
 _last_error = [""]
 
@@ -41,9 +43,19 @@ def busy():
     return bool(_queue) or _job["proc"] is not None
 
 
+def log_path():
+    return os.path.join(bpy.utils.user_resource('CONFIG'), "plastron_transcribe.log")
+
+
 def status():
     if _job["proc"] is not None:
-        return "Transcribing..."
+        secs = int(time.monotonic() - _job["started"])
+        try:
+            with open(_job["out"] + ".status", encoding="utf-8") as f:
+                doing = f.read().strip()
+        except OSError:
+            doing = ""
+        return f"{doing or 'Transcribing...'}  ({secs // 60}:{secs % 60:02d})"
     if _queue:
         return deps.status() or "Transcription waiting..."
     return _last_error[0]
@@ -84,20 +96,37 @@ def _start(uid, wav):
     env = dict(os.environ)
     env["PYTHONPATH"] = deps.folder()
     env.setdefault("HF_HOME", os.path.join(bpy.utils.user_resource('CONFIG'), "plastron_models"))
-    args = [deps._python() or sys.executable, WORKER, wav, out, cfg.TRANSCRIBE_MODEL,
-            cfg.TRANSCRIBE_PROMPT]
+    python = deps.python()
+    if python is None:
+        _fail(uid, "Blender's Python wasn't found")
+        return
+    args = [python, WORKER, wav, out, cfg.TRANSCRIBE_MODEL, cfg.TRANSCRIBE_PROMPT]
     if fake():
         args.append("--fake")
+    for stale in (out, out + ".status"):
+        if os.path.exists(stale):
+            os.remove(stale)
+    log = open(log_path(), "a", encoding="utf-8")
+    log.write(f"\n--- {time.ctime()}  {' '.join(args[:4])}\n")
+    log.flush()
     flags = 0x08000000 if sys.platform == "win32" else 0      # no console window
-    _job.update(proc=subprocess.Popen(args, env=env, creationflags=flags,
-                                      stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL),
-                uid=uid, wav=wav, out=out)
+    _job.update(proc=subprocess.Popen(args, env=env, creationflags=flags, stdout=log,
+                                      stderr=subprocess.STDOUT),
+                uid=uid, wav=wav, out=out, started=time.monotonic(), log=log)
     _set(uid, status='RUNNING')
+
+
+def _fail(uid, why):
+    _set(uid, status='FAILED', error=why)
+    _last_error[0] = f"Transcription failed: {why[:80]} (Transcribe Again on the clip)"
+    print("Plastron: transcription failed:", why)
 
 
 def _finish():
     uid, out = _job["uid"], _job["out"]
-    _job.update(proc=None, uid=None, wav=None, out=None)
+    if _job["log"] is not None:
+        _job["log"].close()
+    _job.update(proc=None, uid=None, wav=None, out=None, log=None)
     try:
         with open(out, encoding="utf-8") as f:
             result = json.load(f)
@@ -107,9 +136,7 @@ def _finish():
         _set(uid, words=result["words"], status='DONE', error="")
         _last_error[0] = ""
     else:
-        _set(uid, status='FAILED', error=result.get("error", "unknown error"))
-        _last_error[0] = "Transcription failed (select the clip, then Transcribe Again)"
-        print("Plastron: transcription failed:", result.get("error"))
+        _fail(uid, result.get("error", "unknown error") + f" - details: {log_path()}")
     for func in _listeners:
         func()
     for window in bpy.context.window_manager.windows:
@@ -119,10 +146,27 @@ def _finish():
 
 
 def _tick():
+    try:
+        return _step()
+    except Exception as err:            # never let the queue stop for good
+        import traceback
+        traceback.print_exc()
+        if _job["uid"]:
+            _fail(_job["uid"], str(err))
+            _job.update(proc=None, uid=None, wav=None, out=None, log=None)
+        return 1.0 if _queue else None
+
+
+def _step():
     proc = _job["proc"]
     if proc is not None:
         if proc.poll() is None:
-            return 0.5
+            if time.monotonic() - _job["started"] > TIMEOUT:
+                proc.kill()
+                proc.wait()
+            else:
+                _redraw_header()
+                return 0.5
         _finish()
     if not _queue:
         return None
@@ -131,6 +175,15 @@ def _tick():
     uid, wav = _queue.pop(0)
     _start(uid, wav)
     return 0.5
+
+
+def _redraw_header():
+    for window in bpy.context.window_manager.windows:
+        for area in window.screen.areas:
+            if area.type == 'SEQUENCE_EDITOR':
+                for region in area.regions:
+                    if region.type == 'HEADER':
+                        region.tag_redraw()
 
 
 def wait_all(timeout=60.0):

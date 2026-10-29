@@ -15,7 +15,6 @@ from ..config import timeline as cfg
 from ..core.theme import _color
 from . import tracks
 
-_handle = None
 
 
 def _ui(px):
@@ -76,9 +75,11 @@ def _rect(shader, x0, y0, x1, y1, colour):
     batch_for_shader(shader, 'TRI_FAN', {"pos": [(x0, y0), (x1, y0), (x1, y1), (x0, y1)]}).draw(shader)
 
 
-def _c(name):
-    value = cfg.HEADER_COLORS[name]
-    return _color(value)
+def _c(name, alpha=None):
+    c = list(_color(cfg.HEADER_COLORS[name]))
+    if alpha is not None:
+        c[3] = alpha
+    return c
 
 
 def draw():
@@ -94,9 +95,12 @@ def draw():
 
     for i, track in enumerate(tracks.all_tracks(scene)):
         y0, y1 = row_span(area, region, tracks.channel(i))
-        marker = "active_track" if active and track.uid == active.uid else (
+        is_active = active and track.uid == active.uid
+        if is_active:
+            _rect(shader, 0, y0 + 1, region.width, y1 - 1, _c("active_row", cfg.ACTIVE_HEADER_ALPHA))
+        marker = "active_track" if is_active else (
             "video_track" if track.kind == 'VIDEO' else "audio_track")
-        _rect(shader, 0, y0 + 1, _ui(3), y1 - 1, _c(marker))
+        _rect(shader, 0, y0 + 1, _ui(4 if is_active else 3), y1 - 1, _c(marker))
 
     font = 0
     blf.size(font, _ui(11))
@@ -118,13 +122,41 @@ def draw():
     gpu.state.blend_set('NONE')
 
 
+def draw_active_row():
+    """The active track's row across the timeline: a faint tint, edged."""
+    context = bpy.context
+    scene, region = context.scene, context.region
+    if scene is None or not hasattr(scene, "plastron_timeline"):
+        return
+    active = tracks.active(scene)
+    ch = tracks.channel_of(scene, active) if active else None
+    if ch is None:
+        return
+    v2d = region.view2d
+    y0 = v2d.view_to_region(0, ch, clip=False)[1]
+    y1 = v2d.view_to_region(0, ch + 1, clip=False)[1]
+    if y1 < 0 or y0 > region.height:
+        return
+    shader = gpu.shader.from_builtin('UNIFORM_COLOR')
+    gpu.state.blend_set('ALPHA')
+    _rect(shader, 0, y0, region.width, y1, _c("active_row", cfg.ACTIVE_ROW_ALPHA))
+    edge = _c("active_row", cfg.ACTIVE_ROW_EDGE_ALPHA)
+    _rect(shader, 0, y0, region.width, y0 + 1, edge)
+    _rect(shader, 0, y1 - 1, region.width, y1, edge)
+    gpu.state.blend_set('NONE')
+
+
+_handles = []
+
+
 def register():
-    global _handle
-    _handle = bpy.types.SpaceSequenceEditor.draw_handler_add(draw, (), 'CHANNELS', 'POST_PIXEL')
+    _handles.append(('CHANNELS', bpy.types.SpaceSequenceEditor.draw_handler_add(
+        draw, (), 'CHANNELS', 'POST_PIXEL')))
+    _handles.append(('WINDOW', bpy.types.SpaceSequenceEditor.draw_handler_add(
+        draw_active_row, (), 'WINDOW', 'POST_PIXEL')))
 
 
 def unregister():
-    global _handle
-    if _handle:
-        bpy.types.SpaceSequenceEditor.draw_handler_remove(_handle, 'CHANNELS')
-        _handle = None
+    for region_type, handle in _handles:
+        bpy.types.SpaceSequenceEditor.draw_handler_remove(handle, region_type)
+    _handles.clear()

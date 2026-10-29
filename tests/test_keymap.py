@@ -20,7 +20,7 @@ LATER_STAGES = {   # stage 5: pixel selection and transform
 # Plastron actions on a plain click that pass the click on to Blender when
 # they don't apply (e.g. clip_trim lets Blender select / move a clip unless
 # the click is on a clip edge), so sharing that key is intended.
-PASS_THROUGH = set(cfg.PASSES_ON) | {"plastron.track_header_click"}
+PASS_THROUGH = set(cfg.PASSES_ON) | {"plastron.track_header_click", "plastron.clip_trim"}
 
 
 def find(km, action, key):
@@ -86,6 +86,7 @@ def steps():
         ("Window", "wm.search_menu"),                       # F3 search
         ("Screen", "screen.screen_full_area"),              # Ctrl+Space maximise
         ("Object Mode", "transform.translate"),             # G
+        ("Sequencer Tool: Select Box", "sequencer.select"), # grabbed clip edges before Plastron
         ("Object Non-modal", "object.mode_set"),            # Tab
         ("3D View", "view3d.rotate"),                       # orbit
         ("Image Paint", "paint.sample_color"),               # S (Plastron: Alt+click)
@@ -107,6 +108,9 @@ def steps():
         ("Sequencer", "sequencer.select"),                  # click a clip
         ("Sequencer", "transform.seq_slide"),               # drag a clip to move it
         ("Sequencer Channels", "sequencer.rename_channel"), # double-click a track name
+        ("File Browser Main", "file.select"),              # clicking files in Open / Import
+        ("File Browser Main", "file.highlight"),           # hover highlight
+        ("File Browser", "file.parent"),
     ]
     off = [f"{km}: {op}" for km, op in kept if not active(km, op)]
     h.check("essential Blender shortcuts kept", not off, off)

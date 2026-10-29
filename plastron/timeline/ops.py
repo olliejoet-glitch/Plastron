@@ -46,7 +46,7 @@ class PLASTRON_OT_track_header_click(bpy.types.Operator):
             index = track_headers.row_at(context.area, region, scene, y)
             if index is not None:
                 tracks.set_active(scene, scene.plastron_timeline.tracks[index])
-                region.tag_redraw()
+                context.area.tag_redraw()          # header and row highlight
             return {'PASS_THROUGH'}     # name rename, Blender's mute / lock
         index, wid, rect = found
         self.track = scene.plastron_timeline.tracks[index]
@@ -78,10 +78,22 @@ class PLASTRON_OT_clip_trim(bpy.types.Operator):
     bl_label = "Trim Clip"
     bl_options = {'REGISTER', 'UNDO'}
 
+    extend: bpy.props.BoolProperty(default=False, options={'SKIP_SAVE'})
+
     @classmethod
     def poll(cls, context):
         from .edit_tools import active_tool
         return _timeline_window(context) and active_tool(context) == 'MOVE'
+
+    def _select(self, event):
+        """Not on an edge: Blender's own click (select; a drag then moves).
+        Blender's version of this click is off: it grabbed edges itself."""
+        pos = dict(mouse_x=event.mouse_region_x, mouse_y=event.mouse_region_y)
+        if self.extend:
+            bpy.ops.sequencer.select('EXEC_DEFAULT', toggle=True, **pos)
+        else:
+            bpy.ops.sequencer.select('EXEC_DEFAULT', deselect_all=True, **pos)
+        return {'PASS_THROUGH'}       # a drag from here moves the clip (Blender)
 
     def invoke(self, context, event):
         scene, region = context.scene, context.region
@@ -89,15 +101,19 @@ class PLASTRON_OT_clip_trim(bpy.types.Operator):
         index = tracks.index_of_channel(scene, int(fy))
         if index is not None:
             tracks.set_active(scene, scene.plastron_timeline.tracks[index])
-        grab = cfg.EDGE_GRAB_PX * snapping.frames_per_pixel(region)
+        fpp = snapping.frames_per_pixel(region)
+        outside, inside = cfg.EDGE_GRAB_PX * fpp, cfg.EDGE_GRAB_INSIDE_PX * fpp
         best = None
         for strip in clips.on_channel(scene, int(fy)):
+            reach = min(inside, clips.length(strip) / 3)        # short clips can still be moved
             for side, edge in (('LEFT', clips.start(strip)), ('RIGHT', clips.end(strip))):
+                into = fx - edge if side == 'LEFT' else edge - fx   # > 0: inside the clip
                 d = abs(fx - edge)
-                if d <= grab and (best is None or d < best[0]):
+                near = -into <= outside if into < 0 else into <= reach
+                if near and (best is None or d < best[0]):
                     best = (d, strip, side)
         if best is None:
-            return {'PASS_THROUGH'}     # Blender selects / moves the clip
+            return self._select(event)
         _d, self.strip, self.side = best
         if scene.sequence_editor.channels[self.strip.channel].lock:
             self.report({'WARNING'}, "That track is locked")

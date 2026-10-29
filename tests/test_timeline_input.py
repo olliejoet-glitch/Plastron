@@ -111,6 +111,20 @@ def steps():
     h.check("Ctrl+Z undoes the trim", [span(p) for p in ps] == [(1, 49), (49, 97), (97, 145)],
             [span(p) for p in ps])
 
+    # Grabbing the edge from a little inside the clip ripples too (Blender used to
+    # take that grab itself and resize without ripple).
+    ps = sorted(panels.all_panels(sc), key=clips.start)
+    start = at(49, ch("Panels"))
+    yield from h.drag((start[0] - 12, start[1]), at(60, ch("Panels")))
+    yield 0.3
+    ps = sorted(panels.all_panels(sc), key=clips.start)
+    h.check("grabbing an edge from inside the clip ripples the rest",
+            clips.end(ps[0]) > 52 and clips.start(ps[1]) == clips.end(ps[0])
+            and clips.length(ps[1]) == 48, [span(p) for p in ps])
+    h.key('Z', ctrl=True)
+    yield 0.5
+    sc = scene()
+
     # --- Snapping to the playhead -----------------------------------------------------------
     sc.frame_current = 70
     yield
@@ -125,6 +139,8 @@ def steps():
     h.key('Z', ctrl=True)
     yield 0.5
     sc = scene()
+    sc.frame_current = 70            # (undo put the playhead back too)
+    yield
     yield from h.drag((start[0] - 1, start[1]), end, ctrl=True)
     yield 0.3
     ps = sorted(panels.all_panels(sc), key=clips.start)
