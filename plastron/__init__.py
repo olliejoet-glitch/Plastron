@@ -7,10 +7,10 @@ keymap last (so every feature's actions exist when shortcuts are bound).
 
 import bpy
 
-from . import core, ui, timeline, features
+from . import core, ui, timeline, layers, features
 from .core import handlers, keymaps
 
-_PARTS = (core, ui, timeline, features)
+_PARTS = (core, ui, timeline, layers, features)
 
 
 def _first_file():
