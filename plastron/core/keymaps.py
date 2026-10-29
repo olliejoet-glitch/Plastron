@@ -110,8 +110,12 @@ def register():
         return
     pending.clear()
     taken = _add_plastron_keys(kc_addon)
-    wm.keyconfigs.update()
-    _strip_blender_keys(kc_user, kc_addon, taken)
+    # Blender finishes building its keymaps after Plastron registers, so
+    # strip once startup is complete.
+    def strip():
+        wm.keyconfigs.update()
+        _strip_blender_keys(wm.keyconfigs.user, kc_addon, taken)
+    bpy.app.timers.register(strip, first_interval=0.01)
 
 
 def unregister():

@@ -39,6 +39,29 @@ def _scale_distance(r3d, factor):
     r3d.view_distance = max(1e-4, r3d.view_distance * factor)
 
 
+# Blender's orthographic view shows (view_distance * 36 / lens * 2) units across
+# the region's longer side (36 = default sensor width, 2 = ortho view zoom).
+# Computing it directly avoids the view matrix, which is stale until a redraw.
+def _units_across(space, r3d):
+    return r3d.view_distance * 36.0 / space.lens * 2.0
+
+
+def pixels_per_unit(region, space, r3d):
+    return max(region.width, region.height) / _units_across(space, r3d)
+
+
+def set_pixels_per_unit(region, space, r3d, ppu):
+    r3d.view_distance = max(region.width, region.height) / ppu * space.lens / (36.0 * 2.0)
+
+
+def frame_size_units(scene):
+    """Camera frame (width, height) in scene units."""
+    corners = camera_frame(scene)
+    if not corners:
+        return None
+    return (corners[0] - corners[3]).length, (corners[0] - corners[1]).length
+
+
 class PLASTRON_OT_canvas_zoom(bpy.types.Operator):
     """Zoom the canvas view in or out"""
     bl_idname = "plastron.canvas_zoom"
@@ -49,6 +72,7 @@ class PLASTRON_OT_canvas_zoom(bpy.types.Operator):
 
     def execute(self, context):
         _scale_distance(context.region_data, ZOOM_STEP ** -self.step)
+        context.area.tag_redraw()
         return {'FINISHED'}
 
 
@@ -60,19 +84,19 @@ class PLASTRON_OT_canvas_fit(bpy.types.Operator):
     poll = classmethod(lambda cls, context: _canvas_poll(context))
 
     def execute(self, context):
-        fit(context.scene, context.region, context.region_data)
+        fit(context.scene, context.region, context.space_data, context.region_data)
+        context.area.tag_redraw()
         return {'FINISHED'}
 
 
-def fit(scene, region, r3d):
+def fit(scene, region, space, r3d):
     corners = camera_frame(scene)
     if not corners:
         return
     r3d.view_location = sum(corners, Vector()) / 4
-    size = frame_size_px(region, r3d, corners)
-    if size and size[0] > 0 and size[1] > 0:
-        factor = max(size[0] / (region.width * FIT_MARGIN), size[1] / (region.height * FIT_MARGIN))
-        _scale_distance(r3d, factor)
+    fw, fh = frame_size_units(scene)
+    ppu = min(region.width * FIT_MARGIN / fw, region.height * FIT_MARGIN / fh)
+    set_pixels_per_unit(region, space, r3d, ppu)
 
 
 class PLASTRON_OT_canvas_zoom_actual(bpy.types.Operator):
@@ -83,13 +107,14 @@ class PLASTRON_OT_canvas_zoom_actual(bpy.types.Operator):
     poll = classmethod(lambda cls, context: _canvas_poll(context))
 
     def execute(self, context):
-        scene, region, r3d = context.scene, context.region, context.region_data
-        corners = camera_frame(scene)
-        size = corners and frame_size_px(region, r3d, corners)
+        scene = context.scene
+        size = frame_size_units(scene)
         if not size:
             return {'CANCELLED'}
-        target = scene.render.resolution_x * scene.render.resolution_percentage / 100
-        _scale_distance(r3d, size[0] / target)
+        preview_width = scene.render.resolution_x * scene.render.resolution_percentage / 100
+        set_pixels_per_unit(context.region, context.space_data, context.region_data,
+                            preview_width / size[0])
+        context.area.tag_redraw()
         return {'FINISHED'}
 
 
@@ -148,6 +173,7 @@ class PLASTRON_OT_canvas_flip_view(bpy.types.Operator):
         r3d = context.region_data
         # Look at the drawing plane from behind: a pure left-right mirror.
         r3d.view_rotation = r3d.view_rotation @ Quaternion((0.0, 1.0, 0.0), math.pi)
+        context.area.tag_redraw()
         return {'FINISHED'}
 
 
@@ -159,7 +185,9 @@ def fit_all_canvases():
             if region is None or region.width <= 1:
                 continue
             if area.type == 'VIEW_3D':
-                fit(window.scene, region, area.spaces.active.region_3d)
+                space = area.spaces.active
+                fit(window.scene, region, space, space.region_3d)
+                area.tag_redraw()
             elif area.type == 'SEQUENCE_EDITOR':
                 with bpy.context.temp_override(window=window, area=area, region=region):
                     bpy.ops.sequencer.view_all()

@@ -111,6 +111,12 @@ def drag(start, end, button='LEFTMOUSE', steps=8, **mods):
     yield
 
 
+def redraw():
+    """Force Blender to draw now (view matrices etc. update on draw)."""
+    with bpy.context.temp_override(window=window()):
+        bpy.ops.wm.redraw_timer(type='DRAW_WIN', iterations=1)
+
+
 def screenshot(name):
     if not OUTPUT:
         return None
