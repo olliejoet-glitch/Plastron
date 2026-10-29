@@ -56,6 +56,10 @@ theme, and keymap, with Photoshop-style drawing shortcuts.
 5. Where the brief doesn't specify a detail, pick the simplest option that fits
    and log it in "Decisions log" below so it can be changed later.
 6. Ollie wants as little manual setup as humanly possible.
+7. **Push finished, tested work to `main` without asking** (Ollie's standing
+   instruction, so his launcher picks it up and he can test). Develop on the
+   session branch, run the full test suite, then push the branch to `main`
+   (fast-forward). Never push failing tests to `main`.
 
 ## Ollie's setup
 
