@@ -31,16 +31,23 @@ theme, and keymap, with Photoshop-style drawing shortcuts.
 - **Next: stage 3** (drawing basics: tools, shortcuts, layers and groups,
   brush presets, smoothing, pressure, onion skin, cached panel images).
   Wait for Ollie to ask before starting a stage.
-- **PENDING DECISION: drawing switches from grease pencil to RASTER.** Ollie
-  dislikes GP's point-based strokes: he wants to select/move actual pixels,
-  lay down blobs of colour, and erase precisely. Panels will hold a stack of
-  image layers instead of a GP drawing (timeline, tracks, ripple, panel clips,
-  canvas-follows-playhead all stay). Engine choice (Blender texture paint vs a
-  custom GPU brush engine) waits on Ollie's CaraPainter add-on code, to be
-  uploaded to `reference/carapainter/`; read it fully and propose a plan before
-  writing drawing code. Open question to Ollie: paint resolution (suggested
-  1920×1080 + margin for camera moves, not 4K). This overrides the brief's
-  "grease pencil v3" constraint once confirmed.
+- **DECIDED: drawing switches from grease pencil to RASTER** (Ollie: wants to
+  select/move pixels, lay down blobs of colour, erase precisely). Brush engine
+  = **Blender's own Texture Paint** (fast, Ollie likes the feel, can add his own
+  brushes). Panels hold a Photoshop-style layer stack instead of a GP drawing;
+  timeline, tracks, ripple, panel clips, canvas-follows-playhead all stay.
+  From Ollie's CaraPainter add-on (`reference/painterly_layers/`, GPL, his own)
+  take ONLY: paint layers, fill layers (colour / image + scale, rotation,
+  offset, tiling break), groups, layer blend modes (all 26, Photoshop
+  formulas: compiler/blend_lib.py), opacity / visibility, per-layer
+  hue / saturation / value / curve, and its approach of painting via Texture
+  Paint single-image mode aimed at the active layer's image
+  (ops/layers.py `sync_paint_target`). NOT its lights, masks, analysis,
+  outline, bake, library, 3D decal transform. Plan proposed to Ollie (canvas =
+  textured plane; one material per panel; numpy flatten into the panel's
+  cached image; packed layer images). Waiting on: paint resolution (proposed
+  2400×1350 = 1080p frame + 25 % margin) and confirming masks / adjustment
+  layers / Blend If stay out. Overrides the brief's "grease pencil v3".
 
 ## Ollie's standing preferences (always apply)
 
