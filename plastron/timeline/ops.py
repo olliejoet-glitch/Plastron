@@ -80,7 +80,8 @@ class PLASTRON_OT_clip_trim(bpy.types.Operator):
 
     @classmethod
     def poll(cls, context):
-        return _timeline_window(context)
+        from .edit_tools import active_tool
+        return _timeline_window(context) and active_tool(context) == 'MOVE'
 
     def invoke(self, context, event):
         scene, region = context.scene, context.region

@@ -68,6 +68,7 @@ def build_steps():
         bpy.data.collections.remove(coll)
     project.setup_new_project(scene)
     canvas_color._world_color(scene, _color("paper")[:3])
+    canvas_sync.fast_settings(scene)
     canvas = canvas_sync.canvas_object(scene)
     scene.view_layers[0].objects.active = canvas
     canvas.select_set(True)

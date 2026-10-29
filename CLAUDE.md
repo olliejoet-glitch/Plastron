@@ -135,6 +135,7 @@ Plastron/
 │  │  ├─ project.py          scene.plastron data; new-project setup; ensure on load
 │  │  ├─ autosave.py         autosave copies, crash marker + prompt, File > Recover
 │  │  ├─ presets.py          shared presets store: kinds, built-in + saved JSON, menu
+│  │  ├─ windows_taskbar.py  Windows: Plastron's own taskbar group, icon, relaunch (ctypes)
 │  │  ├─ user_settings.py    in-app choices Ollie makes that must persist (JSON in
 │  │  │                      portable config; Blender prefs aren't saved)
 │  │  ├─ hidden_ui.py        hides panels (never-poll) and swaps header draws
@@ -229,6 +230,11 @@ Plastron/
 - Material Preview under Xvfb (llvmpipe) is slow to compile shaders, so
   debounced updates arrive late in tests; it has also crashed once on exit
   (Mesa, after all checks passed). Re-run before suspecting the code.
+- Python workspace tools for the timeline: `bl_space_type='SEQUENCE_EDITOR'`,
+  `bl_context_mode='SEQUENCER'`; their keymap is named "Sequence Editor Tool:
+  Sequencer, <label>" (must be in BLENDER_KEEP).
+- Making a panel image (numpy flatten + PNG) costs 0.3-0.8 s at 960×540:
+  never do heavy work right after a stroke.
 - Keymap clashes: Plastron keys fire on PRESS; Blender items on the same key
   with CLICK / CLICK_DRAG / DOUBLE_CLICK aren't clashes (keymaps.py).
 
@@ -359,6 +365,22 @@ Plastron/
   Same pan/zoom drags work on the timeline.
 - Timeline keys (stage 2): N new panel, Ctrl+K split, Delete/Backspace delete,
   I / O loop range.
+- Timeline tools (Ollie): S = Slice tool (knife cursor; click a clip to cut it
+  there, snapping like edge drags, Ctrl = no snap, Shift+click = every track),
+  A = back to Move (move clips, drag edges). Header shows Move | Slice. Both
+  keys work over the timeline and the canvas. Slice is a Blender workspace
+  tool (timeline/edit_tools.py); clip_trim stands aside while it's on.
+- Painting speed (Ollie: "SO laggy"): panel images are re-made only after
+  2.5 s without painting, at 480×270 (making one took 0.3-0.8 s at 960×540,
+  which froze the start of the next stroke). Texture Paint occlusion,
+  backface culling, normal falloff and seam bleed are off and EEVEE
+  shadows / ray tracing / fast GI are off (canvas_sync.FAST_SETTINGS, applied
+  at every load). Brush presets don't smooth by default (smoothing trails
+  behind the pen).
+- Windows taskbar (Ollie: Blender icon, grouped with his other Blender):
+  each Plastron window gets AppUserModelID "Plastron.App", the Plastron icon
+  and a relaunch command (launch.ps1), so it has its own taskbar button and
+  pinning it pins the launcher. Untestable here (Linux).
 - Blender keymap stripped to essentials (BLENDER_KEEP in config/keymap.py):
   area resizing, UI widgets, scrolling, ruler scrubbing, typing in the script,
   painting strokes, tool click/drag behaviour, strip select/move. No right-click

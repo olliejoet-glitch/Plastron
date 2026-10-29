@@ -15,6 +15,15 @@ def draw(self, context):
     layout.prop(scene, "frame_current", text="")
 
     layout.separator(type='LINE')
+    from .edit_tools import active_tool
+    tool = active_tool(context)
+    row = layout.row(align=True)
+    row.operator("plastron.timeline_tool", text="Move", icon='RESTRICT_SELECT_OFF',
+                 depress=tool == 'MOVE').tool = 'MOVE'
+    row.operator("plastron.timeline_tool", text="Slice", icon='SCULPTMODE_HLT',
+                 depress=tool == 'SLICE').tool = 'SLICE'
+
+    layout.separator(type='LINE')
     row = layout.row(align=True)
     row.operator("plastron.panel_new", text="New Panel", icon='ADD')
     row.operator("plastron.clip_split", text="", icon='SCULPTMODE_HLT')

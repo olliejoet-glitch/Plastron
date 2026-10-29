@@ -111,6 +111,10 @@ def steps():
     shelf = next((r for r in h.area('VIEW_3D').regions if r.type == 'ASSET_SHELF'), None)
     h.check("the brush shelf strip under the canvas is hidden (it opens from the options bar)",
             shelf is None or shelf.height <= 1, shelf and shelf.height)
+    ip = scene.tool_settings.image_paint
+    h.check("painting skips work a flat canvas doesn't need (occlusion, seam bleed, falloff)",
+            not ip.use_occlude and not ip.use_backface_culling and not ip.use_normal_falloff
+            and ip.seam_bleed == 0 and not scene.eevee.use_shadows and not scene.eevee.use_raytracing)
     world = scene.world
     h.check("the paper colour is the world colour (Material Preview shows it)",
             world is not None and h.area('VIEW_3D').spaces.active.shading.type == 'MATERIAL'

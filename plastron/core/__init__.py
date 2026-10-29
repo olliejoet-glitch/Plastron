@@ -5,9 +5,10 @@ feature's operators exist.
 """
 
 from . import (handlers, preferences, theme, user_settings, project, modes, hidden_ui,  # noqa: F401
-               autosave, presets, keymaps)
+               autosave, presets, windows_taskbar, keymaps)
 
-_MODULES = (handlers, preferences, theme, user_settings, project, modes, hidden_ui, autosave, presets)
+_MODULES = (handlers, preferences, theme, user_settings, project, modes, hidden_ui, autosave, presets,
+            windows_taskbar)
 
 
 def register():

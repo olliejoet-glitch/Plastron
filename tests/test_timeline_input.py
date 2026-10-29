@@ -1,5 +1,6 @@
 """Timeline with simulated mouse and keys: drag clip edges (ripple, snapping),
-track header buttons, volume drag, N / Ctrl+K / Delete / I / O, undo."""
+track header buttons, volume drag, N / Ctrl+K / Delete / I / O, undo, the
+Slice tool (S / A)."""
 
 import os
 import sys
@@ -12,6 +13,7 @@ tracks = h.module("timeline.tracks")
 clips = h.module("timeline.clips")
 track_headers = h.module("timeline.track_headers")
 panels = h.module("features.storyboard.panels")
+edit_tools = h.module("timeline.edit_tools")
 
 
 def scene():
@@ -211,6 +213,42 @@ def steps():
     yield 0.3
     h.check("a locked track's clips can't be dragged", span(ps[0]) == before, span(ps[0]))
     clips.editor(sc).channels[ch("Panels")].lock = False
+
+    # --- Slice tool: S, click a clip to cut it there; A back to moving -------------
+    def tool():
+        with h.override('SEQUENCE_EDITOR'):
+            return edit_tools.active_tool(bpy.context)
+
+    sc.frame_current = 300
+    ps = sorted(panels.all_panels(sc), key=clips.start)
+    target = ps[0]
+    a0, a1 = span(target)
+    cut = (a0 + a1) // 2 + 3
+    h.move(*at(cut, ch("Panels")))
+    yield
+    h.key('S')
+    yield 0.2
+    h.check("S switches the timeline to the Slice tool", tool() == 'SLICE', tool())
+    n = len(panels.all_panels(sc))
+    h._event('LEFTMOUSE', 'PRESS')
+    h._event('LEFTMOUSE', 'RELEASE')
+    yield 0.4
+    after = sorted(panels.all_panels(sc), key=clips.start)
+    h.check("clicking a clip with Slice cuts it where you clicked",
+            len(after) == n + 1 and span(after[0]) == (a0, cut) and span(after[1]) == (cut, a1),
+            [span(p) for p in after])
+    h.check("...each half keeps its own painting",
+            after[1].plastron_panel.material not in (None, after[0].plastron_panel.material))
+    h.check("...and nothing moved", clips.start(bgp) != 150 and clips.length(bgp) == 30)
+    # A drag with Slice only cuts where it starts; nothing gets moved.
+    edges = {e for p in after for e in span(p)}
+    yield from h.drag(at(cut + 5, ch("Panels")), at(cut + 25, ch("Panels")))
+    yield 0.3
+    now = {e for p in panels.all_panels(sc) for e in span(p)}
+    h.check("dragging with Slice doesn't move clips", now == edges | {cut + 5}, sorted(now ^ edges))
+    h.key('A')
+    yield 0.2
+    h.check("A switches back to moving / resizing clips", tool() == 'MOVE', tool())
     h.screenshot("timeline_input")
 
 

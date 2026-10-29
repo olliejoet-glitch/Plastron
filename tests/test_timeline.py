@@ -132,7 +132,7 @@ def steps():
     yield 0.3
     h.check("painting goes into the panel under the playhead",
             strokes(mat2) > 100 and strokes(mat1) == 0, (strokes(mat2), strokes(mat1)))
-    yield 1.0                                   # the panel image is re-made after a pause
+    yield 3.0                                   # the panel image is re-made after a pause
     h.check("the panel's cached image shows the painting", cached_darkness(p2) > 0.001,
             cached_darkness(p2))
     h.check("...other panels' images are untouched", cached_darkness(p1) == 0.0)

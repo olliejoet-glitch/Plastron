@@ -91,6 +91,10 @@ SHORTCUTS = [
     ("canvas",       "Ctrl+K",           "plastron.clip_split",          "Split at playhead"),
     ("timeline",     "Delete",           "plastron.clip_delete",         "Delete clip"),
     ("timeline",     "Backspace",        "plastron.clip_delete",         "Delete clip"),
+    ("timeline",     "S",                "plastron.timeline_tool",       "Slice tool (click a clip to cut it)", {"tool": 'SLICE'}),
+    ("canvas",       "S",                "plastron.timeline_tool",       "Slice tool (click a clip to cut it)", {"tool": 'SLICE'}),
+    ("timeline",     "A",                "plastron.timeline_tool",       "Move tool (move / resize clips)", {"tool": 'MOVE'}),
+    ("canvas",       "A",                "plastron.timeline_tool",       "Move tool (move / resize clips)", {"tool": 'MOVE'}),
     ("timeline",     "I",                "plastron.loop_set",            "Loop range start",       {"side": 'IN'}),
     ("timeline",     "O",                "plastron.loop_set",            "Loop range end",         {"side": 'OUT'}),
     ("track_headers", "LMB",             "plastron.track_header_click",  "Ripple / solo / volume; pick active track"),
@@ -117,5 +121,6 @@ BLENDER_KEEP = {
     # Tool keymaps (what a tool does on click/drag) keep everything.
     "3D View Tool: *":       ["*"],
     "Sequencer Tool: *":     ["*"],
+    "Sequence Editor Tool: Sequencer, Slice": ["*"],      # Plastron's Slice tool
     "Generic Gizmo*":        ["*"],
 }

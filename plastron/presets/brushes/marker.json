@@ -1,2 +1,1 @@
-{"name": "Marker", "order": 3, "base": "Paint Hard", "size": 22, "opacity": 0.6,
- "pressure_size": false, "pressure_opacity": false, "smooth": true, "smooth_radius": 20, "spacing": 5}
+{"name": "Marker", "order": 3, "base": "Paint Hard", "size": 22, "opacity": 0.6, "pressure_size": false, "pressure_opacity": false, "smooth": false, "smooth_radius": 20, "spacing": 10}

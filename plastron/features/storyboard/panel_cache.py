@@ -21,7 +21,7 @@ from ...core import handlers
 from ...layers import events as layer_events, paint_target
 
 SIZE = defaults.PANEL_IMAGE_SIZE
-DELAY = 0.4          # seconds of quiet after an edit before re-making images
+DELAY = defaults.PANEL_IMAGE_DELAY
 
 _pending = {"materials": set(), "last": 0.0}
 

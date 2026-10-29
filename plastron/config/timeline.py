@@ -15,6 +15,10 @@ SNAP_PX = 10
 # Tall enough for the timeline to show each panel's picture.
 ROW_HEIGHT_PX = 64
 
+# Timeline tools (S = Slice, A = back to this one): Blender's tool for
+# clicking / dragging clips; Plastron adds edge dragging on top.
+MOVE_TOOL = "builtin.select_box"
+
 # Snap targets used while dragging clips and clip edges.
 SNAP_TO_PLAYHEAD = True
 SNAP_TO_CLIP_EDGES = True

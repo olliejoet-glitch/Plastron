@@ -201,9 +201,36 @@ def panel_on_canvas(scene):
         if mat is not None else None
 
 
+# Painting speed: the canvas is one flat sheet facing the view, so Texture
+# Paint's occlusion test (a depth render at every stroke start), seam bleed and
+# angle falloff only cost time. Panels are unlit, so the viewport needs no
+# shadows / ray tracing either.
+FAST_SETTINGS = {
+    "tool_settings.image_paint.use_occlude": False,
+    "tool_settings.image_paint.use_backface_culling": False,
+    "tool_settings.image_paint.use_normal_falloff": False,
+    "tool_settings.image_paint.seam_bleed": 0,
+    "eevee.use_shadows": False,
+    "eevee.use_raytracing": False,
+    "eevee.use_fast_gi": False,
+    "eevee.use_volumetric_shadows": False,
+}
+
+
+def fast_settings(scene):
+    for path, value in FAST_SETTINGS.items():
+        *parents, attr = path.split(".")
+        owner = scene
+        for name in parents:
+            owner = getattr(owner, name)
+        if getattr(owner, attr) != value:
+            setattr(owner, attr, value)
+
+
 def _on_load(scene):
     if scene is None:
         return
+    fast_settings(scene)
     canvas = canvas_object(scene)
     view_layer = bpy.context.view_layer
     if view_layer and view_layer.objects.active != canvas:

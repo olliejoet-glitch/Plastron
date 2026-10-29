@@ -29,7 +29,10 @@ PAINT_FRAME = (1920, 1080)
 FIRST_LAYER_NAME = "Sketch"   # every new panel starts with this paint layer
 
 # Cached panel images (what the timeline shows): the camera frame, this size.
-PANEL_IMAGE_SIZE = (960, 540)
+# They're re-made once you've stopped painting for PANEL_IMAGE_DELAY seconds
+# (making one briefly holds Blender up, so never mid-sketch).
+PANEL_IMAGE_SIZE = (480, 270)
+PANEL_IMAGE_DELAY = 2.5
 
 SCRIPT_TEXT_NAME = "Script"
 BRUSH_COLOR = (0.0, 0.0, 0.0)  # starting paint colour

@@ -8,6 +8,7 @@
     track_headers.py  ripple / solo / volume widgets in the channel column
     header.py         timeline header bar
     ops.py            operators
+    edit_tools.py     Move / Slice tools (S / A)
     events.py         events features listen to
 """
 
@@ -15,9 +16,9 @@ import bpy
 
 from ..config import project_defaults
 from ..core import handlers
-from . import clips, events, header, mix, ops, snapping, track_headers, tracks
+from . import clips, edit_tools, events, header, mix, ops, snapping, track_headers, tracks
 
-_MODULES = (tracks, mix, header, track_headers, ops)
+_MODULES = (tracks, mix, header, track_headers, ops, edit_tools)
 _pending = set()   # scene names waiting for a debounced clips_changed
 
 

@@ -1,2 +1,1 @@
-{"name": "Pencil", "order": 1, "base": "Paint Hard Pressure", "size": 3, "opacity": 0.85,
- "pressure_size": true, "pressure_opacity": true, "smooth": true, "smooth_radius": 12, "spacing": 5}
+{"name": "Pencil", "order": 1, "base": "Paint Hard Pressure", "size": 3, "opacity": 0.85, "pressure_size": true, "pressure_opacity": true, "smooth": false, "smooth_radius": 12, "spacing": 10}
