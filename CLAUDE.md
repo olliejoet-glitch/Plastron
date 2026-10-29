@@ -31,6 +31,16 @@ theme, and keymap, with Photoshop-style drawing shortcuts.
 - **Next: stage 3** (drawing basics: tools, shortcuts, layers and groups,
   brush presets, smoothing, pressure, onion skin, cached panel images).
   Wait for Ollie to ask before starting a stage.
+- **PENDING DECISION: drawing switches from grease pencil to RASTER.** Ollie
+  dislikes GP's point-based strokes: he wants to select/move actual pixels,
+  lay down blobs of colour, and erase precisely. Panels will hold a stack of
+  image layers instead of a GP drawing (timeline, tracks, ripple, panel clips,
+  canvas-follows-playhead all stay). Engine choice (Blender texture paint vs a
+  custom GPU brush engine) waits on Ollie's CaraPainter add-on code, to be
+  uploaded to `reference/carapainter/`; read it fully and propose a plan before
+  writing drawing code. Open question to Ollie: paint resolution (suggested
+  1920×1080 + margin for camera moves, not 4K). This overrides the brief's
+  "grease pencil v3" constraint once confirmed.
 
 ## Ollie's standing preferences (always apply)
 
