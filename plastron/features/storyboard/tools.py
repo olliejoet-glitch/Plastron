@@ -14,6 +14,7 @@ PAINT_MODE = 'TEXTURE_PAINT'      # object mode
 CONTEXT_MODE = 'PAINT_TEXTURE'    # context.mode while painting
 
 _last_brush = {}   # tool id -> (library type, library id, relative id)
+override_label = [None]   # set by tools that run outside Blender's (select, transform...)
 
 
 def tool_table():

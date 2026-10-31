@@ -39,7 +39,10 @@ theme, and keymap, with Photoshop-style drawing shortcuts.
   transcript bars, hover / click / select / cut by words, script linking.
   Real microphone + real Whisper can't run here (no mic; Hugging Face
   blocked): tests use stand-ins (PLASTRON_FAKE_MIC / _TRANSCRIBE).
-- **Next: stage 5** (transform and selection). Wait for Ollie to ask.
+- **Stage 5 done** (transform and selection, on pixels): L lasso / M rectangle
+  selection, V move, Ctrl+T transform (scale, rotate, distort, warp),
+  Ctrl+C / X / V between panels, Ctrl+Alt+F flips (`features/canvas_edit`).
+- **Next: stage 6** (camera and motion). Wait for Ollie to ask.
 - **DONE: drawing switched from grease pencil to RASTER** (Ollie: wants to
   select/move pixels, lay down blobs of colour, erase precisely). Brush engine
   = **Blender's own Texture Paint** (fast, Ollie likes the feel, can add his own
@@ -170,6 +173,10 @@ Plastron/
 │  │                         (Ctrl+R, switch takes), transcribe (+ _worker: own
 │  │                         process), transcript_layout (pure) + transcript_bar,
 │  │                         script_link (script <-> transcript)
+│  │  └─ canvas_edit/        shapes (pure numpy: masks, homography, warp, resample),
+│  │                         pixels (undoable layer writes, screen <-> canvas),
+│  │                         selection (L / M, stencil), transform (Ctrl+T, V),
+│  │                         clipboard (copy / paste, flips)
 │  ├─ presets/               ★ preset files, one folder per kind (brushes/ now); README
 │  │                         lists the fields. Store code: core/presets.py
 │  └─ assets/                icon_256.png, plastron.ico
@@ -271,6 +278,14 @@ Plastron/
   `av.open`, which PyAV 19 removed (TypeError). The worker reads our WAVs
   itself (numpy, resampled to 16 kHz) and hands Whisper an array, which
   skips that loader.
+- Blender can't undo pixels written from Python, but it undoes which image
+  a layer points at: every pixel edit puts its result in a NEW image
+  (canvas_edit/pixels.replace_image, CaraPainter's trick).
+- Blender never undoes tool settings (the paint stencil lives there): the
+  selection is kept in scene.plastron_selection and copied to the stencil
+  after every undo / redo / load.
+- Operators called from Python don't push undo steps (only from the UI /
+  keymap): test undo with real key presses.
 - Keymap clashes: Plastron keys fire on PRESS; Blender items on the same key
   with CLICK / CLICK_DRAG / DOUBLE_CLICK aren't clashes (keymaps.py).
 
@@ -400,8 +415,20 @@ Plastron/
   Ctrl+= / Ctrl+-). Ctrl+0 fit (frame fills 90 %), Ctrl+1 100 % (preview
   pixels). R hold + move = rotate view, snaps back on release. Ctrl+F flip
   view. **G = Fill** (Photoshop's bucket key). Q/W scale brush ×0.8 / ×1.25.
-  L / M / V / Ctrl+T / Ctrl+C / Ctrl+V / Ctrl+Alt+F are reserved for stage 5's
-  pixel selection and transform.
+  Stage 5 (pixels): L lasso, M rectangle (drag; Shift adds, Alt takes away;
+  the tool stays on, navigation works, another tool key or Esc ends it),
+  Ctrl+D deselect, Ctrl+A all, Ctrl+Shift+I invert, Delete erases the
+  selection on the active layer. V moves the selection (or the whole layer).
+  Ctrl+T: drag inside = move, corner = scale (Shift: proportional), edge
+  middle = stretch, outside = rotate (Shift: 15°), Ctrl+corner = distort /
+  perspective, W = warp (4x4 points; the surface passes through them),
+  Enter / double-click / Ctrl+T applies, Esc / right-click cancels. The
+  selection moves with transformed pixels. Ctrl+C / Ctrl+X copy / cut the
+  selection (or layer); Ctrl+V pastes in place as a new "Pasted" layer on
+  the panel being drawn on (and selects it). Ctrl+Alt+F flips the selection
+  left-right in place, or the active layer / every paint layer of the active
+  group; Ctrl+Alt+Shift+F upside down. Outside the selection is tinted
+  (SELECTION_COLOR) with a white edge.
   Same pan/zoom drags work on the timeline.
 - Timeline keys (stage 2): N new panel, Ctrl+K split, Delete/Backspace delete,
   I / O loop range.

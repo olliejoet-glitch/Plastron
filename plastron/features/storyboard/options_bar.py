@@ -29,8 +29,12 @@ def draw(self, context):
 
 
 def _brush_options(layout, context):
+    from .tools import override_label
     current = active_tool_id(context)
     label = next((t["label"] for t in tool_table() if t["id"] == current), "")
+    if override_label[0]:
+        layout.label(text=override_label[0], icon='RESTRICT_SELECT_OFF')
+        return
     layout.label(text=label)
 
     if context.mode != CONTEXT_MODE:

@@ -13,10 +13,7 @@ keymaps = h.module("core.keymaps")
 util = h.module("core.util")
 
 # Actions that are expected to be missing until later stages.
-LATER_STAGES = {   # stage 5: pixel selection and transform
-    "plastron.select_lasso", "plastron.select_rect", "plastron.pixels_move",
-    "plastron.transform", "plastron.pixels_copy", "plastron.pixels_paste", "plastron.layer_flip",
-}
+LATER_STAGES = set()     # every shortcut is built now
 # Plastron actions on a plain click that pass the click on to Blender when
 # they don't apply (e.g. clip_trim lets Blender select / move a clip unless
 # the click is on a clip edge), so sharing that key is intended.

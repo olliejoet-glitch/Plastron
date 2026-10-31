@@ -32,3 +32,16 @@ BRUSH_LIBRARY_NAME = "Plastron Brushes"
 # faintly behind it. Toggle in the options bar; strength in the Canvas panel.
 ONION_SKIN_ON = False         # starting state (your choice is remembered)
 ONION_SKIN_OPACITY = 0.25
+
+# Selections (L lasso, M rectangle): outside the selection is tinted this
+# colour (palette name or hex) at this strength; the edge is drawn white.
+SELECTION_COLOR = "blue"
+SELECTION_TINT_ALPHA = 0.22
+# Keys that end the selection / move / transform tools and do their own job.
+LEAVE_SELECTION_KEYS = {'B', 'E', 'G', 'L', 'M', 'V', 'S', 'A', 'N'}
+
+# Transform (Ctrl+T): handle colour, warp grid (Photoshop's 3x3 cells = 4x4
+# points) and how finely the result is resampled.
+TRANSFORM_COLOR = "orange"
+WARP_POINTS = 4
+TRANSFORM_MESH = 16

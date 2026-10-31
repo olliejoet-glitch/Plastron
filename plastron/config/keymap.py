@@ -70,13 +70,21 @@ SHORTCUTS = [
     ("canvas",       "Ctrl+F",           "plastron.canvas_flip_view",    "Flip view (drawing unchanged)"),
 
     # --- Canvas: later stages ----------------------------------------------
-    ("canvas",       "L",                "plastron.select_lasso",        "Lasso select"),
-    ("canvas",       "M",                "plastron.select_rect",         "Rectangle select"),
-    ("canvas",       "V",                "plastron.pixels_move",         "Move"),
-    ("canvas",       "Ctrl+T",           "plastron.transform",           "Transform"),
+    # --- Canvas: selecting and transforming pixels --------------------------
+    ("canvas",       "L",                "plastron.select_tool",         "Lasso select",           {"shape": 'LASSO'}),
+    ("canvas",       "M",                "plastron.select_tool",         "Rectangle select",       {"shape": 'RECT'}),
+    ("canvas",       "V",                "plastron.move_tool",           "Move"),
+    ("canvas",       "Ctrl+T",           "plastron.transform",           "Transform (scale, rotate, distort, warp)"),
+    ("canvas",       "Ctrl+D",           "plastron.select_none",         "Deselect"),
+    ("canvas",       "Ctrl+A",           "plastron.select_all",          "Select all"),
+    ("canvas",       "Ctrl+Shift+I",     "plastron.select_invert",       "Invert selection"),
+    ("canvas",       "Delete",           "plastron.select_erase",        "Erase the selected pixels"),
+    ("canvas",       "Backspace",        "plastron.select_erase",        "Erase the selected pixels"),
     ("canvas",       "Ctrl+C",           "plastron.pixels_copy",         "Copy pixels"),
-    ("canvas",       "Ctrl+V",           "plastron.pixels_paste",        "Paste pixels in place"),
-    ("canvas",       "Ctrl+Alt+F",       "plastron.layer_flip",          "Flip layer"),
+    ("canvas",       "Ctrl+X",           "plastron.pixels_copy",         "Cut pixels",             {"cut": True}),
+    ("canvas",       "Ctrl+V",           "plastron.pixels_paste",        "Paste in place (new layer)"),
+    ("canvas",       "Ctrl+Alt+F",       "plastron.layer_flip",          "Flip selection / layer left-right"),
+    ("canvas",       "Ctrl+Alt+Shift+F", "plastron.layer_flip",          "Flip upside down",       {"vertical": True}),
 
     # --- Timeline: view ---------------------------------------------------
     ("timeline_view", "Alt+Shift+LMB",   "view2d.pan",                   "Pan (drag)"),

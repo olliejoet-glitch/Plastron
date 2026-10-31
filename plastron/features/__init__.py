@@ -9,6 +9,7 @@ import importlib
 FEATURES = [
     "storyboard",
     "voice",
+    "canvas_edit",
 ]
 
 _loaded = []
