@@ -27,6 +27,7 @@ CANVAS = "Canvas"
 DISPLAY_PREFIX = "Canvas Track "
 ONION = ("Canvas Onion Before", "Canvas Onion After")
 SHEET = "Canvas Sheet"
+PAINT_SHEET = "Canvas Paint Sheet"     # the canvas's own (its UVs follow a moved layer)
 EMPTY = "Plastron Empty Panel"
 DEPTH_STEP = 0.01     # higher tracks sit slightly nearer the camera
 
@@ -40,11 +41,11 @@ def sheet_size():
     return width, width * ph / pw
 
 
-def sheet_mesh():
-    me = bpy.data.meshes.get(SHEET)
+def sheet_mesh(name=SHEET):
+    me = bpy.data.meshes.get(name)
     if me is None:
         w, h = (s / 2 for s in sheet_size())
-        me = bpy.data.meshes.new(SHEET)
+        me = bpy.data.meshes.new(name)
         me.from_pydata([(-w, 0, -h), (w, 0, -h), (w, 0, h), (-w, 0, h)], [], [(0, 1, 2, 3)])
         uv = me.uv_layers.new(name="UV")
         for i, co in enumerate([(0, 0), (1, 0), (1, 1), (0, 1)]):
@@ -67,16 +68,18 @@ def empty_material():
     return mat
 
 
-def _sheet_object(scene, name, selectable):
+def _sheet_object(scene, name, selectable, mesh=SHEET):
     obj = bpy.data.objects.get(name)
     if obj is not None and obj.type != 'MESH':      # a stage-2 (grease pencil) project
         obj.name = name + " (old)"
         obj.hide_viewport = True
         obj = None
     if obj is None:
-        obj = bpy.data.objects.new(name, sheet_mesh())
+        obj = bpy.data.objects.new(name, sheet_mesh(mesh))
         obj.hide_select = not selectable
         scene.collection.objects.link(obj)
+    elif obj.data.name != mesh:                     # projects from before stage 6
+        obj.data = sheet_mesh(mesh)
     slot = obj.material_slots[0]
     if slot.link != 'OBJECT':
         slot.link = 'OBJECT'
@@ -84,7 +87,18 @@ def _sheet_object(scene, name, selectable):
 
 
 def canvas_object(scene):
-    return _sheet_object(scene, CANVAS, True)
+    return _sheet_object(scene, CANVAS, True, PAINT_SHEET)
+
+
+def shift_paint_uv(scene, du, dv):
+    """Shift the canvas sheet's UVs by (-du, -dv) (fractions of the painting),
+    so strokes land in a layer shown moved by (du, dv) (features/motion)."""
+    uv = canvas_object(scene).data.uv_layers[0].data
+    want = [(0 - du, 0 - dv), (1 - du, 0 - dv), (1 - du, 1 - dv), (0 - du, 1 - dv)]
+    if any(abs(uv[i].uv[0] - x) > 1e-7 or abs(uv[i].uv[1] - y) > 1e-7 for i, (x, y) in enumerate(want)):
+        for i, co in enumerate(want):
+            uv[i].uv = co
+        canvas_object(scene).data.update()
 
 
 def _display_object(scene, track):

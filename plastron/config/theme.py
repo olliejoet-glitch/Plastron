@@ -97,6 +97,10 @@ COLORS = {
 CANVAS = {
     "outside_frame": "#0d191766",   # dims the canvas outside the camera frame
     "frame_line":    "#00000055",
+    "clean_view":    "bg",          # Clean View (F): outside the frame hidden in this colour
+    "frame_edit":    "orange",      # the camera frame being set (Motion panel: Start / End)
+    "frame_other":   "#4d73b1aa",   # ...and the other end's frame, for reference
+    "motion_path":   "#de7520aa",   # a moving layer's path while setting its motion
 }
 
 # Canvas colour swatches in the Canvas panel (tools area). Any colour can also

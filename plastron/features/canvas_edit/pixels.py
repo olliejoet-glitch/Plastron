@@ -61,19 +61,29 @@ def replace_image(mat, layer_uid, arr):
 
 # --- screen <-> canvas pixels ---------------------------------------------------------------
 
+def _shift(mat=None):
+    """How far the layer being painted is shown moved (features/motion): its
+    pixels sit that far from where the sheet shows them."""
+    mat = mat or material()
+    return tuple(mat.plastron_stack.view_shift) if mat is not None else (0.0, 0.0)
+
+
 def canvas_point(context, x, y):
-    """Mouse position in the canvas region -> canvas pixel (x, y)."""
+    """Mouse position in the canvas region -> pixel (x, y) of the layer being
+    painted (canvas pixels, less how far that layer is shown moved)."""
     loc = region_2d_to_location_3d(context.region, context.region_data, (x, y), (0.0, 0.0, 0.0))
     sw, sh = canvas_sync.sheet_size()
     w, h = size()
-    return ((loc.x / sw + 0.5) * w, (loc.z / sh + 0.5) * h)
+    dx, dy = _shift()
+    return ((loc.x / sw + 0.5) * w - dx, (loc.z / sh + 0.5) * h - dy)
 
 
 def world_point(px, py):
-    """Canvas pixel -> point on the sheet (for drawing)."""
+    """Pixel of the layer being painted -> point on the sheet (for drawing)."""
     sw, sh = canvas_sync.sheet_size()
     w, h = size()
-    return ((px / w - 0.5) * sw, -0.02, (py / h - 0.5) * sh)
+    dx, dy = _shift()
+    return (((px + dx) / w - 0.5) * sw, -0.02, ((py + dy) / h - 0.5) * sh)
 
 
 def region_point(context, px, py):

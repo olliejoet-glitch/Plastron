@@ -76,13 +76,28 @@ def frame_crop(stack):
     return ((stack.width - fw) / 2, (stack.height - fh) / 2, fw, fh)
 
 
+# Hook: func(strip, stack) -> (crop, offsets) or None. What a panel's image
+# shows (e.g. features/motion: the camera and layers where the panel starts).
+VIEW_PROVIDERS = []
+
+
+def view(strip, stack):
+    """(crop, layer offsets) the panel's image is made with."""
+    for provider in VIEW_PROVIDERS:
+        answer = provider(strip, stack)
+        if answer:
+            return answer
+    return frame_crop(stack), None
+
+
 def render(strip):
     """Re-make strip's cached image from its painting."""
     from ...layers.flatten import flatten
     mat = strip.plastron_panel.material
     if mat is None or not mat.plastron_stack.enabled:
         return
-    rgba = flatten(mat, crop=frame_crop(mat.plastron_stack), out_size=SIZE)
+    crop, offsets = view(strip, mat.plastron_stack)
+    rgba = flatten(mat, crop=crop, out_size=SIZE, offsets=offsets)
     alpha = rgba[..., 3:4]
     rgba[..., :3] = rgba[..., :3] * alpha + paper() * (1.0 - alpha)
     rgba[..., 3] = 1.0

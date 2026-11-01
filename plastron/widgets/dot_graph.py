@@ -12,6 +12,8 @@ to add a point, drag to move it).
     points(graph_id)             the current points
 """
 
+import uuid
+
 import bpy
 
 TREE = ".PLASTRON Graphs"
@@ -57,7 +59,8 @@ def points(graph_id):
 
 
 def set_points(graph_id, pts, handle='AUTO'):
-    """Replace a graph's points (at least two)."""
+    """Replace a graph's points (at least two). handle: one handle type for
+    every point ('AUTO', 'AUTO_CLAMPED', 'VECTOR') or one per point."""
     n = node(graph_id)
     curve = n.mapping.curves[0]
     pts = sorted((float(x), float(y)) for x, y in pts)
@@ -67,8 +70,9 @@ def set_points(graph_id, pts, handle='AUTO'):
     curve.points[-1].location = pts[-1]
     for x, y in pts[1:-1]:
         curve.points.new(x, y)
-    for p in curve.points:
-        p.handle_type = handle
+    kinds = [handle] * len(curve.points) if isinstance(handle, str) else list(handle)
+    for p, kind in zip(curve.points, kinds):
+        p.handle_type = kind
     n.mapping.update()
 
 
@@ -78,8 +82,27 @@ def remove(graph_id):
         tree.nodes.remove(tree.nodes[graph_id])
 
 
-def copy(src_id, dst_id):
+def new_id(prefix="graph"):
+    return f"{prefix}_{uuid.uuid4().hex[:10]}"
+
+
+def copy(src_id, dst_id=None):
+    """Copy a graph (points and handle types); returns the copy's id."""
+    dst_id = dst_id or new_id(src_id.split("_", 1)[0])
+    src = node(src_id, create=False)
+    if src is None:
+        return dst_id
     set_points(dst_id, points(src_id))
+    dst = node(dst_id).mapping.curves[0]
+    for a, b in zip(src.mapping.curves[0].points, dst.points):
+        b.handle_type = a.handle_type
+    node(dst_id).mapping.update()
+    return dst_id
+
+
+def handles(graph_id):
+    n = node(graph_id, create=False)
+    return [p.handle_type for p in n.mapping.curves[0].points] if n else ['AUTO', 'AUTO']
 
 
 def draw(layout, graph_id):

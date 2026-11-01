@@ -68,6 +68,7 @@ SHORTCUTS = [
     ("canvas",       "Ctrl+1",           "plastron.canvas_zoom_actual",  "100 % zoom"),
     ("canvas",       "R",                "plastron.canvas_rotate",       "Rotate view (hold + drag)"),
     ("canvas",       "Ctrl+F",           "plastron.canvas_flip_view",    "Flip view (drawing unchanged)"),
+    ("canvas",       "F",                "plastron.clean_view",          "Clean view: hide outside the camera frame"),
 
     # --- Canvas: later stages ----------------------------------------------
     # --- Canvas: selecting and transforming pixels --------------------------

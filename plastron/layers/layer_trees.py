@@ -408,6 +408,7 @@ def values(layer, stack):
     (what the picker shows); in Linear blend space they're decoded."""
     col = (lambda c: (*c, 1.0)) if stack.blend_space == "SRGB" else (lambda c: (*_decode(c), 1.0))
     du, dv = shown_offset(layer, stack)
+    du, dv = du - stack.view_shift[0], dv - stack.view_shift[1]
     v = {"LA Hue": layer.la_hue, "LA Sat": layer.la_saturation, "LA Val": layer.la_value,
          "Opacity": layer.opacity, "Visible": 1.0 if layer.visible else 0.0,
          "MoveU": du / max(stack.width, 1), "MoveV": dv / max(stack.height, 1)}

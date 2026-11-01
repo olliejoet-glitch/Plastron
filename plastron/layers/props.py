@@ -103,6 +103,22 @@ def _value_tree(self, context):
             push_layer(self.id_data, layer)
 
 
+def _view_shift(self, context):
+    """The canvas's paint mesh moved under this stack: every layer's values again."""
+    if _suspend:
+        return
+    from .compiler import push_layer
+    for layer in self.layers:
+        push_layer(self.id_data, layer)
+
+
+def _moved(self, context):
+    """A start / end position changed: listeners (thumbnail, motion) hear it."""
+    if not _suspend:
+        from . import events
+        events.changed(self.id_data)
+
+
 def _mask_value(self, context):
     if not _suspend:
         from .compiler import push_mask
@@ -180,8 +196,10 @@ class PLASTRON_PG_layer(bpy.types.PropertyGroup):
     # motion (stage 6): where the layer (or group, with everything in it) sits
     # at the start / end of its panel, in canvas pixels; eased by a dot graph.
     # move_now is where it's shown right now (written by the motion feature).
-    move_start: FloatVectorProperty(name="Start", size=2, default=(0.0, 0.0), subtype='XYZ')
-    move_end: FloatVectorProperty(name="End", size=2, default=(0.0, 0.0), subtype='XYZ')
+    move_start: FloatVectorProperty(name="Start", size=2, default=(0.0, 0.0), subtype='XYZ',
+                                    precision=0, update=_moved)
+    move_end: FloatVectorProperty(name="End", size=2, default=(0.0, 0.0), subtype='XYZ',
+                                  precision=0, update=_moved)
     move_curve: StringProperty()
     move_now: FloatVectorProperty(size=2, default=(0.0, 0.0), update=_value_tree)
     # adjustment
@@ -237,6 +255,11 @@ class PLASTRON_PG_stack(bpy.types.PropertyGroup):
     height: IntProperty(default=1350, min=16)
     node_tree_name: StringProperty()
     node_tree = property(_tree_get, _tree_set)
+    # Canvas pixels the paint sheet's UVs are shifted by while this stack is
+    # on the canvas, so the layer being painted on can be shown moved and
+    # still take strokes where you see them (features/motion). Every layer
+    # is shown shifted back by the same amount.
+    view_shift: FloatVectorProperty(size=2, default=(0.0, 0.0), update=_view_shift)
 
     @property
     def active(self):

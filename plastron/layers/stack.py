@@ -140,7 +140,11 @@ def _copy_layer_props(src, dst):
         k = p.identifier
         if k in ("rna_type", "uid", "node_tree_name", "masks") or p.is_readonly:
             continue
-        setattr(dst, k, getattr(src, k))
+        value = getattr(src, k)
+        if k == "move_curve" and value:        # its own easing graph, not a shared one
+            from ..widgets import dot_graph
+            value = dot_graph.copy(value)
+        setattr(dst, k, value)
     for m in src.masks:
         nm = dst.masks.add()
         for p in m.bl_rna.properties:
@@ -307,5 +311,8 @@ def copy_material(mat, name):
         for layer in st.layers:
             layer.node_tree_name = ""
             _copy_images(layer)
+            if layer.move_curve:            # its own easing graph
+                from ..widgets import dot_graph
+                layer.move_curve = dot_graph.copy(layer.move_curve)
     compile_stack(new)   # fresh stack + layer trees (names cleared above)
     return new

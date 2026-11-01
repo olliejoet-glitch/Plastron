@@ -15,16 +15,24 @@ import bpy
 
 BUILT_IN = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "presets")
 
-_kinds = {}   # kind -> {"apply": func(context, values), "capture": func(context) -> dict}
+_kinds = {}   # kind -> {"apply", "capture", "folder", "accepts"}
 _cache = {}   # kind -> list of presets (read once; menus draw often)
 
 
-def register_kind(kind, apply, capture):
-    _kinds[kind] = {"apply": apply, "capture": capture}
+def register_kind(kind, apply, capture, folder=None, accepts=None):
+    """folder: presets folder name if not the kind's own (two kinds can share
+    one folder, e.g. camera and layer motion both use motion/). accepts(preset):
+    which of the folder's presets this kind lists (default: all)."""
+    _kinds[kind] = {"apply": apply, "capture": capture, "folder": folder or kind,
+                    "accepts": accepts or (lambda _p: True)}
+
+
+def _folder(kind):
+    return _kinds[kind]["folder"] if kind in _kinds else kind
 
 
 def user_dir(kind):
-    return os.path.join(bpy.utils.user_resource('CONFIG'), "plastron_presets", kind)
+    return os.path.join(bpy.utils.user_resource('CONFIG'), "plastron_presets", _folder(kind))
 
 
 def _read(folder, built_in):
@@ -56,10 +64,11 @@ def all_presets(kind):
 
 
 def _load(kind):
-    built = sorted(_read(os.path.join(BUILT_IN, kind), True), key=lambda p: (p.get("order", 99), p["name"]))
+    built = sorted(_read(os.path.join(BUILT_IN, _folder(kind)), True), key=lambda p: (p.get("order", 99), p["name"]))
     saved = sorted(_read(user_dir(kind), False), key=lambda p: p["name"].lower())
     names = {p["name"] for p in saved}
-    return [p for p in built if p["name"] not in names] + saved
+    accepts = _kinds[kind]["accepts"] if kind in _kinds else (lambda _p: True)
+    return [p for p in built + saved if (p["built_in"] is False or p["name"] not in names) and accepts(p)]
 
 
 def get(kind, name):
@@ -88,7 +97,7 @@ def save(kind, name, context):
     path = existing["file"] if existing else os.path.join(folder, _file_name(name) + ".json")
     with open(path, "w", encoding="utf-8") as f:
         json.dump(values, f, indent=1)
-    _cache.pop(kind, None)
+    _cache.clear()          # kinds can share a folder
     return path
 
 
@@ -98,7 +107,7 @@ def delete(kind, name):
     if preset is None:
         return False
     os.remove(preset["file"])
-    _cache.pop(kind, None)
+    _cache.clear()
     return True
 
 

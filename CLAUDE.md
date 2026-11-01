@@ -42,7 +42,11 @@ theme, and keymap, with Photoshop-style drawing shortcuts.
 - **Stage 5 done** (transform and selection, on pixels): L lasso / M rectangle
   selection, V move, Ctrl+T transform (scale, rotate, distort, warp),
   Ctrl+C / X / V between panels, Ctrl+Alt+F flips (`features/canvas_edit`).
-- **Next: stage 6** (camera and motion). Wait for Ollie to ask.
+- **Stage 6 done** (camera and motion): camera start / end per panel (pan,
+  zoom, slight rotation) set by dragging on the canvas, easing dot graph
+  (`widgets/dot_graph`), camera shake, layer / group start / end motion,
+  motion presets, Clean View (F) (`features/motion`).
+- **Next: stage 7** (planning, review, export). Wait for Ollie to ask.
 - **DONE: drawing switched from grease pencil to RASTER** (Ollie: wants to
   select/move pixels, lay down blobs of colour, erase precisely). Brush engine
   = **Blender's own Texture Paint** (fast, Ollie likes the feel, can add his own
@@ -133,6 +137,7 @@ Plastron/
 │  │  ├─ layout.py           each mode's areas, sizes, visible regions
 │  │  ├─ tools.py            drawing tools, tool strip order, brush palette / library
 │  │  ├─ voice.py            recording, transcription model + prompt, transcript bar look
+│  │  ├─ motion.py           camera zoom / rotation limits, drag handles, shake, layer refresh delay
 │  │  ├─ theme.py            palette + where each colour is used; canvas overlay colours
 │  │  ├─ hidden_ui.py        Blender panels/shelves to hide, headers to replace
 │  │  ├─ preferences.py      Blender preferences set at every start
@@ -160,7 +165,8 @@ Plastron/
 │  │                         props, blend_lib, layer_trees, compiler (node trees),
 │  │                         flatten (same maths in numpy), stack (edits), paint_target
 │  │                         (aims Texture Paint at the active layer), ops, ui (Layers panel)
-│  ├─ widgets/               shared UI components (dot graph later)
+│  ├─ widgets/               shared UI components: dot_graph (easing now; pitch /
+│  │                         volume / speed later: Float Curve nodes in ".PLASTRON Graphs")
 │  ├─ features/              one package per feature; list in features/__init__.py
 │  │  └─ storyboard/         canvas_view (navigation), canvas_frame (overlay),
 │  │                         tools (tool switching, tool strip), options_bar,
@@ -178,7 +184,11 @@ Plastron/
 │  │                         pixels (undoable layer writes, screen <-> canvas),
 │  │                         selection (L / M, stencil), transform (Ctrl+T, V),
 │  │                         clipboard (copy / paste, flips)
-│  ├─ presets/               ★ preset files, one folder per kind (brushes/ now); README
+│  │  └─ motion/             camera (strip.plastron_motion, frame maths, shake),
+│  │                         layer_motion (move_now after scrubbing, painted-layer
+│  │                         UV shift), edit (Start / End drag modal), thumbnails
+│  │                         (panel_cache hook), ui (Motion panel, presets)
+│  ├─ presets/               ★ preset files, one folder per kind (brushes/, motion/); README
 │  │                         lists the fields. Store code: core/presets.py
 │  └─ assets/                icon_256.png, plastron.ico
 ├─ tools/
@@ -287,6 +297,14 @@ Plastron/
   after every undo / redo / load.
 - Operators called from Python don't push undo steps (only from the UI /
   keymap): test undo with real key presses.
+- A modal operator started from a button in the tools area gets mouse
+  coordinates relative to THAT region: find the canvas under
+  event.mouse_x / mouse_y yourself (motion/edit.py `_canvas_under`), and
+  handle Enter / Esc before passing events on.
+- Texture Paint lands strokes at the mesh's UV: to paint a layer shown moved,
+  shift the canvas mesh's UVs (the canvas has its own "Canvas Paint Sheet"
+  mesh) and shift every layer's look back (stack.view_shift).
+- `animation_playback_post` exists (fires once when playback stops).
 - Keymap clashes: Plastron keys fire on PRESS; Blender items on the same key
   with CLICK / CLICK_DRAG / DOUBLE_CLICK aren't clashes (keymaps.py).
 
@@ -519,5 +537,38 @@ Plastron/
   start (no splash, opening projects keeps Plastron's layout, 64 undo steps).
 - Theme: dark teal, orange (selection/active) and blue (playhead/secondary),
   sampled from Ollie's Blender theme.
+- Camera moves (stage 6): the scene camera never moves (no keyframes, no
+  drivers). Each panel strip has `plastron_motion`: start / end (x, y in %
+  of the frame width, zoom 1 = normal frame / 2 = twice as close, rotation
+  up to ±45°), an easing graph and shake (amount % of frame width, speed
+  wobbles/s, a little tilt; deterministic per panel). The canvas draws the
+  moved frame at the playhead as it redraws (canvas_frame FRAME_PROVIDERS),
+  so the frame follows playback for free. The shot = the panel being drawn
+  on. Zoom blends evenly in scale. The animatic export (stage 7) will crop
+  per frame from the same maths (camera.state_at / corners / crop).
+- Setting a move (Motion panel in the tools area, under Layers): Start / End
+  jump the playhead to the panel's first / last frame and start a drag mode
+  on the canvas. Camera: inside = move, near a corner = zoom, outside =
+  rotate (Shift: 5° steps); the other end's frame shows in blue. Layer:
+  drag moves the active layer (or group). Enter / double-click / Done keep,
+  Esc / right-click / Cancel put it back. Values can also be typed.
+- Layer motion: move_start / move_end in canvas pixels, eased by its own dot
+  graph; a group's move carries its layers. Shown positions (move_now) are
+  written for the panels under the playhead after scrubbing stops (0.12 s),
+  at clip edges and after edits; NOT during playback (Ollie's no-per-frame
+  rule; config/motion.py says so). The layer being painted is shown moved
+  too: the canvas mesh's UVs follow it (stack.view_shift) so strokes land
+  where you see them, and selections / transforms / paste work in that
+  layer's own pixels.
+- Panel images (thumbnails) show the panel where it starts: camera start
+  frame (rotation left out) and layers at their start.
+- Motion presets (presets/motion/): Straight, Ease in, Ease out, Ease in-out,
+  Overshoot (set the graph), Camera shake, No shake. Both Motion sub-panels
+  have a presets menu (header icon); layers only list presets with a curve.
+  "Save current as preset" works for both (shared folder).
+- Every panel / layer has its own graph: split copies the camera graph and
+  the layers' graphs (copy_material / duplicate copy graphs too).
+- Clean View (F, or the options bar button): outside the frame is hidden in
+  the area background colour instead of dimmed.
 - Value swatches (value groups sampled from an image) are **deferred** to the
   later "value group editor" feature. Don't build them in storyboard mode.

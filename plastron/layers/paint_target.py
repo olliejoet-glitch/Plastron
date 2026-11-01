@@ -6,6 +6,12 @@ survives undo and file loads)."""
 
 import bpy
 
+_listeners = []   # func(material) after painting is re-aimed (e.g. motion)
+
+
+def listen(func):
+    _listeners.append(func)
+
 
 def active_material(context=None):
     """The layer-stack material on the active object, or None."""
@@ -42,3 +48,5 @@ def sync(mat=None, scene=None):
     img = target_image(current)
     if ip.canvas != img:
         ip.canvas = img
+    for func in _listeners:
+        func(current)

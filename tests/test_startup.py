@@ -139,6 +139,7 @@ def steps():
     # The only per-frame hooks allowed, each an O(1) "did anything change?" check
     # (test_timeline proves the canvas one does no work inside a panel).
     allowed = {("frame_change_post", "on_frame"),            # canvas: crossed a clip edge?
+               ("frame_change_post", "_motion_frame"),       # moving layers: restart a timer (not playing)
                ("depsgraph_update_post", "_on_depsgraph"),   # timeline: flag edit (not during playback)
                ("depsgraph_update_post", "_on_stroke")}      # panel image: was an image painted?
     per_frame = {(n, f) for n, f in handlers.registered() if n in handlers.PER_FRAME}

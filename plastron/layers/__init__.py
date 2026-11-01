@@ -16,7 +16,7 @@ the project is saved.
 import bpy
 
 from ..core import handlers
-from . import events, ops, props, ui
+from . import events, ops, paint_target, props, ui
 
 _CLASSES = ops.classes + ui.classes
 
@@ -43,3 +43,4 @@ def unregister():
         bpy.utils.unregister_class(cls)
     props.unregister()
     events.clear()
+    paint_target._listeners.clear()

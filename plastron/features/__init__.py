@@ -10,6 +10,7 @@ FEATURES = [
     "storyboard",
     "voice",
     "canvas_edit",
+    "motion",
 ]
 
 _loaded = []
