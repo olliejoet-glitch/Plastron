@@ -40,6 +40,11 @@ def apply(context, preset):
     brush.use_pressure_strength = bool(preset.get("pressure_opacity", brush.use_pressure_strength))
     brush.use_smooth_stroke = bool(preset.get("smooth", brush.use_smooth_stroke))
     brush.smooth_stroke_radius = int(preset.get("smooth_radius", brush.smooth_stroke_radius))
+    brush.smooth_stroke_factor = float(preset.get("smooth_strength", brush.smooth_stroke_factor))
+    ip = context.tool_settings.image_paint
+    ups = ip.unified_paint_settings
+    steady_owner = ups if ups.use_unified_input_samples else brush
+    steady_owner.input_samples = int(preset.get("steady", 1))
     brush.spacing = int(preset.get("spacing", brush.spacing))
     context.window_manager["plastron_brush_preset"] = preset["name"]
 
@@ -54,6 +59,9 @@ def capture(context):
         "size": size_owner.size, "opacity": round(strength_owner.strength, 3),
         "pressure_size": brush.use_pressure_size, "pressure_opacity": brush.use_pressure_strength,
         "smooth": brush.use_smooth_stroke, "smooth_radius": brush.smooth_stroke_radius,
+        "smooth_strength": round(brush.smooth_stroke_factor, 3),
+        "steady": (ip.unified_paint_settings if ip.unified_paint_settings.use_unified_input_samples
+                   else brush).input_samples,
         "spacing": brush.spacing,
     }
 

@@ -227,5 +227,18 @@ def steps():
             "Pasted" in names and np.array_equal(painted(pasted), painted(copied_from)), names)
     h.screenshot("pasted")
 
+    # Pasting from a panel painted at another size (e.g. an older, smaller one)
+    # rescales, so the drawing keeps its place in the frame.
+    clipboard = h.module("features.canvas_edit.clipboard")
+    small = np.zeros((hh // 2, w // 2, 4), np.float32)
+    small[hh // 4 - 10:hh // 4 + 10, w // 4 - 20:w // 4 + 20] = (0, 0, 1, 1)   # centre block
+    clipboard._clip["pixels"] = small
+    h.key('V', ctrl=True)
+    yield 0.4
+    p = painted()
+    h.check("pasting from a smaller panel scales up to this one's size",
+            p[hh // 2, w // 2] and p[hh // 2 + 15, w // 2 + 35] and not p[hh // 2 + 30, w // 2],
+            int(p.sum()))
+
 
 h.run(steps())

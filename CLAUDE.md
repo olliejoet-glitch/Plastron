@@ -337,14 +337,20 @@ Plastron/
 - Canvas options bar (replaces Blender's tool header): tool name, brush
   picker (Blender's texture brush shelf as a pop-up; the shelf strip under
   the canvas is hidden), colour, Size, Opacity (= brush strength) with pen
-  pressure toggles, Smooth (stroke smoothing + radius).
+  pressure toggles, Smooth (+ Radius, Strength) and Steady (input samples:
+  averages the last N pen positions, no dead zone). Blender's smoothing
+  radius can't go below 10 px (its hard limit), hence Strength / Steady for
+  finer control (Ollie). Presets store smooth_strength and steady too.
 - Tools: Pencil = "Paint Hard Pressure", Eraser = "Erase Hard", Fill, Blur,
   Smudge (Blender's essential texture brushes; config/tools.py). Each tool
   remembers the last brush used with it for the session (B brings back your
   last pencil brush). Photoshop's blur/smudge key R is the view rotate, so
   they're Shift+B / Shift+S. Alt+click picks the colour you see (merged).
-- Paint resolution 2400×1350 (PAINT_RESOLUTION); the camera frame is the
-  middle 1920×1080, the rest is bleed. New panels start with one paint layer
+- Paint resolution 3600×2025 (PAINT_RESOLUTION; Ollie found 2400×1350 a bit
+  low res); the camera frame is the middle 2880×1620, the rest is bleed.
+  Not 4K: a layer holds w×h×4 bytes in memory (~29 MB here, ~52 MB at 4K).
+  Existing panels keep their size; pasting between panels of different
+  sizes rescales. New panels start with one paint layer
   "Sketch". Layer images are 8-bit, packed into the project.
 - Panels: image clip (cached image, "<project>_cache/panel_<uid>.png",
   temp folder until first save) + its own layer-stack material

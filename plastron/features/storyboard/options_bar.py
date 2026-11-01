@@ -61,12 +61,19 @@ def _brush_options(layout, context):
     row.ui_units_x = 8
     row.prop(_owner(ups, brush, "use_unified_strength"), "strength", slider=True, text="Opacity")
     _pressure(row, brush, "use_pressure_strength")
+    # Smoothing. Blender's lazy-mouse radius can't go below 10 px (its own
+    # limit), so Strength and Steady give the finer control. Click a field to
+    # type a value.
     row = layout.row(align=True)
     row.prop(brush, "use_smooth_stroke", text="Smooth", toggle=True)
     if brush.use_smooth_stroke:
         sub = row.row(align=True)
-        sub.ui_units_x = 6
-        sub.prop(brush, "smooth_stroke_radius", text="Radius", slider=True)
+        sub.ui_units_x = 13
+        sub.prop(brush, "smooth_stroke_radius", text="Radius")
+        sub.prop(brush, "smooth_stroke_factor", text="Strength")
+    row = layout.row(align=True)
+    row.ui_units_x = 5
+    row.prop(_owner(ups, brush, "use_unified_input_samples"), "input_samples", text="Steady")
 
 
 def register():

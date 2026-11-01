@@ -84,6 +84,25 @@ def steps():
             and "Fat ink" not in [p["name"] for p in presets.all_presets("brushes")])
     with h.override('VIEW_3D'):
         bpy.ops.plastron.canvas_tool(tool='PENCIL')
+    # Finer smoothing: Strength and Steady (Blender's radius stops at 10 px).
+    b = ip.brush
+    b.use_smooth_stroke = True
+    b.smooth_stroke_factor = 0.6
+    (ups if ups.use_unified_input_samples else b).input_samples = 4
+    h.redraw()
+    yield 0.3
+    h.screenshot("options_bar_smooth")
+    with h.override('VIEW_3D'):
+        saved = presets.save("brushes", "Steady pencil", bpy.context)
+        bpy.ops.plastron.preset_apply(kind="brushes", name="Pencil")
+        bpy.ops.plastron.preset_apply(kind="brushes", name="Steady pencil")
+    steady = (ups if ups.use_unified_input_samples else ip.brush).input_samples
+    h.check("presets remember smoothing strength and steadiness",
+            abs(ip.brush.smooth_stroke_factor - 0.6) < 1e-3 and steady == 4,
+            (ip.brush.smooth_stroke_factor, steady))
+    presets.delete("brushes", "Steady pencil")
+    with h.override('VIEW_3D'):
+        bpy.ops.plastron.preset_apply(kind="brushes", name="Pencil")
 
     # Paint (directly), save, reopen.
     img = st.layers[0].paint_image

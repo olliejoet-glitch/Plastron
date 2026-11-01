@@ -24,8 +24,11 @@ CANVAS_WIDTH = 16.0
 
 # Panels are painted at PAINT_RESOLUTION pixels. PAINT_FRAME of them fill the
 # camera frame; the rest is bleed around it (room to reframe later).
-PAINT_RESOLUTION = (2400, 1350)
-PAINT_FRAME = (1920, 1080)
+# (Ollie found 2400x1350 a bit low res. Each paint layer holds width x height
+# x 4 bytes in memory: ~29 MB here, ~52 MB at 4K (4800x2700 / 3840x2160).
+# Existing panels keep the size they were made at.)
+PAINT_RESOLUTION = (3600, 2025)
+PAINT_FRAME = (2880, 1620)
 FIRST_LAYER_NAME = "Sketch"   # every new panel starts with this paint layer
 
 # Cached panel images (what the timeline shows): the camera frame, this size.

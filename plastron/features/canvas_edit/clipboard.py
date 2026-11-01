@@ -3,7 +3,8 @@
 Ctrl+C copies the selected pixels of the active layer (the whole layer with
 nothing selected); Ctrl+X cuts them. Ctrl+V pastes in place as a new layer
 on the panel being drawn on, so copying between panels keeps the drawing
-where it was in the frame.
+where it was in the frame (rescaled if the panels were painted at different
+sizes).
 
 Ctrl+Alt+F flips the selected pixels left-right (in place); with nothing
 selected it flips the active layer (or every paint layer in the active
@@ -81,14 +82,10 @@ class PLASTRON_OT_pixels_paste(_CanvasOp, bpy.types.Operator):
             self.report({'INFO'}, "Nothing copied yet")
             return {'CANCELLED'}
         w, h = pixels.size(mat)
-        if data.shape[:2] != (h, w):            # a different canvas size: centre it
-            out = np.zeros((h, w, 4), np.float32)
-            dh, dw = data.shape[:2]
-            ys, xs = max(0, (h - dh) // 2), max(0, (w - dw) // 2)
-            sy, sx = max(0, (dh - h) // 2), max(0, (dw - w) // 2)
-            ch, cw = min(h, dh), min(w, dw)
-            out[ys:ys + ch, xs:xs + cw] = data[sy:sy + ch, sx:sx + cw]
-            data = out
+        if data.shape[:2] != (h, w):            # panels painted at another size: rescale
+            grid = shapes.grid_from_corners(shapes.rect_corners(0, 0, w, h), 8)
+            pre = shapes.render(data, grid, w, h)
+            data = shapes.over(np.zeros_like(pre), pre)
         uid = stack_ops.add_layer(mat, 'PAINT', name="Pasted")
         pixels.replace_image(mat, uid, data)
         selection.set_mask(context, (data[..., 3] > 0).astype(np.float32))

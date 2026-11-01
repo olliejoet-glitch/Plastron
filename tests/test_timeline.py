@@ -104,7 +104,8 @@ def steps():
     mat1 = p1.plastron_panel.material
     h.check("panel has its own layer stack, one paint layer at the paint resolution",
             mat1 is not None and [l.name for l in mat1.plastron_stack.layers] == ["Sketch"]
-            and tuple(mat1.plastron_stack.layers[0].paint_image.size) == (2400, 1350))
+            and tuple(mat1.plastron_stack.layers[0].paint_image.size)
+            == tuple(h.module("config.project_defaults").PAINT_RESOLUTION))
     h.check("panel's cached image exists", os.path.exists(panel_cache.strip_path(p1)), panel_cache.strip_path(p1))
     canvas = bpy.data.objects["Canvas"]
     h.check("canvas shows the starter panel", shows(canvas) == mat1)

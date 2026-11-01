@@ -18,5 +18,7 @@ which updates keep, and are listed after these.
 | pressure_size  | pen pressure changes the size                               |
 | pressure_opacity | pen pressure changes the opacity                          |
 | smooth         | stroke smoothing on                                         |
-| smooth_radius  | how far behind the pen the stroke trails (pixels)           |
+| smooth_radius  | how far behind the pen the stroke trails (pixels, 10-200)   |
+| smooth_strength| how strongly smoothing pulls (0.5-0.99)                     |
+| steady         | average the last N pen positions (1 = off, up to 64)        |
 | spacing        | dab spacing, % of the brush size                            |
