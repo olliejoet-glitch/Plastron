@@ -1,5 +1,6 @@
 """Brush presets (Pencil, Ink, Marker, Soft shading...): a Blender texture
-brush plus size, opacity, pressure and smoothing. The presets themselves are
+brush plus size, opacity, pressure and spacing (smoothing is the
+stabiliser's, the same for every brush). The presets themselves are
 JSON files in plastron/presets/brushes/ (see its README); the store is
 core/presets.py. Picked from the options bar.
 """
@@ -38,15 +39,10 @@ def apply(context, preset):
     strength_owner.strength = float(preset.get("opacity", strength_owner.strength))
     brush.use_pressure_size = bool(preset.get("pressure_size", brush.use_pressure_size))
     brush.use_pressure_strength = bool(preset.get("pressure_opacity", brush.use_pressure_strength))
-    brush.use_smooth_stroke = bool(preset.get("smooth", brush.use_smooth_stroke))
-    brush.smooth_stroke_radius = int(preset.get("smooth_radius", brush.smooth_stroke_radius))
-    brush.smooth_stroke_factor = float(preset.get("smooth_strength", brush.smooth_stroke_factor))
-    ip = context.tool_settings.image_paint
-    ups = ip.unified_paint_settings
-    steady_owner = ups if ups.use_unified_input_samples else brush
-    steady_owner.input_samples = int(preset.get("steady", 1))
     brush.spacing = int(preset.get("spacing", brush.spacing))
     context.window_manager["plastron_brush_preset"] = preset["name"]
+    from . import stabiliser            # smoothing is the stabiliser's job, for every brush
+    stabiliser.apply(context)
 
 
 def capture(context):
@@ -58,10 +54,6 @@ def capture(context):
         "asset": [ref.asset_library_type, ref.asset_library_identifier, ref.relative_asset_identifier],
         "size": size_owner.size, "opacity": round(strength_owner.strength, 3),
         "pressure_size": brush.use_pressure_size, "pressure_opacity": brush.use_pressure_strength,
-        "smooth": brush.use_smooth_stroke, "smooth_radius": brush.smooth_stroke_radius,
-        "smooth_strength": round(brush.smooth_stroke_factor, 3),
-        "steady": (ip.unified_paint_settings if ip.unified_paint_settings.use_unified_input_samples
-                   else brush).input_samples,
         "spacing": brush.spacing,
     }
 

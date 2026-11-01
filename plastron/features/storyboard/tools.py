@@ -97,6 +97,8 @@ class PLASTRON_OT_canvas_tool(bpy.types.Operator):
             bpy.ops.object.mode_set(mode=PAINT_MODE)
         _remember(context)
         activate_brush(tool)
+        from . import stabiliser
+        stabiliser.apply(context)
         if context.workspace.tools.from_space_view3d_mode(CONTEXT_MODE, create=False).idname \
                 != tool["blender_tool"]:
             bpy.ops.wm.tool_set_by_id(name=tool["blender_tool"], space_type='VIEW_3D')

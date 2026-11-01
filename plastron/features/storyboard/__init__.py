@@ -14,7 +14,7 @@
 import bpy
 
 from ...core import handlers
-from . import (brush_palette, brush_presets, canvas_color, canvas_frame, canvas_sync, canvas_view, onion,
+from . import (brush_palette, brush_presets, stabiliser, canvas_color, canvas_frame, canvas_sync, canvas_view, onion,
                options_bar, panel_cache, panels, tools)
 
 _CLASSES = canvas_view.classes + tools.classes
@@ -30,6 +30,7 @@ def register():
         bpy.utils.register_class(cls)
     onion.register()
     brush_presets.register()
+    stabiliser.register()
     brush_palette.register()
     options_bar.register()
     canvas_frame.register()
@@ -48,6 +49,7 @@ def unregister():
     canvas_frame.unregister()
     options_bar.unregister()
     brush_palette.unregister()
+    stabiliser.unregister()
     brush_presets.unregister()
     onion.unregister()
     for cls in reversed(_CLASSES):

@@ -168,7 +168,8 @@ Plastron/
 │  │                         panels (panel clips + layer-stack materials, New Panel),
 │  │                         panel_cache (cached images, re-made after edits),
 │  │                         canvas_sync (what the canvas shows at the playhead),
-│  │                         brush_presets, brush_palette (import) + abr (.abr reader), onion
+│  │                         brush_presets, brush_palette (import) + abr (.abr reader), onion,
+│  │                         stabiliser (Off / Slight / Max)
 │  │  └─ voice/              recorder (mic), takes (voice clips + takes), record
 │  │                         (Ctrl+R, switch takes), transcribe (+ _worker: own
 │  │                         process), transcript_layout (pure) + transcript_bar,
@@ -337,10 +338,12 @@ Plastron/
 - Canvas options bar (replaces Blender's tool header): tool name, brush
   picker (Blender's texture brush shelf as a pop-up; the shelf strip under
   the canvas is hidden), colour, Size, Opacity (= brush strength) with pen
-  pressure toggles, Smooth (+ Radius, Strength) and Steady (input samples:
-  averages the last N pen positions, no dead zone). Blender's smoothing
-  radius can't go below 10 px (its hard limit), hence Strength / Steady for
-  finer control (Ollie). Presets store smooth_strength and steady too.
+  pressure toggles, Stabiliser Off / Slight / Max (Ollie: he only uses off,
+  slight and very smooth). STABILISER in config/tools.py: Slight = average
+  the last 6 pen positions (unified input samples, no dead zone); Max = 32 +
+  Blender's lazy-mouse smoothing (radius 40, strength 0.9; Blender's radius
+  can't go below 10 px). Global for every brush, remembered (user_settings),
+  re-applied on tool / preset changes; brush presets don't set smoothing.
 - Tools: Pencil = "Paint Hard Pressure", Eraser = "Erase Hard", Fill, Blur,
   Smudge (Blender's essential texture brushes; config/tools.py). Each tool
   remembers the last brush used with it for the session (B brings back your

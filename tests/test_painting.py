@@ -84,25 +84,34 @@ def steps():
             and "Fat ink" not in [p["name"] for p in presets.all_presets("brushes")])
     with h.override('VIEW_3D'):
         bpy.ops.plastron.canvas_tool(tool='PENCIL')
-    # Finer smoothing: Strength and Steady (Blender's radius stops at 10 px).
-    b = ip.brush
-    b.use_smooth_stroke = True
-    b.smooth_stroke_factor = 0.6
-    (ups if ups.use_unified_input_samples else b).input_samples = 4
+    # --- Stabiliser: Off / Slight / Max, for every brush -----------------------------
+    tools_cfg = h.module("config.tools")
+    modes = {row[0]: row for row in tools_cfg.STABILISER}
+    wm = bpy.context.window_manager
+
+    def stab_state():
+        b = ip.brush
+        return (ups.input_samples, b.use_smooth_stroke,
+                b.smooth_stroke_radius if b.use_smooth_stroke else None)
+    h.check("the stabiliser starts Off", wm.plastron_stabiliser == "OFF"
+            and stab_state()[:2] == (1, False), stab_state())
+    for mode in ("SLIGHT", "MAX"):
+        wm.plastron_stabiliser = mode
+        _id, _l, steady, lazy, radius, _strength = modes[mode]
+        h.check(f"stabiliser {mode.title()}", stab_state() == (steady, lazy, radius if lazy else None),
+                stab_state())
+    with h.override('VIEW_3D'):
+        bpy.ops.plastron.canvas_tool(tool='ERASER')
+        bpy.ops.plastron.preset_apply(kind="brushes", name="Ink")
+    h.check("...it holds when switching tools and presets",
+            stab_state() == (32, True, 40) and wm.plastron_stabiliser == "MAX", stab_state())
     h.redraw()
     yield 0.3
-    h.screenshot("options_bar_smooth")
+    h.screenshot("options_bar_stabiliser")
+    wm.plastron_stabiliser = "OFF"
     with h.override('VIEW_3D'):
-        saved = presets.save("brushes", "Steady pencil", bpy.context)
-        bpy.ops.plastron.preset_apply(kind="brushes", name="Pencil")
-        bpy.ops.plastron.preset_apply(kind="brushes", name="Steady pencil")
-    steady = (ups if ups.use_unified_input_samples else ip.brush).input_samples
-    h.check("presets remember smoothing strength and steadiness",
-            abs(ip.brush.smooth_stroke_factor - 0.6) < 1e-3 and steady == 4,
-            (ip.brush.smooth_stroke_factor, steady))
-    presets.delete("brushes", "Steady pencil")
-    with h.override('VIEW_3D'):
-        bpy.ops.plastron.preset_apply(kind="brushes", name="Pencil")
+        bpy.ops.plastron.canvas_tool(tool='PENCIL')
+    h.check("...and Off turns it all off", stab_state()[:2] == (1, False), stab_state())
 
     # Paint (directly), save, reopen.
     img = st.layers[0].paint_image

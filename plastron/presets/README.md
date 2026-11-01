@@ -17,8 +17,7 @@ which updates keep, and are listed after these.
 | opacity        | 0-1 (Blender's brush strength)                              |
 | pressure_size  | pen pressure changes the size                               |
 | pressure_opacity | pen pressure changes the opacity                          |
-| smooth         | stroke smoothing on                                         |
-| smooth_radius  | how far behind the pen the stroke trails (pixels, 10-200)   |
-| smooth_strength| how strongly smoothing pulls (0.5-0.99)                     |
-| steady         | average the last N pen positions (1 = off, up to 64)        |
+
+Smoothing isn't part of a brush preset: the Stabiliser (Off / Slight / Max in
+the options bar, set up in config/tools.py) applies to every brush.
 | spacing        | dab spacing, % of the brush size                            |

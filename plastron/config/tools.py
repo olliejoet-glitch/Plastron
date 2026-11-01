@@ -45,3 +45,16 @@ LEAVE_SELECTION_KEYS = {'B', 'E', 'G', 'L', 'M', 'V', 'S', 'A', 'N'}
 TRANSFORM_COLOR = "orange"
 WARP_POINTS = 4
 TRANSFORM_MESH = 16
+
+# Stabiliser modes (options bar: Off / Slight / Max), in order. Applies to every
+# brush; your choice is remembered.
+#   steady:   average the last N pen positions (1 = off). No dead zone.
+#   lazy:     Blender's trailing "lazy mouse" smoothing on/off, its radius in
+#             screen pixels (10 is Blender's minimum) and strength (0.5-0.99).
+STABILISER = [
+    # id        label     steady  lazy   radius  strength
+    ("OFF",    "Off",     1,     False,  10,     0.5),
+    ("SLIGHT", "Slight",  6,     False,  10,     0.5),
+    ("MAX",    "Max",     32,    True,   40,     0.9),
+]
+STABILISER_DEFAULT = "OFF"
