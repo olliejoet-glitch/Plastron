@@ -344,6 +344,9 @@ Plastron/
   Blender's lazy-mouse smoothing (radius 40, strength 0.9; Blender's radius
   can't go below 10 px). Global for every brush, remembered (user_settings),
   re-applied on tool / preset changes; brush presets don't set smoothing.
+  The ▾ next to the switch (Ollie) opens a pop-up to tune Slight / Max
+  (steady, trailing smoothing on/off, radius, strength); changes are stored
+  in user_settings "stabiliser_values" on top of config's, Reset clears them.
 - Tools: Pencil = "Paint Hard Pressure", Eraser = "Erase Hard", Fill, Blur,
   Smudge (Blender's essential texture brushes; config/tools.py). Each tool
   remembers the last brush used with it for the session (B brings back your

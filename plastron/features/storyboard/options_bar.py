@@ -64,6 +64,7 @@ def _brush_options(layout, context):
     row = layout.row(align=True)
     row.label(text="Stabiliser")
     row.prop(context.window_manager, "plastron_stabiliser", expand=True)
+    row.popover("PLASTRON_PT_stabiliser", text="", icon='DOWNARROW_HLT')
 
 
 def register():

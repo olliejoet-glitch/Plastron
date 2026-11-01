@@ -47,7 +47,8 @@ WARP_POINTS = 4
 TRANSFORM_MESH = 16
 
 # Stabiliser modes (options bar: Off / Slight / Max), in order. Applies to every
-# brush; your choice is remembered.
+# brush; your choice is remembered. These are the standard values: the ▾ next
+# to the switch adjusts them in the app (remembered; Reset comes back here).
 #   steady:   average the last N pen positions (1 = off). No dead zone.
 #   lazy:     Blender's trailing "lazy mouse" smoothing on/off, its radius in
 #             screen pixels (10 is Blender's minimum) and strength (0.5-0.99).

@@ -105,6 +105,31 @@ def steps():
         bpy.ops.plastron.preset_apply(kind="brushes", name="Ink")
     h.check("...it holds when switching tools and presets",
             stab_state() == (32, True, 40) and wm.plastron_stabiliser == "MAX", stab_state())
+    # Adjusting a mode's values in the app (the ▾ pop-up) applies straight away,
+    # is remembered, and Reset goes back to the standard values.
+    stab = h.module("features.storyboard.stabiliser")
+    setattr(wm, stab.prop_name("MAX", "radius"), 25)
+    setattr(wm, stab.prop_name("MAX", "steady"), 12)
+    h.check("tuning Max in the app changes the brush now", stab_state() == (12, True, 25), stab_state())
+    user_settings = h.module("core.user_settings")
+    h.check("...and is remembered", user_settings.get("stabiliser_values", {}).get("MAX", {})
+            == {"radius": 25, "steady": 12})
+    wm.plastron_stabiliser = "SLIGHT"
+    wm.plastron_stabiliser = "MAX"
+    h.check("...also after switching modes", stab_state() == (12, True, 25), stab_state())
+    area = h.area('VIEW_3D')
+    bar = h.region(area, 'TOOL_HEADER')
+    h.move(1296, bar.y + bar.height // 2)          # the ▾ next to Max
+    yield
+    h._event('LEFTMOUSE', 'PRESS')
+    h._event('LEFTMOUSE', 'RELEASE')
+    yield 0.5
+    h.screenshot("stabiliser_popup")
+    h.move(200, 200)
+    yield 0.3
+    with h.override('VIEW_3D'):
+        bpy.ops.plastron.stabiliser_reset()
+    h.check("Reset puts the standard values back", stab_state() == (32, True, 40), stab_state())
     h.redraw()
     yield 0.3
     h.screenshot("options_bar_stabiliser")
