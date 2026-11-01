@@ -2,14 +2,17 @@
 position at the start of its panel and one at the end, eased by a dot graph
 (layer.move_start / move_end / move_curve, canvas pixels).
 
-Showing it: each layer's move_now (where the canvas shows it) is written
-for the panels under the playhead, shortly after scrubbing stops, at clip
-edges, and after edits; never during playback (Ollie's rule: no per-frame
-work). The frame hook only restarts a timer.
+Showing it (Ollie: layers must move with playback, to direct the shot):
+every frame, during playback and scrubbing, the moving layers of the panels
+under the playhead get their position (move_now: two shader values each; no
+recompiling, nothing else is touched). Which layers move is worked out once
+per stretch between clip edges / per edit, so a frame with no moving layers
+costs nothing.
 
 Painting a moved layer: the canvas sheet's UVs are shifted by how far the
 layer being painted is shown moved (stack.view_shift; every layer is
 shown shifted back by the same amount), so strokes land where you see them.
+That is re-aimed shortly after scrubbing stops, at clip edges and after edits.
 """
 
 import time
@@ -138,9 +141,50 @@ def _timer():
     return None
 
 
+_live = {"key": None, "items": []}     # [(strip name, material, [moving layer uids])]
+
+
+def _moving(scene):
+    """What moves under the playhead (cached per stretch of clips / edit)."""
+    from ..storyboard import canvas_sync
+    key = (canvas_sync._state["work"], scene.name, camera._edits[0])
+    if key != _live["key"]:
+        items = []
+        for strip in panels_at(scene, scene.frame_current):
+            mat = strip.plastron_panel.material
+            uids = [l.uid for l in mat.plastron_stack.layers if has_motion(l)]
+            if uids and mat.plastron_stack.enabled:
+                items.append((strip.name, mat, uids))
+        _live.update(key=key, items=items)
+    return _live["items"]
+
+
+def live(scene):
+    """Moving layers to where they are at this frame (only those)."""
+    sed = scene.sequence_editor
+    for name, mat, uids in _moving(scene):
+        strip = sed.strips_all.get(name) if sed else None
+        if strip is None:
+            continue
+        t = camera.clip_time(strip, scene.frame_current)
+        st = mat.plastron_stack
+        for uid in uids:
+            layer = st.by_uid(uid)
+            if layer is None:
+                continue
+            pos = position(layer, t)
+            if abs(layer.move_now[0] - pos[0]) > 1e-3 or abs(layer.move_now[1] - pos[1]) > 1e-3:
+                layer.move_now = pos          # pushes this layer (+ a group's layers)
+
+
 def _motion_frame(scene, *_args):
-    # Per-frame hook, O(1): while scrubbing, (re)start a short timer; nothing
-    # while playing (the timer refreshes once scrubbing stops).
+    # Per-frame hook (allowed deliberately, Ollie's call: motion must play).
+    # Camera view: a few numbers on the canvas views. Layers: only the ones
+    # that move (cached list; empty = nothing to do). Painting is re-aimed
+    # by a short timer once scrubbing stops, never during playback.
+    from . import view_follow
+    view_follow.follow(scene)
+    live(scene)
     if _playing():
         return
     _state["last"] = time.monotonic()
@@ -160,7 +204,10 @@ def _re_aimed(_mat):
 
 
 def _after_undo(*_args):
+    camera.bump()
     refresh()
+    from . import view_follow
+    view_follow.follow()
 
 
 def _on_load(scene):

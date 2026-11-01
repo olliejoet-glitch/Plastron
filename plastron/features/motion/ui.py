@@ -1,8 +1,9 @@
 """Motion panel (tools area) for the panel being drawn on:
 
-  Camera  Start / End (set by dragging on the canvas, or typed), easing
-          graph, shake, presets, reset.
-  Layer   the active layer or group: Start / End, easing graph, presets, reset.
+  Camera  Start / End (each opens a transform box on the canvas; C does too),
+          easing graph, shake, presets, reset.
+  Layer   the active layer or group: Start / End (a box to drag), easing
+          graph, presets, reset.
 
 Motion presets (ease in / out / in-out, overshoot, camera shake) are JSON in
 plastron/presets/motion/: "curve" = the easing graph's points, "shake" =
@@ -179,9 +180,10 @@ class _Tools:
 
 
 def _start_end(layout, target, context):
+    """Start / End: each opens the transform box on the canvas at that end."""
     mode = edit.editing(context)
     row = layout.row(align=True)
-    row.scale_y = 1.2
+    row.scale_y = 1.4
     for end, icon in (('START', 'REW'), ('END', 'FF')):
         op = row.operator("plastron.motion_set", text=end.title(), icon=icon,
                           depress=(mode == f"{target} {end}"))
@@ -209,7 +211,7 @@ class PLASTRON_PT_motion(_Tools, bpy.types.Panel):
         mode = edit.editing(context)
         if mode and mode not in ("DONE", "CANCEL"):
             box = layout.box()
-            box.label(text="Drag on the canvas", icon='HAND')
+            box.label(text="Drag the box on the canvas · Tab: other end", icon='HAND')
             row = box.row(align=True)
             row.operator("plastron.motion_done", text="Done", icon='CHECKMARK').keep = True
             row.operator("plastron.motion_done", text="Cancel", icon='X').keep = False
@@ -230,14 +232,6 @@ class PLASTRON_PT_motion_camera(_Tools, bpy.types.Panel):
         layout = self.layout
         m = _panel(context).plastron_motion
         _start_end(layout, 'CAMERA', context)
-        grid = layout.grid_flow(columns=2, even_columns=True, align=True)
-        for label, state in (("Start", m.start), ("End", m.end)):
-            col = grid.column(align=True)
-            col.label(text=label)
-            col.prop(state, "x")
-            col.prop(state, "y")
-            col.prop(state, "zoom")
-            col.prop(state, "rotation", text="Rot")
         layout.label(text="Easing")
         _easing(layout, m, "curve", 'CAMERA')
         col = layout.column(align=True)
@@ -264,11 +258,6 @@ class PLASTRON_PT_motion_layer(_Tools, bpy.types.Panel):
         layout = self.layout
         layer = _layer(context)
         _start_end(layout, 'LAYER', context)
-        grid = layout.grid_flow(columns=2, even_columns=True, align=True)
-        for label, attr in (("Start", "move_start"), ("End", "move_end")):
-            col = grid.column(align=True)
-            col.label(text=label)
-            col.prop(layer, attr, text="")
         layout.label(text="Easing")
         _easing(layout, layer, "move_curve", 'LAYER')
         layout.operator("plastron.motion_reset", icon='LOOP_BACK').target = 'LAYER'

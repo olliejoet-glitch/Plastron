@@ -91,6 +91,9 @@ class PLASTRON_OT_canvas_fit(bpy.types.Operator):
         return {'FINISHED'}
 
 
+AFTER_FIT = []   # func(region_3d) after a view is fitted (motion: camera view)
+
+
 def fit(scene, region, space, r3d):
     corners = camera_frame(scene)
     if not corners:
@@ -99,6 +102,18 @@ def fit(scene, region, space, r3d):
     fw, fh = frame_size_units(scene)
     ppu = min(region.width * FIT_MARGIN / fw, region.height * FIT_MARGIN / fh)
     set_pixels_per_unit(region, space, r3d, ppu)
+    for func in AFTER_FIT:
+        func(r3d)
+
+
+def screen_to_world(region, space, r3d, x, y):
+    """Region pixel -> point on the canvas plane, from the view's own numbers
+    (never stale, unlike the view matrices before a redraw)."""
+    ppu = pixels_per_unit(region, space, r3d)
+    v = Vector(((x - region.width / 2) / ppu, (y - region.height / 2) / ppu, 0.0))
+    p = r3d.view_location + r3d.view_rotation @ v
+    p.y = 0.0
+    return p
 
 
 class PLASTRON_OT_canvas_zoom_actual(bpy.types.Operator):

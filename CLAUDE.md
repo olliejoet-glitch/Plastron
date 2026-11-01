@@ -43,9 +43,10 @@ theme, and keymap, with Photoshop-style drawing shortcuts.
   selection, V move, Ctrl+T transform (scale, rotate, distort, warp),
   Ctrl+C / X / V between panels, Ctrl+Alt+F flips (`features/canvas_edit`).
 - **Stage 6 done** (camera and motion): camera start / end per panel (pan,
-  zoom, slight rotation) set by dragging on the canvas, easing dot graph
-  (`widgets/dot_graph`), camera shake, layer / group start / end motion,
-  motion presets, Clean View (F) (`features/motion`).
+  zoom, slight rotation) set with a transform box on the frame (C), Camera
+  View (the canvas looks through the camera), easing dot graph
+  (`widgets/dot_graph`), camera shake, layer / group start / end motion
+  (box, live in playback), motion presets, Clean View (F) (`features/motion`).
 - **Next: stage 7** (planning, review, export). Wait for Ollie to ask.
 - **DONE: drawing switched from grease pencil to RASTER** (Ollie: wants to
   select/move pixels, lay down blobs of colour, erase precisely). Brush engine
@@ -74,6 +75,10 @@ theme, and keymap, with Photoshop-style drawing shortcuts.
      unless it's an O(1) "did anything relevant change?" check that returns early.
      All handlers go through `core/handlers.py`; a test fails if any per-frame
      handler appears (update that test deliberately if one is ever justified).
+   - Exception (Ollie: "I really need the layers to move with playback"):
+     motion plays live. The motion frame hook moves the canvas view (camera)
+     and writes two shader values per MOVING layer; which layers move is
+     cached per stretch of clips, so a still project costs nothing.
    - Panels show on the timeline as cached images, re-rendered only when edited.
    - Destructive edits (warp, perspective, flips) are applied to strokes on
      confirm, never as live modifiers.
@@ -94,6 +99,9 @@ theme, and keymap, with Photoshop-style drawing shortcuts.
    instruction, so his launcher picks it up and he can test). Develop on the
    session branch, run the full test suite, then push the branch to `main`
    (fast-forward). Never push failing tests to `main`.
+8. **UI should be tactile and on screen** (Ollie): transforms and shapes you
+   drag on the canvas (boxes, handles), not little coordinate sliders or
+   number fields. Number fields only where nothing on screen can do the job.
 
 ## Ollie's setup
 
@@ -185,8 +193,9 @@ Plastron/
 │  │                         selection (L / M, stencil), transform (Ctrl+T, V),
 │  │                         clipboard (copy / paste, flips)
 │  │  └─ motion/             camera (strip.plastron_motion, frame maths, shake),
-│  │                         layer_motion (move_now after scrubbing, painted-layer
-│  │                         UV shift), edit (Start / End drag modal), thumbnails
+│  │                         view_follow (Camera View), layer_motion (live
+│  │                         positions, painted-layer UV shift), edit (transform
+│  │                         box: C / Start / End), thumbnails
 │  │                         (panel_cache hook), ui (Motion panel, presets)
 │  ├─ presets/               ★ preset files, one folder per kind (brushes/, motion/); README
 │  │                         lists the fields. Store code: core/presets.py
@@ -305,6 +314,10 @@ Plastron/
   shift the canvas mesh's UVs (the canvas has its own "Canvas Paint Sheet"
   mesh) and shift every layer's look back (stack.view_shift).
 - `animation_playback_post` exists (fires once when playback stops).
+- Setting `scene.frame_current` from Python runs frame_change handlers only
+  on the next event loop: yield before checking their effect in tests.
+- Moving a canvas view without stale matrices: canvas_view.screen_to_world
+  works from view_location / view_rotation / distance directly.
 - Keymap clashes: Plastron keys fire on PRESS; Blender items on the same key
   with CLICK / CLICK_DRAG / DOUBLE_CLICK aren't clashes (keymaps.py).
 
@@ -541,25 +554,35 @@ Plastron/
   drivers). Each panel strip has `plastron_motion`: start / end (x, y in %
   of the frame width, zoom 1 = normal frame / 2 = twice as close, rotation
   up to ±45°), an easing graph and shake (amount % of frame width, speed
-  wobbles/s, a little tilt; deterministic per panel). The canvas draws the
-  moved frame at the playhead as it redraws (canvas_frame FRAME_PROVIDERS),
-  so the frame follows playback for free. The shot = the panel being drawn
-  on. Zoom blends evenly in scale. The animatic export (stage 7) will crop
-  per frame from the same maths (camera.state_at / corners / crop).
-- Setting a move (Motion panel in the tools area, under Layers): Start / End
-  jump the playhead to the panel's first / last frame and start a drag mode
-  on the canvas. Camera: inside = move, near a corner = zoom, outside =
-  rotate (Shift: 5° steps); the other end's frame shows in blue. Layer:
-  drag moves the active layer (or group). Enter / double-click / Done keep,
-  Esc / right-click / Cancel put it back. Values can also be typed.
+  wobbles/s, a little tilt; deterministic per panel). The shot = the panel
+  being drawn on. Zoom blends evenly in scale. The animatic export (stage 7)
+  will crop per frame from the same maths (camera.state_at / corners / crop).
+- Camera View (Ollie: the frame must not slide across the screen, it should
+  look like moving a camera): on by default (options bar toggle,
+  remembered). The canvas view looks through the camera: the frame stays
+  still on screen and the drawing pans / zooms / turns behind it, while
+  scrubbing, playing and setting a move. Only the UI view changes
+  (view_follow keeps which camera state each view has taken on and moves it
+  by the difference, so your own pan / zoom / rotate stay). Off = the stage
+  view: the frame moves over the drawing.
+- Setting a move (Ollie: a transform box on the frame, not coordinate
+  sliders): C, or Start / End in the Motion panel (tools area, under
+  Layers), opens a box on the canvas; the playhead jumps to that end of the
+  panel (C: the nearer end). Camera box = the frame with 8 handles: drag
+  inside = move the camera (it follows your hand; CAMERA_FOLLOWS_HAND in
+  config/motion.py flips it), a handle = zoom (out = see more), outside =
+  rotate (Shift: 5° steps). Layer box = around the active layer's / group's
+  drawing (+24 px): drag to move it; the path to the other end shows. The
+  other end shows in blue. Tab swaps Start / End. Enter / double-click / C /
+  Done keep (one undo step), Esc / right-click / Cancel put both ends back.
+  The panel has no position number fields any more (just easing, shake,
+  presets, Reset).
 - Layer motion: move_start / move_end in canvas pixels, eased by its own dot
-  graph; a group's move carries its layers. Shown positions (move_now) are
-  written for the panels under the playhead after scrubbing stops (0.12 s),
-  at clip edges and after edits; NOT during playback (Ollie's no-per-frame
-  rule; config/motion.py says so). The layer being painted is shown moved
-  too: the canvas mesh's UVs follow it (stack.view_shift) so strokes land
-  where you see them, and selections / transforms / paste work in that
-  layer's own pixels.
+  graph; a group's move carries its layers. Layers move live with playback
+  and scrubbing. The layer being painted is shown moved too: the canvas
+  mesh's UVs follow it (stack.view_shift, re-aimed 0.12 s after scrubbing
+  stops, at clip edges and after edits) so strokes land where you see them,
+  and selections / transforms / paste work in that layer's own pixels.
 - Panel images (thumbnails) show the panel where it starts: camera start
   frame (rotation left out) and layers at their start.
 - Motion presets (presets/motion/): Straight, Ease in, Ease out, Ease in-out,
@@ -567,7 +590,8 @@ Plastron/
   have a presets menu (header icon); layers only list presets with a curve.
   "Save current as preset" works for both (shared folder).
 - Every panel / layer has its own graph: split copies the camera graph and
-  the layers' graphs (copy_material / duplicate copy graphs too).
+  the layers' graphs (copy_material / duplicate copy graphs too). Both
+  halves of a split panel keep the whole move.
 - Clean View (F, or the options bar button): outside the frame is hidden in
   the area background colour instead of dimmed.
 - Value swatches (value groups sampled from an image) are **deferred** to the

@@ -25,6 +25,9 @@ def _changed(self, context):
     """A position changed: redraw the canvas; the panel's image shows the start."""
     from . import thumbnails
     thumbnails.camera_changed(self)
+    bump()
+    from . import view_follow
+    view_follow.follow()
     for window in bpy.context.window_manager.windows:
         for area in window.screen.areas:
             if area.type == 'VIEW_3D':
@@ -147,10 +150,28 @@ def crop(state, frame_crop):
     return (cx - w / 2, cy - h / 2, w, h)
 
 
+_edits = [0]
+_shot = {"key": None, "name": ""}
+
+
+def bump():
+    """Motion changed (cached answers below are worked out again)."""
+    _edits[0] += 1
+
+
 def shot(scene):
-    """The panel whose camera the canvas shows: the one being drawn on."""
+    """The panel whose camera the canvas shows: the one being drawn on.
+    Cached until the canvas changes panel or anything is edited (the frame
+    hook asks every frame)."""
     from ..storyboard import canvas_sync
-    return canvas_sync.panel_on_canvas(scene)
+    sed = scene.sequence_editor
+    if sed is None:
+        return None
+    key = (canvas_sync._state["work"], scene.name, _edits[0])
+    if key != _shot["key"]:
+        strip = canvas_sync.panel_on_canvas(scene)
+        _shot.update(key=key, name=strip.name if strip else "")
+    return sed.strips_all.get(_shot["name"]) if _shot["name"] else None
 
 
 def frame_provider(context):

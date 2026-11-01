@@ -26,6 +26,8 @@ def draw(self, context):
     wm = context.window_manager
     layout.prop(wm, "plastron_onion", text="Onion Skin", toggle=True,
                 icon='ONIONSKIN_ON' if wm.plastron_onion else 'ONIONSKIN_OFF')
+    if hasattr(wm, "plastron_camera_view"):
+        layout.prop(wm, "plastron_camera_view", text="Camera View", toggle=True, icon='VIEW_CAMERA')
     layout.prop(wm, "plastron_clean_view", text="Clean View", toggle=True,
                 icon='HIDE_ON' if wm.plastron_clean_view else 'HIDE_OFF')
 

@@ -1,5 +1,6 @@
 """Camera and motion (stage 6).
 
+    view_follow   Camera View: the canvas looks through the camera
     camera        each panel's camera move: start / end frame (pan, zoom, a
                   slight rotation), easing graph, shake; the moved frame on
                   the canvas (canvas_frame hook)
@@ -19,7 +20,7 @@ from ...core import handlers
 from ...layers import events as layer_events
 from ...timeline import events
 from ..storyboard import canvas_frame
-from . import camera, edit, layer_motion, thumbnails, ui
+from . import camera, edit, layer_motion, thumbnails, ui, view_follow
 from ...widgets import dot_graph
 
 _CLASSES = camera.classes + edit.classes + ui.classes
@@ -33,6 +34,7 @@ def _on_split(scene, original, new):
 
 
 def _on_layers_changed(_mat):
+    camera.bump()
     layer_motion.refresh()
 
 
@@ -47,6 +49,7 @@ def register():
         bpy.utils.register_class(cls)
     bpy.types.Strip.plastron_motion = bpy.props.PointerProperty(type=camera.PLASTRON_PG_motion)
     canvas_frame.FRAME_PROVIDERS.append(camera.frame_provider)
+    view_follow.register()
     thumbnails.register()
     layer_motion.register()
     ui.register()
@@ -57,6 +60,7 @@ def register():
 
 def unregister():
     layer_motion.unregister()
+    view_follow.unregister()
     thumbnails.unregister()
     if camera.frame_provider in canvas_frame.FRAME_PROVIDERS:
         canvas_frame.FRAME_PROVIDERS.remove(camera.frame_provider)

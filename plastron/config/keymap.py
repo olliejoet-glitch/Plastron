@@ -69,6 +69,7 @@ SHORTCUTS = [
     ("canvas",       "R",                "plastron.canvas_rotate",       "Rotate view (hold + drag)"),
     ("canvas",       "Ctrl+F",           "plastron.canvas_flip_view",    "Flip view (drawing unchanged)"),
     ("canvas",       "F",                "plastron.clean_view",          "Clean view: hide outside the camera frame"),
+    ("canvas",       "C",                "plastron.motion_set",          "Camera box: set the camera at the nearer end of the panel", {"target": 'CAMERA', "end": 'NEAREST'}),
 
     # --- Canvas: later stages ----------------------------------------------
     # --- Canvas: selecting and transforming pixels --------------------------
