@@ -199,6 +199,17 @@ class Grid:
         xs = x0 + (np.arange(ow) + 0.5) * cw / ow
         ys = y0 + (np.arange(oh) + 0.5) * ch / oh
         self.u, self.v = np.meshgrid(xs / width, ys / height)   # canvas UVs, rows bottom-up
+        self.shifted = False
+
+    def moved(self, dx, dy):
+        """The same pixels, sampling a layer moved by (dx, dy) canvas pixels."""
+        if not dx and not dy:
+            return self
+        g = object.__new__(Grid)
+        g.width, g.height, g.crop, g.size = self.width, self.height, self.crop, self.size
+        g.u, g.v = self.u - dx / self.width, self.v - dy / self.height
+        g.shifted = True
+        return g
 
 
 def _pixels(img):
@@ -239,7 +250,8 @@ def _sample(img, u, v, repeat=False):
 def _sample_layer_image(img, grid):
     """Paint images match the canvas, so an unscaled crop is a plain slice."""
     x0, y0, cw, ch = grid.crop
-    if img.size[:] == (grid.width, grid.height) and grid.size == (cw, ch) and not img.is_float:
+    if img.size[:] == (grid.width, grid.height) and grid.size == (cw, ch) and not img.is_float \
+            and not grid.shifted:
         px = _pixels(img)[y0:y0 + ch, x0:x0 + cw]
         return px[..., :3], px[..., 3]
     return _sample(img, grid.u, grid.v)
@@ -351,8 +363,12 @@ def _layer_source(layer, stack, grid, under):
     return rgb, a
 
 
-def _composite(stack, grid, parent_uid, under, under_a):
+def _composite(stack, grid, parent_uid, under, under_a, offsets=None):
+    """offsets: {layer uid: (dx, dy)} to use instead of where layers are shown."""
+    top = grid
     for layer in [l for l in stack.layers if l.parent_uid == parent_uid]:
+        dx, dy = (offsets or {}).get(layer.uid, layer.move_now)
+        grid = top.moved(dx, dy)          # (groups pass their shifted grid on)
         vis = layer.opacity * (1.0 if layer.visible else 0.0)
         mask = _mask(layer, grid)
         if mask is not None:
@@ -360,14 +376,14 @@ def _composite(stack, grid, parent_uid, under, under_a):
         vis = np.broadcast_to(np.asarray(vis, np.float32), under_a.shape)
         if layer.layer_type == "GROUP":
             if layer.group_mode == "PASS_THROUGH":
-                content, content_a = _composite(stack, grid, layer.uid, under, under_a)
+                content, content_a = _composite(stack, grid, layer.uid, under, under_a, offsets)
                 if colour_adjusted(layer):
                     content = _colour_adjust(layer, content)
                 under = under + (content - under) * vis[..., None]
                 under_a = under_a + (content_a - under_a) * vis
                 continue
             cs, a_src = _composite(stack, grid, layer.uid,
-                                   np.zeros_like(under), np.zeros_like(under_a))
+                                   np.zeros_like(under), np.zeros_like(under_a), offsets)
         else:
             cs, a_src = _layer_source(layer, stack, grid, under)
         if colour_adjusted(layer):
@@ -380,13 +396,15 @@ def _composite(stack, grid, parent_uid, under, under_a):
     return under, under_a
 
 
-def flatten(mat, crop=None, out_size=None):
+def flatten(mat, crop=None, out_size=None, offsets=None):
     """Flatten mat's stack -> float32 array (rows bottom-up, w, 4), RGBA with
-    gamma-encoded colour (ready for an 8-bit image) and straight alpha."""
+    gamma-encoded colour (ready for an 8-bit image) and straight alpha.
+    offsets: {layer uid: (dx, dy)} motion offsets to use (default: as shown)."""
     stack = mat.plastron_stack
     grid = Grid(stack.width, stack.height, crop, out_size)
     w, h = grid.size
-    col, alpha = _composite(stack, grid, "", np.zeros((h, w, 3), np.float32), np.zeros((h, w), np.float32))
+    col, alpha = _composite(stack, grid, "", np.zeros((h, w, 3), np.float32),
+                            np.zeros((h, w), np.float32), offsets)
     if stack.blend_space == "LINEAR":
         col = _encode(col)
     return np.concatenate((np.clip(col, 0, 1), np.clip(alpha, 0, 1)[..., None]), -1).astype(np.float32)

@@ -89,6 +89,20 @@ def _value(self, context):
         events.changed(self.id_data)
 
 
+def _value_tree(self, context):
+    """Shown position changed: a group's offset moves everything inside it, so
+    every layer below it gets its values again. Display only: no thumbnail."""
+    if _suspend:
+        return
+    from .compiler import push_layer
+    from .stack import subtree_uids
+    st = self.id_data.plastron_stack
+    for uid in subtree_uids(st, self):
+        layer = st.by_uid(uid)
+        if layer is not None:
+            push_layer(self.id_data, layer)
+
+
 def _mask_value(self, context):
     if not _suspend:
         from .compiler import push_mask
@@ -163,6 +177,13 @@ class PLASTRON_PG_layer(bpy.types.PropertyGroup):
                                    description="Tiling break: size of the patches, in tiles")
     # paint
     paint_image: PointerProperty(name="Image", type=bpy.types.Image, update=_value)
+    # motion (stage 6): where the layer (or group, with everything in it) sits
+    # at the start / end of its panel, in canvas pixels; eased by a dot graph.
+    # move_now is where it's shown right now (written by the motion feature).
+    move_start: FloatVectorProperty(name="Start", size=2, default=(0.0, 0.0), subtype='XYZ')
+    move_end: FloatVectorProperty(name="End", size=2, default=(0.0, 0.0), subtype='XYZ')
+    move_curve: StringProperty()
+    move_now: FloatVectorProperty(size=2, default=(0.0, 0.0), update=_value_tree)
     # adjustment
     adjust_kind: EnumProperty(name="Adjustment", items=ADJUST_KINDS, default="HUE_SAT", update=_structural)
     hs_hue: FloatProperty(name="Hue", default=0, min=-180, max=180, update=_value)

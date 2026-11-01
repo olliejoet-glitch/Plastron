@@ -238,6 +238,21 @@ def steps():
     ramp.elements[2].position = 0.7
     compiler.push_layer(mat, layer(mat, o))
     compare("blend if", mat)
+    yield
+
+    # Motion offsets (stage 6): a moved layer inside a moved group lands where
+    # both offsets put it, in the shader and the flattener alike.
+    mat, u = base("Motion")
+    c = stack.add_layer(mat, "PAINT", name="mover")
+    soft = gradient(7)                  # fades out before its edges: no hard edge to sample
+    yy, xx = np.mgrid[0:H, 0:W]
+    window = np.clip(np.minimum(np.minimum(xx, W - 1 - xx), np.minimum(yy, H - 1 - yy)) / 8.0, 0, 1)
+    soft[..., 3] *= window
+    paint(layer(mat, c).paint_image, soft)
+    g = stack.group_layer(mat, c)
+    layer(mat, g).move_now = (6.0, -3.0)
+    layer(mat, c).move_now = (-2.0, 4.0)
+    compare("moved layer in a moved group", mat)
 
 
 h.run(steps())
