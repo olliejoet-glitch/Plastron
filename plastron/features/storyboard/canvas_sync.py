@@ -214,6 +214,12 @@ FAST_SETTINGS = {
     "eevee.use_raytracing": False,
     "eevee.use_fast_gi": False,
     "eevee.use_volumetric_shadows": False,
+    # Ollie: strokes looked thin and faint while drawing, then filled in. The
+    # viewport blended each new frame with older ones (reprojection) and kept
+    # refining over 16 samples; a flat painted sheet needs neither, so a stroke
+    # shows at its final weight straight away.
+    "eevee.taa_samples": 1,
+    "eevee.use_taa_reprojection": False,
 }
 
 

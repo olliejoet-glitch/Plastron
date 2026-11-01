@@ -115,6 +115,9 @@ def steps():
     h.check("painting skips work a flat canvas doesn't need (occlusion, seam bleed, falloff)",
             not ip.use_occlude and not ip.use_backface_culling and not ip.use_normal_falloff
             and ip.seam_bleed == 0 and not scene.eevee.use_shadows and not scene.eevee.use_raytracing)
+    h.check("strokes show at full weight while drawing (no viewport sample blending)",
+            scene.eevee.taa_samples == 1 and not scene.eevee.use_taa_reprojection,
+            (scene.eevee.taa_samples, scene.eevee.use_taa_reprojection))
     world = scene.world
     h.check("the paper colour is the world colour (Material Preview shows it)",
             world is not None and h.area('VIEW_3D').spaces.active.shading.type == 'MATERIAL'

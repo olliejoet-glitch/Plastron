@@ -460,7 +460,9 @@ Plastron/
   which froze the start of the next stroke). Texture Paint occlusion,
   backface culling, normal falloff and seam bleed are off and EEVEE
   shadows / ray tracing / fast GI are off (canvas_sync.FAST_SETTINGS, applied
-  at every load). Brush presets don't smooth by default (smoothing trails
+  at every load). Viewport TAA is 1 sample, no reprojection (Ollie: strokes
+  looked thin and faint while drawing, then filled in: EEVEE was blending in
+  older frames and refining over 16 samples). Brush presets don't smooth by default (smoothing trails
   behind the pen).
 - Windows taskbar (Ollie: Blender icon, grouped with his other Blender):
   each Plastron window gets AppUserModelID "Plastron.App", the Plastron icon
