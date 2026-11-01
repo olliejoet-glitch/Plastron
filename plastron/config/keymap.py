@@ -26,6 +26,7 @@ WHERE = {
     "timeline_view": ("View2D", 'EMPTY', 'WINDOW'),       # timeline pan / zoom
     "track_headers": ("Sequencer Channels", 'SEQUENCE_EDITOR', 'WINDOW'),
     "script":     ("Text", 'TEXT_EDITOR', 'WINDOW'),
+    "areas":      ("Screen Editing", 'EMPTY', 'WINDOW'),  # before an area's own buttons
 }
 
 SHORTCUTS = [
@@ -95,6 +96,9 @@ SHORTCUTS = [
     ("timeline_view", "Ctrl+-",          "view2d.zoom_out",              "Zoom out"),
     ("timeline",     "Ctrl+0",           "sequencer.view_all",           "Fit to screen"),
 
+    # --- Tools area / script: scroll with the pen (no wheel on a pen) -------
+    ("areas",        "Alt+Shift+LMB",    "plastron.drag_scroll",         "Scroll the tools area / script (drag)"),
+
     # --- Voice -------------------------------------------------------------
     ("playback",     "Ctrl+R",           "plastron.voice_record",        "Record voice at the playhead (again: stop)"),
 
@@ -127,7 +131,7 @@ SHORTCUTS = [
 # Plastron actions that act and then pass the click on, so Blender's own
 # item on the same key keeps working (e.g. the script click still places
 # the text cursor).
-PASSES_ON = {"plastron.script_click", "plastron.transcript_click", "plastron.transcript_hover"}
+PASSES_ON = {"plastron.drag_scroll", "plastron.script_click", "plastron.transcript_click", "plastron.transcript_hover"}
 
 # Blender items switched off even though BLENDER_KEEP keeps their keymap.
 BLENDER_DROP = {

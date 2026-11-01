@@ -163,7 +163,8 @@ Plastron/
 │  │  │                      portable config; Blender prefs aren't saved)
 │  │  ├─ hidden_ui.py        hides panels (never-poll) and swaps header draws
 │  │  ├─ theme.py, preferences.py, modes.py, util.py
-│  ├─ ui/topbar.py           slim top bar: File menu, undo/redo, mode switcher
+│  ├─ ui/                    topbar.py (File menu, undo/redo, mode switcher),
+│  │                         drag_scroll.py (pen scrolling of tools area / script)
 │  ├─ timeline/              the one shared timeline (see its __init__ for the module list)
 │  │                         tracks (model over channels), clips (overlap-safe moves),
 │  │                         ripple (pure planners), snapping, mix, track_headers,
@@ -318,6 +319,9 @@ Plastron/
   on the next event loop: yield before checking their effect in tests.
 - Moving a canvas view without stale matrices: canvas_view.screen_to_world
   works from view_location / view_rotation / distance directly.
+- In a Properties editor, buttons take a click (even Alt+Shift+click) before
+  the region's keymaps; "Screen Editing" keymap items run before buttons.
+  Blender's text.scroll doesn't start from an Alt+Shift+LMB item.
 - Keymap clashes: Plastron keys fire on PRESS; Blender items on the same key
   with CLICK / CLICK_DRAG / DOUBLE_CLICK aren't clashes (keymaps.py).
 
@@ -354,7 +358,12 @@ Plastron/
 - Frame rate **24 fps** (YouTube keeps the upload's rate; 24 is the animation
   standard). Project resolution **3840×2160**, previews at **50 %**.
 - Colour view transform **Standard** (AgX shifts greys).
-- Layout: script 18 % | canvas 70 % | tools 12 %, timeline 30 % high.
+- Layout (Ollie swapped them): tools 12 % | canvas 70 % | script 18 %,
+  timeline 30 % high.
+- Pen scrolling (Ollie couldn't scroll the tools area: a pen has no wheel):
+  Alt+Shift+drag scrolls the tools area and the script (ui/drag_scroll.py,
+  in the "Screen Editing" keymap so it works even when the drag starts on
+  a button; passes on elsewhere, so the canvas / timeline pans still work).
   No status bar (messages show in the top bar).
 - Top bar: Plastron icon, File (New, Open, Open Recent, Save, Save As, Recover,
   Quit), undo/redo, mode switcher. Project name on the right.

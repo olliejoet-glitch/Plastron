@@ -41,7 +41,7 @@ def steps():
             kinds == sorted(['TEXT_EDITOR', 'VIEW_3D', 'PROPERTIES', 'SEQUENCE_EDITOR']), kinds)
     script, canvas, timeline = h.area('TEXT_EDITOR'), h.area('VIEW_3D'), h.area('SEQUENCE_EDITOR')
     if script and canvas and timeline:
-        h.check("script panel is left of canvas", script.x < canvas.x)
+        h.check("script panel is right of canvas", script.x > canvas.x)
         h.check("timeline is along the bottom", timeline.y < canvas.y and timeline.y < script.y)
         h.check("timeline spans the full width", timeline.width >= win.width * 0.99,
                 (timeline.width, win.width))
@@ -79,7 +79,7 @@ def steps():
     shown = [c.__name__ for c in hidden_ui.panels_to_hide() if not hidden_ui.is_hidden(c)]
     h.check("Blender's panels hidden (tools area, canvas, timeline, script)", not shown, shown[:10])
     tools_area = h.area('PROPERTIES')
-    h.check("tools area right of canvas", tools_area and canvas and tools_area.x > canvas.x)
+    h.check("tools area left of canvas", tools_area and canvas and tools_area.x < canvas.x)
     h.check("canvas ~70% wide, tools ~12% wide",
             canvas and tools_area and abs(canvas.width / win.width - 0.70) < 0.03
             and abs(tools_area.width / win.width - 0.12) < 0.03,

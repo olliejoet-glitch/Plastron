@@ -40,7 +40,7 @@ def run_file(path):
     if os.path.exists(result):
         os.remove(result)
     code, out = blender_env.run(
-        ["--app-template", "plastron", "--enable-event-simulate",
+        ["--app-template", "plastron", "--enable-event-simulate"] + (["--debug-handlers"] if os.environ.get("PLASTRON_DEBUG_HANDLERS") else []) + [
          "--python-exit-code", "1", "--python", path],
         env={"PLASTRON_TEST_RESULT": result, "PLASTRON_TEST_OUTPUT": blender_env.OUTPUT,
              # no installs, no microphone, no speech model in tests: stand-ins

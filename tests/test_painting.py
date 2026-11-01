@@ -119,7 +119,7 @@ def steps():
     h.check("...also after switching modes", stab_state() == (12, True, 25), stab_state())
     area = h.area('VIEW_3D')
     bar = h.region(area, 'TOOL_HEADER')
-    h.move(1296, bar.y + bar.height // 2)          # the ▾ next to Max
+    h.move(bar.x + 947, bar.y + bar.height // 2)    # the ▾ next to Max
     yield
     h._event('LEFTMOUSE', 'PRESS')
     h._event('LEFTMOUSE', 'RELEASE')

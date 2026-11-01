@@ -13,9 +13,9 @@ After changing anything here, the startup file must be rebuilt:
 MODES = {
     "Storyboard": {"rows": [
         {"size": 0.70, "columns": [
-            {"size": 0.18, "area": "script"},
+            {"size": 0.12, "area": "tools"},      # Ollie: tools on the left,
             {"size": 0.70, "area": "canvas"},
-            {"size": 0.12, "area": "tools"},
+            {"size": 0.18, "area": "script"},     # script on the right
         ]},
         {"size": 0.30, "area": "timeline"},
     ]},
