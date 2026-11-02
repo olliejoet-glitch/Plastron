@@ -42,7 +42,13 @@ def window():
 
 
 def area(kind):
-    return next((a for a in window().screen.areas if a.type == kind), None)
+    """First area of an editor type. 'VIEW_3D' = the canvas; 'SCENE_3D' = the
+    3D scene view (the 3D view with its own camera)."""
+    def scene_view(a):
+        return a.type == 'VIEW_3D' and a.spaces.active.use_local_camera
+    if kind == 'SCENE_3D':
+        return next((a for a in window().screen.areas if scene_view(a)), None)
+    return next((a for a in window().screen.areas if a.type == kind and not scene_view(a)), None)
 
 
 def region(area_, kind='WINDOW'):

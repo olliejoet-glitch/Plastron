@@ -46,8 +46,9 @@ theme, and keymap, with Photoshop-style drawing shortcuts.
   zoom, slight rotation) set with the camera controls box (canvas corner), Camera
   View (the canvas looks through the camera), easing dot graph
   (`widgets/dot_graph`), camera shake, layer / group start / end motion
-  (box, live in playback), motion presets, Clean View (F), 3D parallax
-  (layer depths, depth chart) (`features/motion`).
+  (box, live in playback), motion presets, Clean View (F)
+  (`features/motion`). Then: a 3D scene view with its own camera under the
+  script (`features/scene3d`).
 - **Next: stage 7** (planning, review, export). Wait for Ollie to ask.
 - **DONE: drawing switched from grease pencil to RASTER** (Ollie: wants to
   select/move pixels, lay down blobs of colour, erase precisely). Brush engine
@@ -147,6 +148,7 @@ Plastron/
 │  │  ├─ tools.py            drawing tools, tool strip order, brush palette / library
 │  │  ├─ voice.py            recording, transcription model + prompt, transcript bar look
 │  │  ├─ motion.py           camera zoom / rotation limits, drag handles, shake, layer refresh delay
+│  │  ├─ scene3d.py          the 3D scene: where it is, its camera, the view's start angle
 │  │  ├─ theme.py            palette + where each colour is used; canvas overlay colours
 │  │  ├─ hidden_ui.py        Blender panels/shelves to hide, headers to replace
 │  │  ├─ preferences.py      Blender preferences set at every start
@@ -163,6 +165,7 @@ Plastron/
 │  │  ├─ user_settings.py    in-app choices Ollie makes that must persist (JSON in
 │  │  │                      portable config; Blender prefs aren't saved)
 │  │  ├─ hidden_ui.py        hides panels (never-poll) and swaps header draws
+│  │  ├─ views.py            which 3D view is the canvas / the 3D scene view
 │  │  ├─ theme.py, preferences.py, modes.py, util.py
 │  ├─ ui/                    topbar.py (File menu, undo/redo, mode switcher),
 │  │                         drag_scroll.py (pen scrolling of tools area / script)
@@ -198,11 +201,11 @@ Plastron/
 │  │                         clipboard (copy / paste, flips)
 │  │  └─ motion/             camera (strip.plastron_motion, frame maths, shake),
 │  │                         view_follow (Camera View), camera_pad (camera
-│  │                         controls box), parallax + depth_pad (3D parallax,
-│  │                         depth chart), canvas_fit (painting grows to fit
+│  │                         controls box), canvas_fit (painting grows to fit
 │  │                         the camera), layer_motion (live positions,
 │  │                         painted-layer UV shift), edit (layer box), thumbnails
 │  │                         (panel_cache hook), ui (Motion panel, presets)
+│  │  └─ scene3d/            the 3D scene view: its camera / collection, pen-follows modes
 │  ├─ presets/               ★ preset files, one folder per kind (brushes/, motion/); README
 │  │                         lists the fields. Store code: core/presets.py
 │  └─ assets/                icon_256.png, plastron.ico
@@ -334,6 +337,9 @@ Plastron/
   pressure lag.
 - An open pop-up (popover) swallows the next click anywhere: close it (Esc)
   before simulating clicks in tests.
+- A 3D view always shows the window's scene: a second "scene" in the layout
+  is a far-away part of the same scene (scene3d), not a Blender scene.
+- tests: h.area('VIEW_3D') is the canvas, h.area('SCENE_3D') the 3D scene view.
 - Keymap clashes: Plastron keys fire on PRESS; Blender items on the same key
   with CLICK / CLICK_DRAG / DOUBLE_CLICK aren't clashes (keymaps.py).
 
@@ -370,8 +376,8 @@ Plastron/
 - Frame rate **24 fps** (YouTube keeps the upload's rate; 24 is the animation
   standard). Project resolution **3840×2160**, previews at **50 %**.
 - Colour view transform **Standard** (AgX shifts greys).
-- Layout (Ollie swapped them): tools 12 % | canvas 70 % | script 18 %,
-  timeline 30 % high. No status bar (messages show in the top bar).
+- Layout (Ollie swapped them): tools 12 % | canvas 70 % | script over the
+  3D scene 18 %, timeline 30 % high. No status bar (messages show in the top bar).
 - Pen scrolling (Ollie couldn't scroll the tools area: a pen has no wheel):
   Alt+Shift+drag scrolls the tools area and the script 1:1 with the hand
   (ui/drag_scroll.py, using view2d.pan with exact pixels: scroll_up / down
@@ -644,23 +650,33 @@ Plastron/
 - Quick brush resize (Ollie): Ctrl+Alt+right-click and move the pen (the
   side button, in the air): Blender's radial control on the brush size,
   let go to set (release_confirm).
-- 3D parallax (Ollie: "emerging over a fallen tree to see a creature",
-  without a messy 3D view): each layer has a depth (layer.depth; 0 = as its
-  group, else 1 = the picture plane; <1 nearer, >1 further). With a camera
-  move, pan slides near layers further and far ones less, and zoom acts as
-  moving the camera forward (zoom z = 1 - 1/z of the way to the plane), so
-  near layers grow faster (motion/parallax.py has the maths). Layers at
-  depth 1 behave exactly as before. Shown as layer.para_now (shift px,
-  scale) -> shader input MoveS (uv * MoveS - Move; layer_trees.shown_affine
-  = moves + parallax); live in playback like layer motion; thumbnails at the
-  start state; the canvas paint UVs follow the painted layer's whole affine
-  (stack.view_scale + view_shift), so painting a near layer still lands
-  under the pen. Depth chart (motion/depth_pad.py, DEPTH_PAD in
-  config/motion.py): right of the camera box, one row per layer (top first,
-  up to 10), drag the dot left = nearer / right = further (log scale
-  0.25-8, snaps to the plane line), hollow dot = follows its group, click a
-  name to pick the layer, double-click a row = follow the group again.
-  Handled by the camera box's click handler (same keymap item).
+- 3D parallax (layer depths + a depth chart) was tried and taken out (Ollie:
+  "that 3d move thing isn't working"). What stays: layer_trees.shown_affine
+  (moves + an extra shift / scale, layer.para_now, always 1 now), shader
+  input MoveS, stack.view_scale, and the canvas paint UVs following the
+  painted layer's whole affine.
+- 3D scene (Ollie: "a small 3d scene under my script that I can maximise,
+  with standard Blender gizmo controls, and a 3D camera"): the right column
+  is script (55 %) over a 3D scene view (45 %) (config/layout.py
+  "scene3d", features/scene3d, config/scene3d.py). It's Blender's own 3D
+  view: header menus (Add / Object...), toolbar (select / move / rotate /
+  scale), transform + navigation gizmos, perspective, floor grid. Its
+  objects live around ORIGIN (5000, 0, 0) in the "3D Scene" collection,
+  far from the canvas (the canvas never pans there; the view's 1000 clip
+  hides the canvas); the 3D cursor sits at ORIGIN so Add puts things there.
+  "3D Camera" is the view's own camera (use_local_camera marks the scene
+  view: core/views.is_scene_view / is_canvas). Modes follow the pen (a
+  MouseMove item, plastron.view_focus): over the scene view Object mode,
+  over the canvas Texture Paint with the Canvas active (no undo steps).
+  Canvas-only things skip the scene view: frame overlay, camera box,
+  selection outline, Camera View following, fit, canvas tool keys (B, E...).
+  Alt+drag orbits there (its item is in Blender's "Object Mode" keymap,
+  WHERE "scene3d", so it never meets the canvas's Alt+click colour pick;
+  calling one operator from another to choose leaked memory). Ctrl+Space maximises any area (again: back). Blender's
+  brush shelf strip under it is folded away at load. Blender's toolbar
+  panel is no longer hidden in 3D views (the canvas hides its toolbar).
+- Blend If isn't in the Layers panel any more (Ollie: superfluous); the
+  engine still supports it (PLASTRON_PT_blend_if, not registered).
 - Panel images (thumbnails) show the panel where it starts: camera start
   frame (rotation left out) and layers at their start.
 - Motion presets (presets/motion/): Straight, Ease in, Ease out, Ease in-out,

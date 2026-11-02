@@ -9,7 +9,7 @@ Plastron's own panels are never hidden by these rules.
 HIDE_PANELS_IN = [
     ('PROPERTIES', 'WINDOW'),    # the tools area: only Plastron's tool strip + layers
     ('VIEW_3D', 'UI'),
-    ('VIEW_3D', 'TOOLS'),
+    # (VIEW_3D toolbar kept: the 3D scene view uses Blender's tools; the canvas hides its toolbar)
     ('SEQUENCE_EDITOR', 'UI'),
     ('SEQUENCE_EDITOR', 'TOOLS'),
     ('TEXT_EDITOR', 'UI'),

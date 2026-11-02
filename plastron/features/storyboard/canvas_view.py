@@ -9,6 +9,7 @@ import bpy
 from bpy_extras.view3d_utils import location_3d_to_region_2d
 from mathutils import Quaternion, Vector
 
+from ...core.views import is_canvas
 from ...timeline import view as timeline_view
 
 FIT_MARGIN = 0.9      # fit leaves 10 % breathing room
@@ -16,7 +17,8 @@ ZOOM_STEP = 1.25      # one zoom step = 25 %
 
 
 def _canvas_poll(context):
-    return (context.area is not None and context.area.type == 'VIEW_3D'
+    from ...core.views import is_canvas
+    return (context.area is not None and is_canvas(context.space_data)
             and context.region_data is not None)
 
 
@@ -70,7 +72,9 @@ class PLASTRON_OT_canvas_zoom(bpy.types.Operator):
     bl_label = "Zoom Canvas"
     step: bpy.props.IntProperty(default=1)
 
-    poll = classmethod(lambda cls, context: _canvas_poll(context))
+    # (zooms the 3D scene view too)
+    poll = classmethod(lambda cls, context: context.area is not None and context.area.type == 'VIEW_3D'
+                       and context.region_data is not None)
 
     def execute(self, context):
         _scale_distance(context.region_data, ZOOM_STEP ** -self.step)
@@ -201,7 +205,7 @@ def fit_all_canvases():
             region = next((r for r in area.regions if r.type == 'WINDOW'), None)
             if region is None or region.width <= 1:
                 continue
-            if area.type == 'VIEW_3D':
+            if area.type == 'VIEW_3D' and is_canvas(area.spaces.active):
                 space = area.spaces.active
                 fit(window.scene, region, space, space.region_3d)
                 area.tag_redraw()

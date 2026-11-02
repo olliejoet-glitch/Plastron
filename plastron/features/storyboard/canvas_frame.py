@@ -49,6 +49,9 @@ def _frame_on_screen(context):
 
 def draw():
     context = bpy.context
+    from ...core.views import is_scene_view
+    if is_scene_view(context.space_data):
+        return
     pts = _frame_on_screen(context)
     if pts is None:
         return

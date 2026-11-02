@@ -23,7 +23,7 @@ from ...config import motion as cfg
 from ...layers import compiler, layer_trees, paint_target, props
 from ...timeline import clips, tracks
 from ...widgets import dot_graph
-from . import camera, parallax
+from . import camera
 
 _state = {"last": 0.0, "shifted": None, "busy": False}
 
@@ -57,31 +57,12 @@ def _push_all(mat):
         compiler.push_layer(mat, layer)
 
 
-def _camera_state(scene, strip):
-    if not camera.moves(strip):
-        return camera.REST
-    fps = scene.render.fps / scene.render.fps_base
-    return camera.state_at(strip, scene.frame_current, fps)
-
-
-def _para(layer, stack, state):
-    if state is camera.REST:
-        return (0.0, 0.0, 1.0)
-    return parallax.para_for(parallax.effective_depth(layer, stack), state,
-                             canvas_sync_frame_w(stack))
-
-
-def canvas_sync_frame_w(stack):
-    from ..storyboard import canvas_sync
-    return canvas_sync.frame_px(stack)[0]
-
-
 def _close(a, b, tol=1e-4):
     return all(abs(p - q) <= tol for p, q in zip(a, b))
 
 
-def _show(mat, t, state=camera.REST):
-    """Write every layer's shown position and parallax; True if any changed."""
+def _show(mat, t):
+    """Write every layer's shown position; True if any changed."""
     changed = False
     st = mat.plastron_stack
     with props.suspended():
@@ -89,10 +70,6 @@ def _show(mat, t, state=camera.REST):
             pos = position(layer, t)
             if not _close(layer.move_now, pos):
                 layer.move_now = pos
-                changed = True
-            para = _para(layer, st, state)
-            if not _close(layer.para_now, para):
-                layer.para_now = para
                 changed = True
     return changed
 
@@ -135,8 +112,7 @@ def refresh(scene=None):
         frame = scene.frame_current
         for strip in panels_at(scene, frame):
             mat = strip.plastron_panel.material
-            if mat.plastron_stack.enabled and _show(mat, camera.clip_time(strip, frame),
-                                                    _camera_state(scene, strip)):
+            if mat.plastron_stack.enabled and _show(mat, camera.clip_time(strip, frame)):
                 _push_all(mat)
         _aim(scene)
     finally:
@@ -195,9 +171,7 @@ def _moving(scene):
         for strip in panels_at(scene, scene.frame_current):
             mat = strip.plastron_panel.material
             st = mat.plastron_stack
-            cam = camera.moves(strip)
-            uids = [l.uid for l in st.layers
-                    if has_motion(l) or (cam and parallax.has_depth(l, st))]
+            uids = [l.uid for l in st.layers if has_motion(l)]
             if uids and mat.plastron_stack.enabled:
                 items.append((strip.name, mat, uids))
         _live.update(key=key, items=items)
@@ -213,7 +187,6 @@ def live(scene):
             continue
         t = camera.clip_time(strip, scene.frame_current)
         st = mat.plastron_stack
-        state = _camera_state(scene, strip)
         for uid in uids:
             layer = st.by_uid(uid)
             if layer is None:
@@ -221,9 +194,6 @@ def live(scene):
             pos = position(layer, t)
             if not _close(layer.move_now, pos, 1e-3):
                 layer.move_now = pos          # pushes this layer (+ a group's layers)
-            para = _para(layer, st, state)
-            if not _close(layer.para_now, para, 1e-5):
-                layer.para_now = para         # pushes this layer
 
 
 def _motion_frame(scene, *_args):

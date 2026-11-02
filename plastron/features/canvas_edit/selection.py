@@ -131,7 +131,8 @@ def _quad(context, x0, y0, x1, y1):
 
 def draw():
     context = bpy.context
-    if context.mode != 'PAINT_TEXTURE' or pixels.material() is None:
+    from ...core.views import is_scene_view
+    if context.mode != 'PAINT_TEXTURE' or pixels.material() is None or is_scene_view(context.space_data):
         return
     sel = image(context)
     if sel is None:

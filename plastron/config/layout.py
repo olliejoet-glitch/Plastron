@@ -15,7 +15,10 @@ MODES = {
         {"size": 0.70, "columns": [
             {"size": 0.12, "area": "tools"},      # Ollie: tools on the left,
             {"size": 0.70, "area": "canvas"},
-            {"size": 0.18, "area": "script"},     # script on the right
+            {"size": 0.18, "rows": [               # on the right: script over the 3D scene
+                {"size": 0.55, "area": "script"},
+                {"size": 0.45, "area": "scene3d"},
+            ]},
         ]},
         {"size": 0.30, "area": "timeline"},
     ]},
@@ -65,6 +68,23 @@ AREAS = {
             "shading.type": 'MATERIAL',
             "shading.use_scene_world": True,
             "shading.use_scene_lights": True,
+        },
+    },
+    # The 3D scene (features/scene3d, config/scene3d.py): Blender's own 3D
+    # view with its header menus, toolbar (select / move / rotate / scale)
+    # and gizmos, looking through its own camera when asked.
+    "scene3d": {
+        "editor": 'VIEW_3D',
+        "header": True, "tool_header": False, "toolbar": True, "sidebar": False, "hud": False,
+        "scene_view": True,
+        "settings": {
+            "use_local_camera": True,
+            "shading.type": 'SOLID',
+            "overlay.show_floor": True,
+            "overlay.show_axis_x": True,
+            "overlay.show_axis_y": True,
+            "show_gizmo_navigate": True,
+            "clip_end": 1000.0,
         },
     },
     "tools": {

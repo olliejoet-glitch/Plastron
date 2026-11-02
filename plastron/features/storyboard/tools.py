@@ -84,7 +84,8 @@ class PLASTRON_OT_canvas_tool(bpy.types.Operator):
 
     @classmethod
     def poll(cls, context):
-        return drawing_object(context) is not None
+        from ...core.views import is_scene_view
+        return drawing_object(context) is not None and not is_scene_view(context.space_data)
 
     @classmethod
     def description(cls, context, properties):

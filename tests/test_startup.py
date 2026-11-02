@@ -37,8 +37,8 @@ def steps():
 
     # Layout
     kinds = sorted(a.type for a in screen.areas)
-    h.check("four-area layout: script, canvas, tool strip, timeline",
-            kinds == sorted(['TEXT_EDITOR', 'VIEW_3D', 'PROPERTIES', 'SEQUENCE_EDITOR']), kinds)
+    h.check("layout: script, canvas, 3D scene, tool strip, timeline",
+            kinds == sorted(['TEXT_EDITOR', 'VIEW_3D', 'VIEW_3D', 'PROPERTIES', 'SEQUENCE_EDITOR']), kinds)
     script, canvas, timeline = h.area('TEXT_EDITOR'), h.area('VIEW_3D'), h.area('SEQUENCE_EDITOR')
     if script and canvas and timeline:
         h.check("script panel is right of canvas", script.x > canvas.x)

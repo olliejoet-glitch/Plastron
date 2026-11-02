@@ -22,6 +22,7 @@ WHERE = {
     "edit":       ("Screen", 'EMPTY', 'WINDOW'),          # undo / redo
     "playback":   ("Frames", 'EMPTY', 'WINDOW'),          # over canvas and timeline
     "canvas":     ("3D View", 'VIEW_3D', 'WINDOW'),
+    "scene3d":    ("Object Mode", 'EMPTY', 'WINDOW'),         # 3D scene view (Object mode only)
     "timeline":   ("Sequencer", 'SEQUENCE_EDITOR', 'WINDOW'),
     "timeline_view": ("View2D", 'EMPTY', 'WINDOW'),       # timeline pan / zoom
     "track_headers": ("Sequencer Channels", 'SEQUENCE_EDITOR', 'WINDOW'),
@@ -39,6 +40,7 @@ SHORTCUTS = [
     ("everywhere",   "Ctrl+S",           "wm.save_mainfile",             "Save"),
     ("everywhere",   "Ctrl+Shift+S",     "wm.save_as_mainfile",          "Save as"),
     ("everywhere",   "Ctrl+Q",           "wm.quit_blender",              "Quit"),
+    ("everywhere",   "Ctrl+Space",       "screen.screen_full_area",      "Maximise the area under the pen (again: back)"),
 
     # --- Undo -------------------------------------------------------------
     ("edit",         "Ctrl+Z",           "ed.undo",                      "Undo"),
@@ -55,6 +57,8 @@ SHORTCUTS = [
     ("canvas",       "Shift+S",          "plastron.canvas_tool",         "Smudge",                 {"tool": 'SMUDGE'}),
     ("canvas",       "RMB",              "wm.call_asset_shelf_popover",  "Brush palette",          {"name": "VIEW3D_AST_brush_texture_paint"}),
     ("canvas",       "Alt+LMB",          "paint.sample_color",           "Pick colour (what you see)", {"merged": True}),
+    ("scene3d",      "Alt+LMB",          "view3d.rotate",                "3D scene: orbit (drag)"),
+    ("canvas",       "MouseMove",        "plastron.view_focus",          "Painting on the canvas, Object mode in the 3D scene"),
     ("canvas",       "Ctrl+Alt+RMB",     "wm.radial_control",            "Brush size: hold + move the pen (in the air too), let go to set",
      {"data_path_primary": "tool_settings.image_paint.brush.size",
       "data_path_secondary": "tool_settings.image_paint.unified_paint_settings.size",
@@ -139,7 +143,7 @@ SHORTCUTS = [
 # Plastron actions that act and then pass the click on, so Blender's own
 # item on the same key keeps working (e.g. the script click still places
 # the text cursor).
-PASSES_ON = {"plastron.camera_pad", "plastron.drag_scroll", "plastron.script_click", "plastron.transcript_click", "plastron.transcript_hover"}
+PASSES_ON = {"plastron.view_focus", "plastron.camera_pad", "plastron.drag_scroll", "plastron.script_click", "plastron.transcript_click", "plastron.transcript_hover"}
 
 # Blender items switched off even though BLENDER_KEEP keeps their keymap.
 BLENDER_DROP = {

@@ -22,6 +22,7 @@ from bpy_extras.view3d_utils import location_3d_to_region_2d
 from mathutils import Vector
 
 from ...config import motion as cfg, theme as theme_cfg
+from ...core.views import is_canvas
 from ...layers import layer_trees
 from ..canvas_edit import selection
 from ..storyboard import canvas_frame, canvas_sync, canvas_view, panel_cache, tools as storyboard_tools
@@ -38,7 +39,7 @@ def editing(context=None):
 def _canvas_under(context, event):
     """(region, space, region_3d, x, y) of the canvas under the mouse, or None."""
     for area in context.window.screen.areas:
-        if area.type != 'VIEW_3D':
+        if area.type != 'VIEW_3D' or not is_canvas(area.spaces.active):
             continue
         for region in area.regions:
             if region.type == 'WINDOW' and region.x <= event.mouse_x < region.x + region.width \

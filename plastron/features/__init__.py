@@ -11,6 +11,7 @@ FEATURES = [
     "voice",
     "canvas_edit",
     "motion",
+    "scene3d",
 ]
 
 _loaded = []

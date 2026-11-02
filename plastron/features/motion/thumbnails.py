@@ -16,9 +16,7 @@ def view(strip, stack):
                          camera.dot_graph.evaluate(m.curve, 0.0))
     crop = camera.crop(start, panel_cache.frame_crop(stack))
     offsets = {l.uid: layer_motion.position(l, 0.0) for l in stack.layers}
-    from . import parallax
-    para = parallax.stack_para(stack, start) if camera.moves(strip) else None
-    return crop, offsets, para
+    return crop, offsets
 
 
 def camera_changed(state):

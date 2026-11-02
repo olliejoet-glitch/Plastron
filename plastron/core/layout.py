@@ -100,7 +100,10 @@ def configure_area(area, spec):
     for path, value in spec.get("settings", {}).items():
         set_path(space, path, value)
     if area.type == 'VIEW_3D':
-        _setup_canvas_view(space)
+        if spec.get("scene_view"):
+            _setup_scene_view(space)
+        else:
+            _setup_canvas_view(space)
     if area.type == 'PROPERTIES':
         _properties_as_panel_holder(space)
 
@@ -164,6 +167,16 @@ def hide_navigation_bars(window, placed):
         if nav and nav.width > 1:
             with bpy.context.temp_override(window=window, area=area, region=nav):
                 bpy.ops.screen.region_toggle(region_type='NAVIGATION_BAR')
+
+
+def _setup_scene_view(space):
+    from ..config import scene3d
+    r3d = space.region_3d
+    r3d.view_perspective = 'PERSP'
+    r3d.view_rotation = Euler([math.radians(a) for a in scene3d.VIEW_ANGLES]).to_quaternion()
+    r3d.view_location = scene3d.ORIGIN
+    r3d.view_distance = scene3d.VIEW_DISTANCE
+    r3d.lock_rotation = False
 
 
 def _setup_canvas_view(space):

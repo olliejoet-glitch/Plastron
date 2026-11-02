@@ -17,6 +17,7 @@ import bpy
 from mathutils import Quaternion, Vector
 
 from ...core import user_settings
+from ...core.views import is_canvas
 from . import camera
 
 SETTING = "camera_view"
@@ -94,7 +95,7 @@ def views():
     wm = bpy.context.window_manager
     for window in (wm.windows if wm else []):
         for area in window.screen.areas:
-            if area.type == 'VIEW_3D':
+            if area.type == 'VIEW_3D' and is_canvas(area.spaces.active):
                 yield area, area.spaces.active.region_3d
 
 

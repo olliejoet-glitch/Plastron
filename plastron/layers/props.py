@@ -210,11 +210,8 @@ class PLASTRON_PG_layer(bpy.types.PropertyGroup):
                                   precision=0, update=_moved)
     move_curve: StringProperty()
     move_now: FloatVectorProperty(size=2, default=(0.0, 0.0), update=_value_tree)
-    # 3D parallax: how far away the layer is (1 = the picture plane, smaller
-    # = nearer the camera, bigger = further; 0 = as its group, or 1). Camera
-    # moves then shift / scale each layer by its depth; para_now is that
-    # shift (canvas px) and scale right now (written by the motion feature).
-    depth: FloatProperty(name="Depth", default=0.0, min=0.0, max=20.0, update=_moved)
+    # An extra shift (canvas px) and scale the layer is shown with (unused
+    # since the 3D parallax experiment was taken out; kept for saved files).
     para_now: FloatVectorProperty(size=3, default=(0.0, 0.0, 1.0), update=_value_one)
     # adjustment
     adjust_kind: EnumProperty(name="Adjustment", items=ADJUST_KINDS, default="HUE_SAT", update=_structural)

@@ -241,5 +241,7 @@ class PLASTRON_PT_blend_if(_Tools, bpy.types.Panel):
                 lay.template_color_ramp(n, "color_ramp")
 
 
+# Blend If isn't shown (Ollie: superfluous for storyboards). The layer
+# engine still supports it; add PLASTRON_PT_blend_if back here to bring it back.
 classes = (PLASTRON_UL_layers, PLASTRON_UL_masks, PLASTRON_PT_layers, PLASTRON_PT_layer_props,
-           PLASTRON_PT_masks, PLASTRON_PT_blend_if)
+           PLASTRON_PT_masks)
