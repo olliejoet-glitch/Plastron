@@ -47,8 +47,8 @@ theme, and keymap, with Photoshop-style drawing shortcuts.
   View (the canvas looks through the camera), easing dot graph
   (`widgets/dot_graph`), camera shake, layer / group start / end motion
   (box, live in playback), motion presets, Clean View (F)
-  (`features/motion`). Then: a 3D scene view with its own camera under the
-  script (`features/scene3d`).
+  (`features/motion`). Then: a 3D multiplane view under the script (track
+  cards moved in depth, 3D camera keyed as it moves) (`features/scene3d`).
 - **Next: stage 7** (planning, review, export). Wait for Ollie to ask.
 - **DONE: drawing switched from grease pencil to RASTER** (Ollie: wants to
   select/move pixels, lay down blobs of colour, erase precisely). Brush engine
@@ -77,6 +77,8 @@ theme, and keymap, with Photoshop-style drawing shortcuts.
      unless it's an O(1) "did anything relevant change?" check that returns early.
      All handlers go through `core/handlers.py`; a test fails if any per-frame
      handler appears (update that test deliberately if one is ever justified).
+   - Exception: the 3D Camera's keyframes (Ollie asked for auto-keyed
+     camera moves) are played by Blender's animation system.
    - Exception (Ollie: "I really need the layers to move with playback"):
      motion plays live. The motion frame hook moves the canvas view (camera)
      and writes a few shader values per MOVING layer (moved or at a depth); which layers move is
@@ -148,7 +150,7 @@ Plastron/
 │  │  ├─ tools.py            drawing tools, tool strip order, brush palette / library
 │  │  ├─ voice.py            recording, transcription model + prompt, transcript bar look
 │  │  ├─ motion.py           camera zoom / rotation limits, drag handles, shake, layer refresh delay
-│  │  ├─ scene3d.py          the 3D scene: where it is, its camera, the view's start angle
+│  │  ├─ scene3d.py          the 3D scene: its camera lens, the view's start angle, card colour
 │  │  ├─ theme.py            palette + where each colour is used; canvas overlay colours
 │  │  ├─ hidden_ui.py        Blender panels/shelves to hide, headers to replace
 │  │  ├─ preferences.py      Blender preferences set at every start
@@ -205,7 +207,7 @@ Plastron/
 │  │                         the camera), layer_motion (live positions,
 │  │                         painted-layer UV shift), edit (layer box), thumbnails
 │  │                         (panel_cache hook), ui (Motion panel, presets)
-│  │  └─ scene3d/            the 3D scene view: its camera / collection, pen-follows modes
+│  │  └─ scene3d/            the 3D (multiplane) view: track cards, keyed camera, pen-follows modes
 │  ├─ presets/               ★ preset files, one folder per kind (brushes/, motion/); README
 │  │                         lists the fields. Store code: core/presets.py
 │  └─ assets/                icon_256.png, plastron.ico
@@ -337,8 +339,10 @@ Plastron/
   pressure lag.
 - An open pop-up (popover) swallows the next click anywhere: close it (Esc)
   before simulating clicks in tests.
-- A 3D view always shows the window's scene: a second "scene" in the layout
-  is a far-away part of the same scene (scene3d), not a Blender scene.
+- A 3D view always shows the window's scene (a second Blender scene can't
+  sit in the same window's layout).
+- core/handlers.add(..., first=True) puts a handler before the others (an
+  edit must be read before another handler reacts to it).
 - tests: h.area('VIEW_3D') is the canvas, h.area('SCENE_3D') the 3D scene view.
 - Keymap clashes: Plastron keys fire on PRESS; Blender items on the same key
   with CLICK / CLICK_DRAG / DOUBLE_CLICK aren't clashes (keymaps.py).
@@ -655,26 +659,39 @@ Plastron/
   (moves + an extra shift / scale, layer.para_now, always 1 now), shader
   input MoveS, stack.view_scale, and the canvas paint UVs following the
   painted layer's whole affine.
-- 3D scene (Ollie: "a small 3d scene under my script that I can maximise,
-  with standard Blender gizmo controls, and a 3D camera"): the right column
-  is script (55 %) over a 3D scene view (45 %) (config/layout.py
-  "scene3d", features/scene3d, config/scene3d.py). It's Blender's own 3D
-  view: header menus (Add / Object...), toolbar (select / move / rotate /
-  scale), transform + navigation gizmos, perspective, floor grid. Its
-  objects live around ORIGIN (5000, 0, 0) in the "3D Scene" collection,
-  far from the canvas (the canvas never pans there; the view's 1000 clip
-  hides the canvas); the 3D cursor sits at ORIGIN so Add puts things there.
-  "3D Camera" is the view's own camera (use_local_camera marks the scene
-  view: core/views.is_scene_view / is_canvas). Modes follow the pen (a
-  MouseMove item, plastron.view_focus): over the scene view Object mode,
-  over the canvas Texture Paint with the Canvas active (no undo steps).
-  Canvas-only things skip the scene view: frame overlay, camera box,
-  selection outline, Camera View following, fit, canvas tool keys (B, E...).
-  Alt+drag orbits there (its item is in Blender's "Object Mode" keymap,
-  WHERE "scene3d", so it never meets the canvas's Alt+click colour pick;
-  calling one operator from another to choose leaked memory). Ctrl+Space maximises any area (again: back). Blender's
-  brush shelf strip under it is folded away at load. Blender's toolbar
-  panel is no longer hidden in 3D views (the canvas hides its toolbar).
+- 3D scene = multiplane (Ollie: "this 3d view [should] move around the
+  frames I'm adding: add a frame on a new layer, drag it forwards or
+  backwards in the viewport, then move the camera to add parallax", and the
+  camera move auto-keyframed). The right column is script (55 %) over the
+  3D scene view (45 %) (config/layout.py "scene3d", features/scene3d,
+  config/scene3d.py). Blender's own 3D view (header menus, toolbar,
+  transform + navigation gizmos, perspective, Material Preview with the
+  paper world) looking at the canvas's own sheets: one card per video track
+  (orange outline = the card being drawn on, grey = the others; outlines
+  drawn because empty cards are see-through). Moving / turning / scaling a
+  card there moves its TRACK: track.place_offset / place_rotation /
+  place_scale (props added to PLASTRON_PG_track by scene3d), applied by
+  canvas_sync (SHEET_PLACE hook; the Canvas sheet takes the active track's
+  placement). Kept two ways: an edit handler (depsgraph_update_post
+  "_on_edit", added FIRST) and canvas_sync itself (SHEET_ABSORB: a sheet not
+  where canvas_sync last put it was moved by hand, so that's saved before
+  re-placing; a pending timeline refresh can fire between the move and the
+  depsgraph). "3D Camera" (the scene view's own camera; use_local_camera
+  marks the scene view: core/views) starts square-on at the distance that
+  frames the picture exactly (16 units * lens / 36 mm); moving it keys
+  location / rotation / lens at the playhead under the hood (edits only;
+  Blender then plays the animation: allowed, Ollie asked). The canvas's
+  flat ortho camera is drawn tiny in 3D (hiding it, hide_viewport, broke the
+  canvas's Ctrl+0 fit maths). Modes follow the pen (MouseMove item
+  plastron.view_focus): Object mode over the scene view, Texture Paint with
+  the Canvas active over the canvas (no undo steps). Canvas-only things skip
+  the scene view: frame overlay, camera box, selection outline, Camera View
+  following, fit, canvas tool keys (B, E...). Alt+drag orbits there (its
+  item is in Blender's "Object Mode" keymap, WHERE "scene3d", so it never
+  meets the canvas's Alt+click colour pick; calling one operator from
+  another to choose leaked memory). Ctrl+Space maximises any area (again:
+  back). Blender's brush shelf strip under it is folded away at load.
+  Blender's toolbar panel is no longer hidden in 3D views.
 - Blend If isn't in the Layers panel any more (Ollie: superfluous); the
   engine still supports it (PLASTRON_PT_blend_if, not registered).
 - Panel images (thumbnails) show the panel where it starts: camera start

@@ -17,9 +17,14 @@ PER_FRAME = {
 _added = []  # (handler list name, function)
 
 
-def add(list_name, func):
+def add(list_name, func, first=False):
+    """first: run before the handlers already there (e.g. read an edit before
+    another handler reacts to it)."""
     wrapped = persistent(func)
-    getattr(bpy.app.handlers, list_name).append(wrapped)
+    if first:
+        getattr(bpy.app.handlers, list_name).insert(0, wrapped)
+    else:
+        getattr(bpy.app.handlers, list_name).append(wrapped)
     _added.append((list_name, wrapped))
     return wrapped
 

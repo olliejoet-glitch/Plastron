@@ -79,8 +79,9 @@ AREAS = {
         "scene_view": True,
         "settings": {
             "use_local_camera": True,
-            "shading.type": 'SOLID',
-            "overlay.show_floor": True,
+            "shading.type": 'MATERIAL',
+            "shading.use_scene_world": True,
+            "overlay.show_floor": False,
             "overlay.show_axis_x": True,
             "overlay.show_axis_y": True,
             "show_gizmo_navigate": True,

@@ -1,6 +1,7 @@
-"""The 3D scene view under the script: layout, its camera, Blender's tools
-and gizmos, painting / Object mode following the pen, canvas keys staying
-out of it, Ctrl+Space maximise, Alt+drag orbit."""
+"""The 3D scene view under the script: layout, the panels as cards (moving
+a card moves its track), the 3D camera (square-on at rest, keys itself
+when moved), Blender's tools and gizmos, painting / Object mode following
+the pen, canvas keys staying out of it, Ctrl+Space maximise, Alt+drag orbit."""
 
 import os
 import sys
@@ -31,13 +32,60 @@ def steps():
     h.check("...with its own 3D camera, in the 3D Scene collection",
             cam is not None and cam.type == 'CAMERA' and space.camera == cam
             and cam.name in bpy.data.collections[cfg.COLLECTION].objects)
-    h.check("...perspective, away from the canvas, Blender's toolbar and navigation gizmo",
+    h.check("...perspective, Blender's toolbar and navigation gizmo",
             space.region_3d.view_perspective == 'PERSP' and space.show_region_toolbar
-            and space.show_gizmo_navigate and space.show_region_header
-            and (space.region_3d.view_location - cam.location).length < 50)
+            and space.show_gizmo_navigate and space.show_region_header)
     shelf = h.region(view, 'ASSET_SHELF')
     h.check("no brush shelf strip under it", shelf is None or shelf.height <= 1, shelf and shelf.height)
-    h.check("new objects land in the 3D scene", (sc.cursor.location - cam.location).length < 50)
+    loc, rot = scene3d.rest_pose()
+    h.check("the camera starts square-on, framing the picture exactly",
+            (cam.location - loc).length < 1e-4 and abs(cam.data.lens - cfg.CAMERA_LENS) < 1e-6
+            and abs(abs(cam.location.y) - 16 * cam.data.lens / 36) < 1e-4)
+    h.check("the canvas's flat camera is drawn tiny in the 3D scene", sc.camera.data.display_size < 0.051)
+
+    # Cards: a panel on another track shows as its own card; moving it back moves the track.
+    panels = h.module("features.storyboard.panels")
+    tracks = h.module("timeline.tracks")
+    canvas_sync = h.module("features.storyboard.canvas_sync")
+    videos = tracks.video_tracks(sc)
+    active = canvas_sync._state["canvas_track"]
+    other = next(t for t in videos if t.uid != active)
+    panels.create(sc, tracks.channel_of(sc, other), sc.frame_current, 48)
+    canvas_sync.invalidate(sc)
+    yield 0.3
+    card = bpy.data.objects[canvas_sync.DISPLAY_PREFIX + other.uid]
+    h.check("a panel on another track is a card in the 3D scene", not card.hide_viewport and not card.hide_select)
+    base_y = card.location.y
+    card.location.y = base_y + 4.0
+    card.scale = card.scale * 1.5
+    yield 0.3
+    h.check("moving a card back moves its track (kept on the track)",
+            abs(other.place_offset[1] - 4.0) < 1e-4 and abs(other.place_scale - 1.5) < 1e-4,
+            (tuple(other.place_offset), other.place_scale))
+    canvas_sync.invalidate(sc)
+    yield 0.2
+    h.check("...and the canvas keeps it there", abs(card.location.y - (base_y + 4.0)) < 1e-4)
+
+    # The 3D camera keys itself when moved (location / rotation / lens), at the playhead.
+    sc.frame_current = 1
+    yield 0.2
+    cam.location.x = 1.0
+    yield 0.3
+    sc.frame_current = 25
+    yield 0.2
+    cam.location.x = 3.0
+    cam.data.lens = 50.0
+    yield 0.3
+    sc.frame_current = 13
+    yield 0.3
+    h.check("moving the 3D camera keys it at the playhead (and plays between keys)",
+            cam.animation_data is not None and 1.5 < cam.location.x < 2.5, cam.location.x)
+    sc.frame_current = 25
+    yield 0.3
+    h.check("...lens too", abs(cam.data.lens - 50.0) < 1e-4, cam.data.lens)
+    h.redraw()
+    yield 0.3
+    h.screenshot("scene3d_cards")
     h.redraw()
     yield 0.3
     h.screenshot("scene3d")

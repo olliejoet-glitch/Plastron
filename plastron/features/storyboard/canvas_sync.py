@@ -31,7 +31,55 @@ PAINT_SHEET = "Canvas Paint Sheet"     # the canvas's own (its UVs follow a move
 EMPTY = "Plastron Empty Panel"
 DEPTH_STEP = 0.01     # higher tracks sit slightly nearer the camera
 
-_state = {"dirty": True, "lo": 0, "hi": -1, "scene": None, "work": 0}
+_state = {"dirty": True, "lo": 0, "hi": -1, "scene": None, "work": 0, "canvas_track": ""}
+
+# Hooks (features/scene3d): SHEET_PLACE: func(track) -> (offset xyz, rotation
+# xyz, scale), where a track's sheet is placed in 3D (moved / turned / scaled
+# in the 3D scene view; None: every sheet in the picture plane).
+# SHEET_ABSORB: func(scene, obj, track): the sheet was moved by hand since
+# the canvas last placed it: keep that on the track before re-placing it.
+SHEET_PLACE = [None]
+SHEET_ABSORB = [None]
+_placed = {}     # sheet name -> (location, rotation, scale) as the canvas last set it
+
+
+def _transform(obj):
+    return tuple(obj.location), tuple(obj.rotation_euler), tuple(obj.scale)
+
+
+def _absorb(scene, obj, track):
+    """A sheet moved by hand (3D scene view) since we placed it: keep it."""
+    last = _placed.get(obj.name)
+    func = SHEET_ABSORB[0]
+    if func is None or last is None or track is None:
+        return
+    now = _transform(obj)
+    if any(abs(a - b) > 1e-6 for u, v in zip(now, last) for a, b in zip(u, v)):
+        func(scene, obj, track)
+
+
+def place(track):
+    func = SHEET_PLACE[0]
+    if func is None or track is None:
+        return (0.0, 0.0, 0.0), (0.0, 0.0, 0.0), 1.0
+    return func(track)
+
+
+def order_y(scene, track):
+    """A track's sheet's depth before any 3D placement (higher tracks nearer)."""
+    uids = [t.uid for t in tracks.video_tracks(scene)]
+    return -uids.index(track.uid) * DEPTH_STEP if track.uid in uids else 0.0
+
+
+def sheet_track(scene, obj):
+    """The track a sheet object stands for right now (or None)."""
+    if obj.name == CANVAS:
+        uid = _state["canvas_track"]
+    elif obj.name.startswith(DISPLAY_PREFIX):
+        uid = obj.name[len(DISPLAY_PREFIX):]
+    else:
+        return None
+    return next((t for t in tracks.video_tracks(scene) if t.uid == uid), None)
 
 
 def frame_px(stack):
@@ -102,6 +150,8 @@ def _sheet_object(scene, name, selectable, mesh=SHEET):
         scene.collection.objects.link(obj)
     elif obj.data.name != mesh:                     # projects from before stage 6
         obj.data = sheet_mesh(mesh)
+    if obj.hide_select == selectable:               # (display sheets became selectable)
+        obj.hide_select = not selectable
     slot = obj.material_slots[0]
     if slot.link != 'OBJECT':
         slot.link = 'OBJECT'
@@ -125,22 +175,31 @@ def shift_paint_uv(scene, du, dv, a=1.0):
 
 
 def _display_object(scene, track):
-    return _sheet_object(scene, DISPLAY_PREFIX + track.uid, False)
+    # Selectable: they're moved / turned / scaled in the 3D scene view.
+    return _sheet_object(scene, DISPLAY_PREFIX + track.uid, True)
 
 
-def _set(obj, material=None, y=None, hidden=None, alpha=None):
-    """Change only what differs (every change costs a scene update)."""
+def _set(obj, material=None, y=None, hidden=None, alpha=None, placed=None):
+    """Change only what differs (every change costs a scene update).
+    placed: (offset, rotation, scale) from the 3D scene (y is added to the offset)."""
     if alpha is not None and abs(obj.color[3] - alpha) > 1e-4:
         obj.color[3] = alpha
     slot = obj.material_slots[0]
     if material is not None and slot.material != material:
         slot.material = material
+    offset, rotation, k = placed or ((0.0, 0.0, 0.0), (0.0, 0.0, 0.0), 1.0)
     if material is not None:
         sx, sz = _scale_for(material)
-        if abs(obj.scale.x - sx) > 1e-6 or abs(obj.scale.z - sz) > 1e-6:
-            obj.scale = (sx, 1.0, sz)
-    if y is not None and abs(obj.location.y - y) > 1e-6:
-        obj.location.y = y
+        sx, sz = sx * k, sz * k
+        if abs(obj.scale.x - sx) > 1e-6 or abs(obj.scale.z - sz) > 1e-6 or abs(obj.scale.y - k) > 1e-6:
+            obj.scale = (sx, k, sz)
+    if y is not None:
+        loc = (offset[0], y + offset[1], offset[2])
+        if any(abs(a - b) > 1e-6 for a, b in zip(obj.location, loc)):
+            obj.location = loc
+        if any(abs(a - b) > 1e-6 for a, b in zip(obj.rotation_euler, rotation)):
+            obj.rotation_euler = rotation
+        _placed[obj.name] = _transform(obj)
     if hidden is not None and obj.hide_viewport != hidden:
         obj.hide_viewport = hidden
 
@@ -165,7 +224,9 @@ def _onion(scene, track, frame, y):
     for name, clip in zip(ONION, near):
         mat = clip.plastron_panel.material if clip is not None and is_panel(clip) else None
         obj = _sheet_object(scene, name, False)
+        (ox, _oy, oz), rot, k = place(track)
         _set(obj, material=mat or empty_material(), y=y + DEPTH_STEP / 2, hidden=mat is None,
+             placed=((ox, 0.0, oz), rot, k),
              alpha=onion.opacity())
 
 
@@ -199,17 +260,26 @@ def sync(scene):
     sed = clips.editor(scene)
     active = _drawing_track(scene, videos, frame, sed)
 
+    previous_canvas = _state["canvas_track"]
+    _state["canvas_track"] = active.uid if active else ""
+    for track in videos:                           # cards moved by hand: keep that first
+        if active and track.uid == active.uid and previous_canvas == track.uid:
+            _absorb(scene, canvas_object(scene), track)
+        elif not (active and track.uid == active.uid):
+            _absorb(scene, _display_object(scene, track), track)
     for depth, track in enumerate(videos):
         y = -depth * DEPTH_STEP
+        placed = place(track)
         muted = sed.channels[tracks.channel_of(scene, track)].mute
         material = None if muted else _material_at(scene, track, frame)
         if active and track.uid == active.uid:
-            _set(canvas_object(scene), material=material or empty, y=y)
+            _set(canvas_object(scene), material=material or empty, y=y, placed=placed)
             _set(_display_object(scene, track), material=empty, hidden=True)
         else:
             _set(_display_object(scene, track), material=material or empty, y=y,
-                 hidden=material is None)
-    canvas_y = -[t.uid for t in videos].index(active.uid) * DEPTH_STEP if active else 0.0
+                 hidden=material is None, placed=placed)
+    canvas_y = (-[t.uid for t in videos].index(active.uid) * DEPTH_STEP + place(active)[0][1]) \
+        if active else 0.0
     _onion(scene, active, frame, canvas_y)
     paint_target.sync(scene=scene)
 

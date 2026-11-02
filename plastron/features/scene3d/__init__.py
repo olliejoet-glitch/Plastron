@@ -1,21 +1,28 @@
-"""The 3D scene (Ollie: "a small 3d scene under my script that I can
-maximise, with standard Blender gizmo controls, and a 3D camera").
+"""The 3D scene (Ollie: "this 3d view [should] move around the frames
+I'm adding": add a frame on a new layer, drag it forwards or backwards,
+then move the camera to add parallax; the camera move keyframes itself).
 
-- The scene view (under the script) is Blender's own 3D view: header menus
-  (View / Select / Add / Object), toolbar (select, move, rotate, scale...),
-  transform and navigation gizmos. Ctrl+Space maximises it (any area).
-- Its objects sit around config/scene3d.ORIGIN, far from the canvas, in the
-  "3D Scene" collection; its camera is "3D Camera" (the view's own camera:
-  View > Cameras > Active Camera looks through it).
-- Painting and the scene need different modes: when the pen moves over the
-  scene view Blender goes to Object mode, and back to painting the canvas
-  when it moves over the canvas (no undo steps for the switch).
-- The canvas's keys (B, E, Ctrl+T...) do nothing in the scene view.
+- The scene view (under the script) is Blender's own 3D view: header menus,
+  toolbar (select, move, rotate, scale...), transform and navigation gizmos.
+  Ctrl+Space maximises it (any area).
+- It shows the panels as cards, one per video track, where the canvas has
+  them. Moving / turning / scaling a card there moves that whole TRACK (it's
+  kept on the track: place_offset / place_rotation / place_scale, and the
+  canvas sheets follow it).
+- "3D Camera" is the view's own camera (View > Cameras > Active Camera looks
+  through it). It starts square-on, exactly framing the picture. Moving it
+  keys it at the playhead (location, rotation, lens) under the hood, so a
+  move is: playhead to the start, place the camera, playhead to the end,
+  place it again.
+- Painting and the scene need different modes: Object mode over the scene
+  view, painting over the canvas (follows the pen, no undo steps). The
+  canvas's keys (B, E, Ctrl+T...) do nothing in the scene view.
 """
 
+import math
 
 import bpy
-from mathutils import Vector
+from mathutils import Euler, Vector
 
 from ...config import scene3d as cfg
 from ...core import handlers
@@ -31,18 +38,25 @@ def collection(scene):
     return coll
 
 
+def rest_pose():
+    """Square-on to the picture plane, at the distance that frames it exactly."""
+    from ...config import project_defaults as defaults
+    distance = defaults.CANVAS_WIDTH * cfg.CAMERA_LENS / 36.0       # 36 mm sensor across
+    return (Vector(cfg.ORIGIN) + Vector((0.0, -distance, 0.0)),
+            Euler((math.radians(90.0), 0.0, 0.0)))
+
+
 def camera(scene):
     """The 3D scene's camera (made if missing)."""
     obj = bpy.data.objects.get(cfg.CAMERA_NAME)
     if obj is None:
         data = bpy.data.cameras.new(cfg.CAMERA_NAME)
         data.lens = cfg.CAMERA_LENS
+        data.sensor_fit = 'HORIZONTAL'
+        data.sensor_width = 36.0
         data.clip_end = cfg.CLIP_END
         obj = bpy.data.objects.new(cfg.CAMERA_NAME, data)
-        origin = Vector(cfg.ORIGIN)
-        obj.location = origin + Vector(cfg.CAMERA_OFFSET)
-        direction = origin - obj.location
-        obj.rotation_euler = direction.to_track_quat('-Z', 'Y').to_euler()
+        obj.location, obj.rotation_euler = rest_pose()
         collection(scene).objects.link(obj)
     return obj
 
@@ -83,7 +97,15 @@ def ensure(scene):
         if space.clip_end != cfg.CLIP_END:
             space.clip_end = cfg.CLIP_END
     if (scene.cursor.location - Vector(cfg.ORIGIN)).length > 1e-3:
-        scene.cursor.location = cfg.ORIGIN          # new objects (Add menu) land in the scene
+        scene.cursor.location = cfg.ORIGIN
+    # The canvas's flat camera isn't a 3D thing: drawn tiny there. (Hiding it
+    # upset the canvas's view maths: Ctrl+0 fit came out wrong.)
+    flat = scene.camera
+    if flat is not None and flat != cam:
+        if flat.hide_viewport:
+            flat.hide_viewport = False
+        if flat.type == 'CAMERA' and flat.data.display_size > 0.051:
+            flat.data.display_size = 0.05
     bpy.app.timers.register(lambda: hide_shelves() and None, first_interval=0.3)
 
 
@@ -117,6 +139,100 @@ def focus(context):
     return False
 
 
+# --- the scene view's edits: cards move their track; the camera keys itself ----------------
+
+_busy = [False]
+
+
+def _place_from(track, obj, scene):
+    from ..storyboard import canvas_sync
+    base = canvas_sync.order_y(scene, track)
+    offset = (obj.location.x, obj.location.y - base, obj.location.z)
+    rotation = tuple(obj.rotation_euler)
+    scale = obj.scale.y                       # (x / z also carry the painting's size)
+    changed = False
+    if any(abs(a - b) > 1e-6 for a, b in zip(track.place_offset, offset)):
+        track.place_offset = offset
+        changed = True
+    if any(abs(a - b) > 1e-6 for a, b in zip(track.place_rotation, rotation)):
+        track.place_rotation = rotation
+        changed = True
+    if abs(track.place_scale - scale) > 1e-6 and scale > 1e-4:
+        track.place_scale = scale
+        changed = True
+    return changed
+
+
+def _keyed(owner, path, frame):
+    """Is owner.path already keyed with its current value at frame?"""
+    ad = owner.animation_data
+    action = ad.action if ad else None
+    if action is None:
+        return False
+    value = getattr(owner, path)
+    values = list(value) if hasattr(value, "__len__") else [value]
+    for i, v in enumerate(values):
+        fc = _fcurve(action, owner, path, i)
+        if fc is None or not any(abs(k.co[0] - frame) < 1e-3 for k in fc.keyframe_points) \
+                or abs(fc.evaluate(frame) - v) > 1e-5:
+            return False
+    return True
+
+
+def _fcurve(action, owner, path, index):
+    return next((fc for fc in _all_fcurves(action) if fc.data_path == path and fc.array_index == index), None)
+
+
+def _all_fcurves(action):
+    if hasattr(action, "fcurves"):
+        return list(action.fcurves)
+    out = []                                   # layered actions (Blender 4.4+)
+    for layer in action.layers:
+        for strip in layer.strips:
+            for bag in getattr(strip, "channelbags", []):
+                out.extend(bag.fcurves)
+    return out
+
+
+def key_camera(scene, cam):
+    """Key the 3D camera where it is now, at the playhead (if that's new)."""
+    frame = scene.frame_current
+    for owner, path in ((cam, "location"), (cam, "rotation_euler"), (cam.data, "lens")):
+        if not _keyed(owner, path, frame):
+            owner.keyframe_insert(path, frame=frame)
+
+
+def _playing():
+    wm = bpy.context.window_manager
+    return wm is not None and any(w.screen and w.screen.is_animation_playing for w in wm.windows)
+
+
+def _on_edit(scene, depsgraph):
+    # Edits only (depsgraph_update_post doesn't run during playback): a card
+    # moved in the scene view moves its track; the 3D camera moved is keyed.
+    if _busy[0] or not (depsgraph.id_type_updated('OBJECT') or depsgraph.id_type_updated('CAMERA')):
+        return
+    if scene is None or not hasattr(scene, "plastron_timeline") or _playing():
+        return
+    from ..storyboard import canvas_sync
+    _busy[0] = True
+    try:
+        for update in depsgraph.updates:
+            obj = update.id.original if isinstance(update.id, (bpy.types.Object, bpy.types.Camera)) else None
+            if obj is None:
+                continue
+            if obj.name == cfg.CAMERA_NAME:
+                cam = bpy.data.objects.get(cfg.CAMERA_NAME)
+                if cam is not None:
+                    key_camera(scene, cam)
+            elif isinstance(obj, bpy.types.Object) and update.is_updated_transform:
+                track = canvas_sync.sheet_track(scene, obj)
+                if track is not None:
+                    _place_from(track, obj, scene)
+    finally:
+        _busy[0] = False
+
+
 class PLASTRON_OT_view_focus(bpy.types.Operator):
     """Painting on the canvas, Object mode in the 3D scene (follows the pen)"""
     bl_idname = "plastron.view_focus"
@@ -135,6 +251,39 @@ class PLASTRON_OT_view_focus(bpy.types.Operator):
         return {'PASS_THROUGH'}
 
 
+# --- card outlines in the scene view (empty cards are see-through) --------------------------
+
+_draw_handle = [None]
+
+
+def _draw_cards():
+    context = bpy.context
+    if not is_scene_view(context.space_data):
+        return
+    import gpu
+    from gpu_extras.batch import batch_for_shader
+    from ...config import theme as theme_cfg
+    from ...core.theme import _color
+    from ..storyboard import canvas_sync
+    shader = gpu.shader.from_builtin('POLYLINE_UNIFORM_COLOR')
+    shader.uniform_float("viewportSize", (context.region.width, context.region.height))
+    gpu.state.blend_set('ALPHA')
+    gpu.state.depth_test_set('LESS_EQUAL')
+    for obj in context.scene.objects:
+        is_canvas_sheet = obj.name == canvas_sync.CANVAS
+        if not (is_canvas_sheet or obj.name.startswith(canvas_sync.DISPLAY_PREFIX)) or obj.hide_viewport:
+            continue
+        pts = [obj.matrix_world @ v.co for v in obj.data.vertices]
+        if len(pts) != 4:
+            continue
+        colour = theme_cfg.CANVAS["frame_edit"] if is_canvas_sheet else cfg.CARD_COLOR
+        shader.uniform_float("lineWidth", 2.0 if is_canvas_sheet or obj.select_get() else 1.0)
+        shader.uniform_float("color", _color(colour))
+        batch_for_shader(shader, 'LINE_STRIP', {"pos": [tuple(p) for p in pts + pts[:1]]}).draw(shader)
+    gpu.state.depth_test_set('NONE')
+    gpu.state.blend_set('NONE')
+
+
 classes = (PLASTRON_OT_view_focus,)
 
 
@@ -142,14 +291,35 @@ def _on_load(scene):
     ensure(scene)
 
 
+def _track_place(track):
+    return tuple(track.place_offset), tuple(track.place_rotation), track.place_scale
+
+
 def register():
     for cls in classes:
         bpy.utils.register_class(cls)
+    from ...timeline.tracks import PLASTRON_PG_track as Track
+    Track.place_offset = bpy.props.FloatVectorProperty(size=3, subtype='TRANSLATION')
+    Track.place_rotation = bpy.props.FloatVectorProperty(size=3, subtype='EULER')
+    Track.place_scale = bpy.props.FloatProperty(default=1.0, min=0.001)
+    from ..storyboard import canvas_sync
+    canvas_sync.SHEET_PLACE[0] = _track_place
+    canvas_sync.SHEET_ABSORB[0] = lambda scene, obj, track: _place_from(track, obj, scene)
+    # First: a card moved in the scene view must be kept on its track before
+    # the timeline's edit handler re-syncs the canvas (which would put it back).
+    handlers.add("depsgraph_update_post", _on_edit, first=True)
+    _draw_handle[0] = bpy.types.SpaceView3D.draw_handler_add(_draw_cards, (), 'WINDOW', 'POST_VIEW')
     handlers.on_load(_on_load)
     from ...timeline import events
     events.listen("project_created", ensure)
 
 
 def unregister():
+    if _draw_handle[0] is not None:
+        bpy.types.SpaceView3D.draw_handler_remove(_draw_handle[0], 'WINDOW')
+        _draw_handle[0] = None
+    from ..storyboard import canvas_sync
+    canvas_sync.SHEET_PLACE[0] = None
+    canvas_sync.SHEET_ABSORB[0] = None
     for cls in reversed(classes):
         bpy.utils.unregister_class(cls)

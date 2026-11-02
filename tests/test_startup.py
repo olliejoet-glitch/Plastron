@@ -141,7 +141,8 @@ def steps():
     allowed = {("frame_change_post", "on_frame"),            # canvas: crossed a clip edge?
                ("frame_change_post", "_motion_frame"),       # motion: camera view + moving layers only (cached list)
                ("depsgraph_update_post", "_on_depsgraph"),   # timeline: flag edit (not during playback)
-               ("depsgraph_update_post", "_on_stroke")}      # panel image: was an image painted?
+               ("depsgraph_update_post", "_on_stroke"),     # panel image: was an image painted?
+               ("depsgraph_update_post", "_on_edit")}       # 3D scene: card moved / camera keyed (edits only)
     per_frame = {(n, f) for n, f in handlers.registered() if n in handlers.PER_FRAME}
     h.check("only the allowed O(1) per-frame hooks", per_frame <= allowed, per_frame - allowed)
     drivers = sum(len(o.animation_data.drivers) for o in bpy.data.objects if o.animation_data)
