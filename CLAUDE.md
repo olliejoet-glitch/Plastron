@@ -361,14 +361,13 @@ Plastron/
   standard). Project resolution **3840×2160**, previews at **50 %**.
 - Colour view transform **Standard** (AgX shifts greys).
 - Layout (Ollie swapped them): tools 12 % | canvas 70 % | script 18 %,
-  timeline 30 % high.
+  timeline 30 % high. No status bar (messages show in the top bar).
 - Pen scrolling (Ollie couldn't scroll the tools area: a pen has no wheel):
   Alt+Shift+drag scrolls the tools area and the script 1:1 with the hand
-  (ui/drag_scroll.py; view2d.pan with exact pixels: scroll_up / down always
-  jump 40 px,
-  in the "Screen Editing" keymap so it works even when the drag starts on
-  a button; passes on elsewhere, so the canvas / timeline pans still work).
-  No status bar (messages show in the top bar).
+  (ui/drag_scroll.py, using view2d.pan with exact pixels: scroll_up / down
+  always jump 40 px). It's in the "Screen Editing" keymap so it works even
+  when the drag starts on a button; it passes on elsewhere, so the canvas /
+  timeline pans still work.
 - Top bar: Plastron icon, File (New, Open, Open Recent, Save, Save As, Recover,
   Quit), undo/redo, mode switcher. Project name on the right.
 - Canvas colour: Ollie found white too bright. Default is soft paper
