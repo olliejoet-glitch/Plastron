@@ -26,6 +26,7 @@ WHERE = {
     "timeline_view": ("View2D", 'EMPTY', 'WINDOW'),       # timeline pan / zoom
     "track_headers": ("Sequencer Channels", 'SEQUENCE_EDITOR', 'WINDOW'),
     "script":     ("Text", 'TEXT_EDITOR', 'WINDOW'),
+    "painting":   ("Image Paint", 'EMPTY', 'WINDOW'),     # before a brush stroke starts
     "areas":      ("Screen Editing", 'EMPTY', 'WINDOW'),  # before an area's own buttons
 }
 
@@ -70,7 +71,8 @@ SHORTCUTS = [
     ("canvas",       "R",                "plastron.canvas_rotate",       "Rotate view (hold + drag)"),
     ("canvas",       "Ctrl+F",           "plastron.canvas_flip_view",    "Flip view (drawing unchanged)"),
     ("canvas",       "F",                "plastron.clean_view",          "Clean view: hide outside the camera frame"),
-    ("canvas",       "C",                "plastron.motion_set",          "Camera box: set the camera at the nearer end of the panel", {"target": 'CAMERA', "end": 'NEAREST'}),
+    ("painting",     "LMB",              "plastron.camera_pad",          "Camera controls (box in the canvas corner); elsewhere paints"),
+    ("painting",     "Shift+LMB",        "plastron.camera_pad",          "...fine control"),
 
     # --- Canvas: later stages ----------------------------------------------
     # --- Canvas: selecting and transforming pixels --------------------------
@@ -131,7 +133,7 @@ SHORTCUTS = [
 # Plastron actions that act and then pass the click on, so Blender's own
 # item on the same key keeps working (e.g. the script click still places
 # the text cursor).
-PASSES_ON = {"plastron.drag_scroll", "plastron.script_click", "plastron.transcript_click", "plastron.transcript_hover"}
+PASSES_ON = {"plastron.camera_pad", "plastron.drag_scroll", "plastron.script_click", "plastron.transcript_click", "plastron.transcript_hover"}
 
 # Blender items switched off even though BLENDER_KEEP keeps their keymap.
 BLENDER_DROP = {

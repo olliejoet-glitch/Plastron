@@ -133,14 +133,13 @@ def steps():
     yield 0.2
     h.check("Enter keeps it", abs(m.end.zoom - 2) < 0.15 and not motion_ui.edit.editing())
 
-    # C opens the box at the nearer end; Esc puts it back.
+    # The box opens at the nearer end; Esc puts it back.
     sc.frame_current = start + 3
     yield 0.1
-    h.move(*sc_mid)
-    yield
-    h.key('C')
+    with h.override('VIEW_3D'):
+        bpy.ops.plastron.motion_set('INVOKE_DEFAULT', target='CAMERA', end='NEAREST')
     yield 0.3
-    h.check("C: the camera box at the nearer end", motion_ui.edit.editing() == "CAMERA START"
+    h.check("the box opens at the nearer end", motion_ui.edit.editing() == "CAMERA START"
             and sc.frame_current == start, motion_ui.edit.editing())
     yield from h.drag(tuple(sc_mid), tuple(sc_mid + Vector2((100, 40))))
     h.key('ESC')
@@ -167,6 +166,47 @@ def steps():
             close(view_follow.applied(r3d), camera.REST)
             and all(abs(a[0] - b[0]) < 1.5 for a, b in zip([win(c) for c in base], rest_screen)))
     wm.plastron_camera_view = True
+    yield 0.1
+
+    # --- camera controls box (canvas corner): no mode to enter --------------------------------
+    pad = h.module("features.motion.camera_pad")
+    h.redraw()
+    parts = pad.layout(r)
+
+    def at(name, fx=0.5, fy=0.5):
+        x0, y0, x1, y1 = parts[name]
+        return r.x + x0 + (x1 - x0) * fx, r.y + y0 + (y1 - y0) * fy
+
+    h.move(*at("END"))
+    yield
+    h._event('LEFTMOUSE', 'PRESS')
+    h._event('LEFTMOUSE', 'RELEASE')
+    yield 0.2
+    h.check("the box's End button moves the playhead to the panel's end", sc.frame_current == last,
+            sc.frame_current)
+    before = camera.as_tuple(m.end)
+    yield from h.drag(at("PAD"), (at("PAD")[0] + 100, at("PAD")[1]))
+    yield 0.2
+    cfg_pad = h.module("config.motion").CAMERA_PAD
+    h.check("dragging the pad moves the camera (gently)",
+            abs(m.end.x - (before[0] + 100 * cfg_pad["pan_per_px"])) < 1.0 and abs(m.end.y - before[1]) < 1.0,
+            (before, camera.as_tuple(m.end)))
+    z0 = m.end.zoom
+    yield from h.drag(at("ZOOM", 0.3), (at("ZOOM", 0.3)[0] + 50, at("ZOOM")[1]))
+    yield 0.2
+    h.check("dragging the zoom strip right zooms in",
+            abs(m.end.zoom - z0 * math.exp(50 * cfg_pad["zoom_per_px"])) < 0.05, (z0, m.end.zoom))
+    r0 = m.end.rotation
+    yield from h.drag(at("TURN", 0.3), (at("TURN", 0.3)[0] + 40, at("TURN")[1]))
+    yield 0.2
+    h.check("dragging the turn strip rotates", abs(math.degrees(m.end.rotation - r0) - 40 * cfg_pad["turn_per_px"]) < 0.5,
+            math.degrees(m.end.rotation - r0))
+    h.check("...and nothing was painted under the box", not motion_ui.edit.editing())
+    h.screenshot("camera_pad")
+    pad.reset_part(m.end, "PAD")          # double-click (can't be simulated: Blender times real clicks)
+    h.check("double-clicking the pad centres the camera", abs(m.end.x) < 1e-6 and abs(m.end.y) < 1e-6
+            and abs(m.end.zoom - 1) > 0.01, camera.as_tuple(m.end))
+    camera.set_state(m.end, before)
     yield 0.1
 
     # Presets: easing + shake.

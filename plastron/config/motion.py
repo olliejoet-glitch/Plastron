@@ -10,8 +10,19 @@ The ease / overshoot / shake presets are JSON files in plastron/presets/motion/.
 ZOOM_RANGE = (0.5, 8.0)
 ROTATION_LIMIT = 45.0
 
-# Setting a camera position (C, or Motion panel: Start / End): a transform
-# box on the frame. Drag inside = move the camera · a corner or side handle
+# Camera controls: a small box in the canvas's bottom-left corner (Ollie: no
+# camera mode). Sizes in pixels (at 100 % UI scale); speeds per pixel dragged.
+CAMERA_PAD = {
+    "margin": 14, "size": 120, "strip": 18, "gap": 4, "button": 20,
+    "pan_per_px": 0.15,       # % of the frame width the camera moves per pixel
+    "pad_reach": 50.0,        # the pad's edge shows a move of this % of the frame width
+    "zoom_per_px": 0.006,     # zoom changes by about 0.6 % per pixel
+    "turn_per_px": 0.15,      # degrees per pixel
+}
+
+# Setting a layer's position (Motion panel: Start / End): a transform
+# box on the canvas. (The camera's own box mode below is still there for
+# code / tests but has no key.) Drag inside = move the camera · a corner or side handle
 # = zoom · outside = rotate (Shift: steps). Tab swaps Start / End.
 HANDLE_PX = 7                # half-size of the box's handles
 CORNER_GRAB_PX = 18          # how near a handle counts as grabbing it

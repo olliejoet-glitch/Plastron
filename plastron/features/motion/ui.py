@@ -180,14 +180,21 @@ class _Tools:
 
 
 def _start_end(layout, target, context):
-    """Start / End: each opens the transform box on the canvas at that end."""
+    """Start / End. Camera: moves the playhead there (the camera box in the
+    canvas corner does the moving). Layer: opens the layer's box."""
     mode = edit.editing(context)
     row = layout.row(align=True)
     row.scale_y = 1.4
     for end, icon in (('START', 'REW'), ('END', 'FF')):
-        op = row.operator("plastron.motion_set", text=end.title(), icon=icon,
-                          depress=(mode == f"{target} {end}"))
-        op.target, op.end = target, end
+        if target == 'CAMERA':
+            from . import camera_pad
+            strip = _panel(context)
+            on = strip is not None and camera_pad.current_end(context.scene, strip) == end
+            row.operator("plastron.camera_end", text=end.title(), icon=icon, depress=on).end = end
+        else:
+            op = row.operator("plastron.motion_set", text=end.title(), icon=icon,
+                              depress=(mode == f"{target} {end}"))
+            op.target, op.end = target, end
 
 
 def _easing(layout, owner, attr, target):

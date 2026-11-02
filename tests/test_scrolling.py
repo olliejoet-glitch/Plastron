@@ -30,10 +30,12 @@ def steps():
     h.screenshot("tools_area")
     top0 = v2d.region_to_view(0, reg.height)[1]
     cx = reg.x + reg.width // 2
-    yield from h.drag((cx, reg.y + 200), (cx, reg.y + 500), alt=True, shift=True)
+    yield from h.drag((cx, reg.y + 200), (cx, reg.y + 260), alt=True, shift=True)
     yield 0.3
     top1 = v2d.region_to_view(0, reg.height)[1]
     print("PAN", top0, top1)
+    h.check("...at the speed of the hand (60 px drag = 60 px scroll)", abs((top0 - top1) - 60) < 8,
+            top0 - top1)
     area_t = h.area('TEXT_EDITOR')
     st = area_t.spaces.active
     st.text.from_string("\n".join(f"line {i}" for i in range(300)))
@@ -41,7 +43,7 @@ def steps():
     rt = h.region(area_t)
     yield 0.2
     tx = rt.x + rt.width // 2
-    yield from h.drag((tx, rt.y + 100), (tx, rt.y + 500), alt=True, shift=True)
+    yield from h.drag((tx, rt.y + 100), (tx, rt.y + 300), alt=True, shift=True)
     yield 0.3
     print("TEXT", st.top)
     h.check("Alt+Shift+drag scrolls the script", st.top != 0, st.top)

@@ -43,7 +43,7 @@ theme, and keymap, with Photoshop-style drawing shortcuts.
   selection, V move, Ctrl+T transform (scale, rotate, distort, warp),
   Ctrl+C / X / V between panels, Ctrl+Alt+F flips (`features/canvas_edit`).
 - **Stage 6 done** (camera and motion): camera start / end per panel (pan,
-  zoom, slight rotation) set with a transform box on the frame (C), Camera
+  zoom, slight rotation) set with the camera controls box (canvas corner), Camera
   View (the canvas looks through the camera), easing dot graph
   (`widgets/dot_graph`), camera shake, layer / group start / end motion
   (box, live in playback), motion presets, Clean View (F) (`features/motion`).
@@ -194,9 +194,9 @@ Plastron/
 │  │                         selection (L / M, stencil), transform (Ctrl+T, V),
 │  │                         clipboard (copy / paste, flips)
 │  │  └─ motion/             camera (strip.plastron_motion, frame maths, shake),
-│  │                         view_follow (Camera View), layer_motion (live
-│  │                         positions, painted-layer UV shift), edit (transform
-│  │                         box: C / Start / End), thumbnails
+│  │                         view_follow (Camera View), camera_pad (camera
+│  │                         controls box), layer_motion (live positions,
+│  │                         painted-layer UV shift), edit (layer box), thumbnails
 │  │                         (panel_cache hook), ui (Motion panel, presets)
 │  ├─ presets/               ★ preset files, one folder per kind (brushes/, motion/); README
 │  │                         lists the fields. Store code: core/presets.py
@@ -322,6 +322,8 @@ Plastron/
 - In a Properties editor, buttons take a click (even Alt+Shift+click) before
   the region's keymaps; "Screen Editing" keymap items run before buttons.
   Blender's text.scroll doesn't start from an Alt+Shift+LMB item.
+- Simulated events can't make a double-click (Blender times real clicks):
+  test double-click actions through the function they call.
 - Keymap clashes: Plastron keys fire on PRESS; Blender items on the same key
   with CLICK / CLICK_DRAG / DOUBLE_CLICK aren't clashes (keymaps.py).
 
@@ -361,7 +363,9 @@ Plastron/
 - Layout (Ollie swapped them): tools 12 % | canvas 70 % | script 18 %,
   timeline 30 % high.
 - Pen scrolling (Ollie couldn't scroll the tools area: a pen has no wheel):
-  Alt+Shift+drag scrolls the tools area and the script (ui/drag_scroll.py,
+  Alt+Shift+drag scrolls the tools area and the script 1:1 with the hand
+  (ui/drag_scroll.py; view2d.pan with exact pixels: scroll_up / down always
+  jump 40 px,
   in the "Screen Editing" keymap so it works even when the drag starts on
   a button; passes on elsewhere, so the canvas / timeline pans still work).
   No status bar (messages show in the top bar).
@@ -574,18 +578,25 @@ Plastron/
   (view_follow keeps which camera state each view has taken on and moves it
   by the difference, so your own pan / zoom / rotate stay). Off = the stage
   view: the frame moves over the drawing.
-- Setting a move (Ollie: a transform box on the frame, not coordinate
-  sliders): C, or Start / End in the Motion panel (tools area, under
-  Layers), opens a box on the canvas; the playhead jumps to that end of the
-  panel (C: the nearer end). Camera box = the frame with 8 handles: drag
-  inside = move the camera (it follows your hand; CAMERA_FOLLOWS_HAND in
-  config/motion.py flips it), a handle = zoom (out = see more), outside =
-  rotate (Shift: 5° steps). Layer box = around the active layer's / group's
-  drawing (+24 px): drag to move it; the path to the other end shows. The
-  other end shows in blue. Tab swaps Start / End. Enter / double-click / C /
-  Done keep (one undo step), Esc / right-click / Cancel put both ends back.
-  The panel has no position number fields any more (just easing, shake,
-  presets, Reset).
+- Camera controls (Ollie: no camera mode, "a little box on the side with a
+  drag and zoom box"): a box in the canvas's bottom-left corner
+  (motion/camera_pad.py, sizes / speeds CAMERA_PAD in config/motion.py),
+  shown whenever a panel is on the canvas. Start | End picks which end
+  you're setting and moves the playhead there (until picked: the end nearer
+  the playhead, per panel). Pan pad: drag to move the camera (0.15 % of the
+  frame per px; orange dot = this end, blue = the other end); Zoom strip:
+  drag right = in (exponential); Turn strip: drag = rotate. Shift = fine.
+  Double-click a part puts it back. One undo step per drag. Its LMB item
+  lives in the "Image Paint" keymap (so it beats a brush stroke) and passes
+  the click on outside the box. The Motion panel's camera Start / End do
+  the same as the box's. The old drag-the-frame mode
+  (motion_set target CAMERA) has no key any more.
+- Setting a layer's move: Start / End in the Motion panel's Layer section
+  open a box around the active layer's / group's drawing (+24 px) on the
+  canvas; drag to move it; the path to the other end shows (other end in
+  blue). Tab swaps Start / End. Enter / double-click / Done keep (one undo
+  step), Esc / right-click / Cancel put both ends back. No position number
+  fields in the panel (just easing, shake, presets, Reset).
 - Layer motion: move_start / move_end in canvas pixels, eased by its own dot
   graph; a group's move carries its layers. Layers move live with playback
   and scrubbing. The layer being painted is shown moved too: the canvas

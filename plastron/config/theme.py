@@ -101,6 +101,8 @@ CANVAS = {
     "frame_edit":    "orange",      # the camera frame being set (Motion panel: Start / End)
     "frame_other":   "#4d73b1aa",   # ...and the other end's frame, for reference
     "motion_path":   "#de7520aa",   # a moving layer's path while setting its motion
+    "camera_pad_back": "#0d1917dd", # the camera controls box (canvas corner)
+    "camera_pad_well": "#1b403cff", # its pad and strips
 }
 
 # Canvas colour swatches in the Canvas panel (tools area). Any colour can also

@@ -47,11 +47,14 @@ class PLASTRON_OT_drag_scroll(bpy.types.Operator):
             if whole:
                 st.top = max(0, st.top + whole)
         else:
-            with context.temp_override(area=self.area, region=self.region):
-                if dy > 0:
-                    bpy.ops.view2d.scroll_down(deltay=int(dy))
-                elif dy < 0:
-                    bpy.ops.view2d.scroll_up(deltay=int(-dy))
+            # view2d.pan moves exactly this many pixels (scroll_up / down
+            # always jump 40 px, which raced away under the pen).
+            self.carry += dy
+            whole = int(self.carry)
+            self.carry -= whole
+            if whole:
+                with context.temp_override(area=self.area, region=self.region):
+                    bpy.ops.view2d.pan(deltax=0, deltay=-whole)
         self.area.tag_redraw()
 
     def modal(self, context, event):
