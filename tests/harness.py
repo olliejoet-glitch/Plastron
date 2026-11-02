@@ -43,12 +43,18 @@ def window():
 
 def area(kind):
     """First area of an editor type. 'VIEW_3D' = the canvas; 'SCENE_3D' = the
-    3D scene view (the 3D view with its own camera)."""
+    3D scene view (the 3D view without the options bar)."""
     def scene_view(a):
-        return a.type == 'VIEW_3D' and a.spaces.active.use_local_camera
+        return a.type == 'VIEW_3D' and not a.spaces.active.show_region_tool_header
     if kind == 'SCENE_3D':
         return next((a for a in window().screen.areas if scene_view(a)), None)
     return next((a for a in window().screen.areas if a.type == kind and not scene_view(a)), None)
+
+
+def flat_canvas():
+    """The canvas looks at the drawing flat (not through the 3D camera), for
+    tests of the flat view and the 2D camera tools."""
+    bpy.context.window_manager.plastron_canvas_3d = False
 
 
 def region(area_, kind='WINDOW'):

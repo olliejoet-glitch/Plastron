@@ -95,7 +95,9 @@ def views():
     wm = bpy.context.window_manager
     for window in (wm.windows if wm else []):
         for area in window.screen.areas:
-            if area.type == 'VIEW_3D' and is_canvas(area.spaces.active):
+            # (not a canvas looking through the 3D camera: that camera is the view)
+            if area.type == 'VIEW_3D' and is_canvas(area.spaces.active) \
+                    and area.spaces.active.region_3d.view_perspective != 'CAMERA':
                 yield area, area.spaces.active.region_3d
 
 

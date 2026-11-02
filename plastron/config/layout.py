@@ -71,14 +71,16 @@ AREAS = {
         },
     },
     # The 3D scene (features/scene3d, config/scene3d.py): Blender's own 3D
-    # view with its header menus, toolbar (select / move / rotate / scale)
-    # and gizmos, looking through its own camera when asked.
+    # view with its header menus; no toolbar (Ollie): selecting something
+    # shows move + rotate gizmos.
     "scene3d": {
         "editor": 'VIEW_3D',
-        "header": True, "tool_header": False, "toolbar": True, "sidebar": False, "hud": False,
+        "header": True, "tool_header": False, "toolbar": False, "sidebar": False, "hud": False,
         "scene_view": True,
         "settings": {
             "use_local_camera": True,
+            "show_gizmo_object_translate": True,     # select something: move + rotate gizmos
+            "show_gizmo_object_rotate": True,
             "shading.type": 'MATERIAL',
             "shading.use_scene_world": True,
             "overlay.show_floor": False,

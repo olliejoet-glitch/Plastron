@@ -49,6 +49,8 @@ def brush_size():
 
 def steps():
     yield 1.5
+    h.flat_canvas()                  # (this test is about the flat canvas / 2D camera)
+    yield 0.5
     canvas = h.area('VIEW_3D')
     cx, cy = h.center(h.region(canvas))
     h.move(cx, cy)

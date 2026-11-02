@@ -343,7 +343,11 @@ Plastron/
   sit in the same window's layout).
 - core/handlers.add(..., first=True) puts a handler before the others (an
   edit must be read before another handler reacts to it).
-- tests: h.area('VIEW_3D') is the canvas, h.area('SCENE_3D') the 3D scene view.
+- tests: h.area('VIEW_3D') is the canvas, h.area('SCENE_3D') the 3D scene view;
+  h.flat_canvas() for tests of the flat canvas / 2D camera tools.
+- Setting a view's view_perspective to 'CAMERA' makes that camera the
+  scene camera too; leaving it, Blender settles the view after a redraw
+  (fit later, from a timer).
 - Keymap clashes: Plastron keys fire on PRESS; Blender items on the same key
   with CLICK / CLICK_DRAG / DOUBLE_CLICK aren't clashes (keymaps.py).
 
@@ -682,7 +686,27 @@ Plastron/
   location / rotation / lens at the playhead under the hood (edits only;
   Blender then plays the animation: allowed, Ollie asked). The canvas's
   flat ortho camera is drawn tiny in 3D (hiding it, hide_viewport, broke the
-  canvas's Ctrl+0 fit maths). Modes follow the pen (MouseMove item
+  canvas's Ctrl+0 fit maths). The CANVAS LOOKS THROUGH THE 3D CAMERA (Ollie:
+  "moving the camera needs to actually change what I see on the canvas"):
+  canvas view = Blender's camera view (use_local_camera + space.camera = 3D
+  Camera, view_perspective 'CAMERA'); "3D Camera" toggle in the options bar
+  (on by default, user_settings "canvas_3d_camera"; off = the old flat
+  canvas with its 2D camera box / Camera View, which are hidden while on).
+  Painting projects from the view, so strokes land on the card under the
+  pen; canvas_edit's pixels.canvas_point hits the canvas sheet with a ray
+  (works flat, through the camera, and on moved cards). Through the camera:
+  Ctrl+0 fits the camera frame to 90 % (measured: frame width on screen =
+  zoom factor x the region's longer side, factor = ((sqrt2 + zoom/50)^2)/4),
+  Ctrl+= / wheel scale that factor, Alt+Shift+drag pans (Blender), R hold
+  rolls the camera itself for the moment (keying held off, put back on
+  release), Ctrl+F / Ctrl+1 only on the flat canvas. The frame overlay /
+  dimming use the 3D camera's frame. Switching the view into the camera
+  makes Blender set scene.camera to it: put back to "Canvas Camera". The
+  camera is keyed only when it actually moved (its pose vs the last seen),
+  not on any update. Scene view: no toolbar (Ollie: "get rid of all the
+  unnecessary stuff"); select something and move + rotate gizmos show
+  (show_gizmo_object_translate / rotate). The scene view is told apart by
+  having no options bar (core/views: tool header = canvas). Modes follow the pen (MouseMove item
   plastron.view_focus): Object mode over the scene view, Texture Paint with
   the Canvas active over the canvas (no undo steps). Canvas-only things skip
   the scene view: frame overlay, camera box, selection outline, Camera View

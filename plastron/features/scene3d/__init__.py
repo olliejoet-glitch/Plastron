@@ -91,22 +91,105 @@ def ensure(scene):
     if scene is None or not hasattr(scene, "plastron_timeline"):
         return
     cam = camera(scene)
+    remember_pose(cam)
     for _area, space in scene_views():
         if space.camera != cam:
             space.camera = cam
+        # Select something (the camera, a card): move + rotate gizmos straight away.
+        if not space.show_gizmo_object_translate:
+            space.show_gizmo_object_translate = True
+        if not space.show_gizmo_object_rotate:
+            space.show_gizmo_object_rotate = True
         if space.clip_end != cfg.CLIP_END:
             space.clip_end = cfg.CLIP_END
     if (scene.cursor.location - Vector(cfg.ORIGIN)).length > 1e-3:
         scene.cursor.location = cfg.ORIGIN
     # The canvas's flat camera isn't a 3D thing: drawn tiny there. (Hiding it
     # upset the canvas's view maths: Ctrl+0 fit came out wrong.)
-    flat = scene.camera
+    flat = bpy.data.objects.get(FLAT_CAMERA) or scene.camera
+    if flat is not None and flat != cam and scene.camera != flat:
+        scene.camera = flat                        # (the canvas's frame maths use it)
     if flat is not None and flat != cam:
         if flat.hide_viewport:
             flat.hide_viewport = False
         if flat.type == 'CAMERA' and flat.data.display_size > 0.051:
             flat.data.display_size = 0.05
     bpy.app.timers.register(lambda: hide_shelves() and None, first_interval=0.3)
+
+
+# --- the canvas looks through the 3D camera (Ollie: "moving the camera needs to
+# actually change what I see on the canvas") --------------------------------------------------
+
+SETTING = "canvas_3d_camera"
+FLAT_CAMERA = "Canvas Camera"     # core/project's flat ortho camera (the scene camera)
+
+
+def linked():
+    from ...core import user_settings
+    return bool(user_settings.get(SETTING, True))
+
+
+def canvas_areas():
+    from ...core.views import is_canvas_area
+    wm = bpy.context.window_manager
+    for window in (wm.windows if wm else []):
+        for area in window.screen.areas:
+            if is_canvas_area(area):
+                yield area
+
+
+def link_canvases(scene=None, fit=True):
+    """Canvas views through the 3D camera (or back to the flat view)."""
+    from ..storyboard import canvas_view
+    scene = scene or bpy.context.scene
+    if scene is None or not hasattr(scene, "plastron_timeline"):
+        return
+    cam = camera(scene)
+    for area in canvas_areas():
+        space = area.spaces.active
+        r3d = space.region_3d
+        region = next((r for r in area.regions if r.type == 'WINDOW'), None)
+        if linked():
+            if space.camera != cam:
+                space.camera = cam
+            if not space.use_local_camera:
+                space.use_local_camera = True
+            if r3d.view_perspective != 'CAMERA':
+                flat = scene.camera
+                r3d.view_perspective = 'CAMERA'
+                if scene.camera != flat:          # (Blender makes it the scene camera too)
+                    scene.camera = flat
+                if fit and region is not None and region.width > 1:
+                    canvas_view.fit(scene, region, space, r3d)
+        elif r3d.view_perspective == 'CAMERA' or space.use_local_camera:
+            space.use_local_camera = False
+            r3d.view_perspective = 'ORTHO'
+            r3d.view_rotation = Euler((math.radians(90.0), 0.0, 0.0)).to_quaternion()
+            if fit:
+                # Blender settles the view after leaving the camera: fit after that.
+                bpy.app.timers.register(lambda: canvas_view.fit_all_canvases() and None,
+                                        first_interval=0.15)
+        area.tag_redraw()
+
+
+def frame_through_camera(context):
+    """canvas_frame hook: looking through the 3D camera, the frame is its frame."""
+    from ...core.views import through_camera
+    space = context.space_data
+    if not through_camera(space) or space.camera is None:
+        return None
+    cam = space.camera
+    return [cam.matrix_world @ v for v in cam.data.view_frame(scene=context.scene)]
+
+
+def _get_linked(_self):
+    return linked()
+
+
+def _set_linked(_self, value):
+    from ...core import user_settings
+    user_settings.set(SETTING, bool(value))
+    link_canvases()
 
 
 # --- painting <-> object mode as the pen moves between views --------------------------------
@@ -142,6 +225,16 @@ def focus(context):
 # --- the scene view's edits: cards move their track; the camera keys itself ----------------
 
 _busy = [False]
+_held = [0]          # >0: the camera is being moved for a view only (R rotate): no keys
+
+
+def hold_keys():
+    _held[0] += 1
+
+
+def release_keys():
+    # After the depsgraph has seen the camera put back.
+    bpy.app.timers.register(lambda: _held.__setitem__(0, max(0, _held[0] - 1)), first_interval=0.3)
 
 
 def _place_from(track, obj, scene):
@@ -194,8 +287,26 @@ def _all_fcurves(action):
     return out
 
 
+_seen = {"pose": None}     # the camera's pose when last keyed / looked at
+
+
+def _pose(cam):
+    return tuple(cam.location) + tuple(cam.rotation_euler) + (cam.data.lens,)
+
+
+def remember_pose(cam):
+    _seen["pose"] = _pose(cam)
+
+
 def key_camera(scene, cam):
-    """Key the 3D camera where it is now, at the playhead (if that's new)."""
+    """Key the 3D camera where it is now, at the playhead, if it was moved
+    (any other update to it, e.g. a view switching to it, keys nothing)."""
+    pose = _pose(cam)
+    last = _seen["pose"]
+    if cam.animation_data is None and last is not None and \
+            all(abs(a - b) < 1e-6 for a, b in zip(pose, last)):
+        return
+    _seen["pose"] = pose
     frame = scene.frame_current
     for owner, path in ((cam, "location"), (cam, "rotation_euler"), (cam.data, "lens")):
         if not _keyed(owner, path, frame):
@@ -210,7 +321,7 @@ def _playing():
 def _on_edit(scene, depsgraph):
     # Edits only (depsgraph_update_post doesn't run during playback): a card
     # moved in the scene view moves its track; the 3D camera moved is keyed.
-    if _busy[0] or not (depsgraph.id_type_updated('OBJECT') or depsgraph.id_type_updated('CAMERA')):
+    if _busy[0] or _held[0] or not (depsgraph.id_type_updated('OBJECT') or depsgraph.id_type_updated('CAMERA')):
         return
     if scene is None or not hasattr(scene, "plastron_timeline") or _playing():
         return
@@ -289,6 +400,7 @@ classes = (PLASTRON_OT_view_focus,)
 
 def _on_load(scene):
     ensure(scene)
+    link_canvases(scene, fit=False)      # (the canvas is fitted once the window is ready)
 
 
 def _track_place(track):
@@ -305,6 +417,13 @@ def register():
     from ..storyboard import canvas_sync
     canvas_sync.SHEET_PLACE[0] = _track_place
     canvas_sync.SHEET_ABSORB[0] = lambda scene, obj, track: _place_from(track, obj, scene)
+    from ..storyboard import canvas_frame
+    canvas_frame.FRAME_PROVIDERS.insert(0, frame_through_camera)
+    from ..storyboard import canvas_view
+    canvas_view.PLASTRON_OT_canvas_rotate.HOLD_KEYS[:] = [(hold_keys, release_keys)]
+    bpy.types.WindowManager.plastron_canvas_3d = bpy.props.BoolProperty(
+        name="3D Camera", description="The canvas looks through the 3D Camera (moving it moves what you see)",
+        get=_get_linked, set=_set_linked)
     # First: a card moved in the scene view must be kept on its track before
     # the timeline's edit handler re-syncs the canvas (which would put it back).
     handlers.add("depsgraph_update_post", _on_edit, first=True)
@@ -321,5 +440,9 @@ def unregister():
     from ..storyboard import canvas_sync
     canvas_sync.SHEET_PLACE[0] = None
     canvas_sync.SHEET_ABSORB[0] = None
+    from ..storyboard import canvas_frame
+    if frame_through_camera in canvas_frame.FRAME_PROVIDERS:
+        canvas_frame.FRAME_PROVIDERS.remove(frame_through_camera)
+    del bpy.types.WindowManager.plastron_canvas_3d
     for cls in reversed(classes):
         bpy.utils.unregister_class(cls)

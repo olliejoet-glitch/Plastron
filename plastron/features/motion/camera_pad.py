@@ -72,9 +72,9 @@ def part_at(region, x, y):
 
 
 def shown(context):
-    from ...core.views import is_scene_view
-    if is_scene_view(context.space_data):
-        return False
+    from ...core.views import is_scene_view, through_camera
+    if is_scene_view(context.space_data) or through_camera(context.space_data):
+        return False                 # (through the 3D camera, that camera is the camera)
     scene = context.scene
     return scene is not None and hasattr(scene, "plastron_timeline") and camera.shot(scene) is not None
 

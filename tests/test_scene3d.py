@@ -32,8 +32,9 @@ def steps():
     h.check("...with its own 3D camera, in the 3D Scene collection",
             cam is not None and cam.type == 'CAMERA' and space.camera == cam
             and cam.name in bpy.data.collections[cfg.COLLECTION].objects)
-    h.check("...perspective, Blender's toolbar and navigation gizmo",
-            space.region_3d.view_perspective == 'PERSP' and space.show_region_toolbar
+    h.check("...perspective, no toolbar, move + rotate gizmos on whatever's selected",
+            space.region_3d.view_perspective == 'PERSP' and not space.show_region_toolbar
+            and space.show_gizmo_object_translate and space.show_gizmo_object_rotate
             and space.show_gizmo_navigate and space.show_region_header)
     shelf = h.region(view, 'ASSET_SHELF')
     h.check("no brush shelf strip under it", shelf is None or shelf.height <= 1, shelf and shelf.height)
@@ -42,6 +43,51 @@ def steps():
             (cam.location - loc).length < 1e-4 and abs(cam.data.lens - cfg.CAMERA_LENS) < 1e-6
             and abs(abs(cam.location.y) - 16 * cam.data.lens / 36) < 1e-4)
     h.check("the canvas's flat camera is drawn tiny in the 3D scene", sc.camera.data.display_size < 0.051)
+
+    # The canvas looks through the 3D camera.
+    cspace = canvas.spaces.active
+    cr3d = cspace.region_3d
+    h.check("the canvas looks through the 3D camera", cr3d.view_perspective == 'CAMERA'
+            and cspace.camera == cam)
+    cv = h.module("features.storyboard.canvas_view")
+    cregion = h.region(canvas)
+    h.move(*centre(canvas))
+    yield 0.2
+    h.key('ZERO', ctrl=True)
+    yield 0.3
+    h.redraw()
+    yield 0.1
+    frame = scene3d.frame_through_camera(type("C", (), {"space_data": cspace, "scene": sc})())
+    from bpy_extras.view3d_utils import location_3d_to_region_2d
+    pts = [location_3d_to_region_2d(cregion, cr3d, c) for c in frame]
+    fw = max(p.x for p in pts) - min(p.x for p in pts)
+    fh = max(p.y for p in pts) - min(p.y for p in pts)
+    h.check("Ctrl+0 fits the 3D camera's frame to the canvas (90 %)",
+            abs(max(fw / cregion.width, fh / cregion.height) - 0.9) < 0.02, (fw, fh))
+    zoom0 = cr3d.view_camera_zoom
+    h.key('EQUAL', ctrl=True)
+    yield 0.2
+    h.check("Ctrl+= zooms in through the camera", cr3d.view_camera_zoom > zoom0, (zoom0, cr3d.view_camera_zoom))
+    h.key('ZERO', ctrl=True)
+    yield 0.2
+    # Holding R turns the view (by rolling the camera for a moment): no keyframe.
+    before_rot = tuple(cam.rotation_euler)
+    c = centre(canvas)
+    h.move(c[0] + 100, c[1])
+    yield
+    h._event('R', 'PRESS')
+    yield 0.1
+    for i in range(1, 6):
+        h.move(c[0] + 100 - 15 * i, c[1] + 20 * i)
+        yield 0.05
+    yield 0.1
+    turned = (cam.rotation_euler.to_quaternion().rotation_difference(
+        __import__("mathutils").Euler(before_rot).to_quaternion()).angle > 0.05)
+    h._event('R', 'RELEASE')
+    yield 0.6
+    h.check("holding R turns the canvas view; letting go puts it back, unkeyed",
+            turned and all(abs(a - b) < 1e-5 for a, b in zip(cam.rotation_euler, before_rot))
+            and cam.animation_data is None, (turned, tuple(cam.rotation_euler)))
 
     # Cards: a panel on another track shows as its own card; moving it back moves the track.
     panels = h.module("features.storyboard.panels")
@@ -83,6 +129,15 @@ def steps():
     sc.frame_current = 25
     yield 0.3
     h.check("...lens too", abs(cam.data.lens - 50.0) < 1e-4, cam.data.lens)
+    h.redraw()
+    yield 0.1
+    a = location_3d_to_region_2d(cregion, cr3d, card.matrix_world.translation)
+    sc.frame_current = 1
+    yield 0.3
+    h.redraw()
+    yield 0.1
+    b = location_3d_to_region_2d(cregion, cr3d, card.matrix_world.translation)
+    h.check("moving the camera moves what the canvas shows", (a - b).length > 5, (a, b))
     h.redraw()
     yield 0.3
     h.screenshot("scene3d_cards")

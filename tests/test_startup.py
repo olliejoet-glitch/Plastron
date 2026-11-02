@@ -51,8 +51,9 @@ def steps():
         h.check("canvas: no header, no Blender toolbar",
                 not sp.show_region_header and not sp.show_region_toolbar)
         h.check("canvas: options bar shown", sp.show_region_tool_header)
-        h.check("canvas: orthographic, rotation locked",
-                sp.region_3d.view_perspective == 'ORTHO' and sp.region_3d.lock_rotation)
+        h.check("canvas: looks through the 3D camera (rotation locked)",
+                sp.region_3d.view_perspective == 'CAMERA' and sp.camera is not None
+                and sp.camera.name == "3D Camera" and sp.region_3d.lock_rotation, sp.region_3d.view_perspective)
         h.check("canvas: grid and axes hidden",
                 not sp.overlay.show_floor and not sp.overlay.show_axis_x)
         h.check("timeline: track headers column shown", timeline.spaces.active.show_region_channels)

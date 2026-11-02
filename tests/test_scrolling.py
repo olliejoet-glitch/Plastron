@@ -8,6 +8,8 @@ import harness as h  # noqa
 
 def steps():
     yield 1.0
+    h.flat_canvas()                  # (the tools area is longest with the 2D camera panel)
+    yield 0.5
     area = h.area('PROPERTIES')
     reg = h.region(area)
     v2d = reg.view2d

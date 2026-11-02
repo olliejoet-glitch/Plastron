@@ -232,7 +232,8 @@ class PLASTRON_PT_motion_camera(_Tools, bpy.types.Panel):
 
     @classmethod
     def poll(cls, context):
-        return _panel(context) is not None
+        # (the flat 2D camera: hidden while the canvas looks through the 3D camera)
+        return _panel(context) is not None and not getattr(context.window_manager, "plastron_canvas_3d", False)
 
     def draw_header_preset(self, context):
         self.layout.menu("PLASTRON_MT_camera_motion_presets", text="", icon='PRESET')

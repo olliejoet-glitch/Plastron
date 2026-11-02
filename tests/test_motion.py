@@ -51,6 +51,8 @@ def close(a, b, tol=1e-3):
 
 def steps():
     yield 1.0
+    h.flat_canvas()                  # (this test is about the flat canvas / 2D camera)
+    yield 0.5
     with h.override('VIEW_3D'):
         bpy.ops.plastron.canvas_fit()
     yield 0.5

@@ -7,6 +7,7 @@ image on the layer, so Ctrl+Z goes back to the old one.
 
 import bpy
 import numpy as np
+from mathutils import Vector
 from bpy_extras.view3d_utils import region_2d_to_location_3d
 
 from ...layers import compiler, paint_target
@@ -71,27 +72,50 @@ def _view(mat=None):
     return (st.view_scale or 1.0), st.view_shift[0], st.view_shift[1]
 
 
-def _sheet(mat=None):
-    mat = mat or material()
-    return canvas_sync.sheet_size(mat.plastron_stack if mat is not None else None)
+def _sheet_object():
+    return bpy.data.objects.get(canvas_sync.CANVAS)
 
 
 def canvas_point(context, x, y):
     """Mouse position in the canvas region -> pixel (x, y) of the layer being
-    painted (canvas pixels, less how far that layer is shown moved)."""
-    loc = region_2d_to_location_3d(context.region, context.region_data, (x, y), (0.0, 0.0, 0.0))
-    sw, sh = _sheet()
+    painted (less how far that layer is shown moved). Works on the canvas
+    sheet itself, wherever it stands and however the view looks at it
+    (flat, or through the 3D camera)."""
+    from bpy_extras.view3d_utils import region_2d_to_origin_3d, region_2d_to_vector_3d
+    from mathutils import geometry
+    obj = _sheet_object()
+    sw, sh = canvas_sync.sheet_size()            # the sheet mesh's own size
     w, h = size()
     a, dx, dy = _view()
-    return ((loc.x / sw + 0.5) * w * a - dx, (loc.z / sh + 0.5) * h * a - dy)
+    if obj is None:
+        loc = region_2d_to_location_3d(context.region, context.region_data, (x, y), (0.0, 0.0, 0.0))
+        lx, lz = loc.x, loc.z
+    else:
+        origin = region_2d_to_origin_3d(context.region, context.region_data, (x, y))
+        direction = region_2d_to_vector_3d(context.region, context.region_data, (x, y))
+        m = obj.matrix_world
+        normal = (m.to_3x3() @ Vector((0.0, 1.0, 0.0))).normalized()
+        hit = geometry.intersect_line_plane(origin, origin + direction, m.translation, normal)
+        if hit is None:
+            hit = m.translation
+        local = m.inverted() @ hit
+        lx, lz = local.x, local.z
+    return ((lx / sw + 0.5) * w * a - dx, (lz / sh + 0.5) * h * a - dy)
 
 
 def world_point(px, py):
-    """Pixel of the layer being painted -> point on the sheet (for drawing)."""
-    sw, sh = _sheet()
+    """Pixel of the layer being painted -> point on the canvas sheet (for drawing)."""
+    sw, sh = canvas_sync.sheet_size()
     w, h = size()
     a, dx, dy = _view()
-    return (((px + dx) / a / w - 0.5) * sw, -0.02, ((py + dy) / a / h - 0.5) * sh)
+    local = Vector((((px + dx) / a / w - 0.5) * sw, 0.0, ((py + dy) / a / h - 0.5) * sh))
+    obj = _sheet_object()
+    if obj is None:
+        local.y = -0.02
+        return tuple(local)
+    p = obj.matrix_world @ local
+    toward = obj.matrix_world.to_3x3() @ Vector((0.0, -1.0, 0.0))
+    return tuple(p + toward.normalized() * 0.02)         # just in front of the sheet
 
 
 def region_point(context, px, py):
