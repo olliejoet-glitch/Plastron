@@ -8,6 +8,7 @@
     layer_motion  layers / groups moving from a start to an end position;
                   shown after scrubbing stops (never per frame)
     edit          setting a start / end by dragging on the canvas
+    canvas_fit    the painting grows to fit its camera move
     thumbnails    panel images show where a panel starts (panel_cache hook)
     ui            Motion panel (tools area) + motion presets (presets/motion/)
 
@@ -21,7 +22,7 @@ from ...core import handlers
 from ...layers import events as layer_events
 from ...timeline import events
 from ..storyboard import canvas_frame
-from . import camera, camera_pad, edit, layer_motion, thumbnails, ui, view_follow
+from . import camera, camera_pad, canvas_fit, edit, layer_motion, thumbnails, ui, view_follow
 from ...widgets import dot_graph
 
 _CLASSES = camera.classes + camera_pad.classes + edit.classes + ui.classes
@@ -39,7 +40,8 @@ def _on_layers_changed(_mat):
     layer_motion.refresh()
 
 
-def _on_load(_scene):
+def _on_load(scene):
+    canvas_fit.fit_all(scene)        # moves that went past their painting before this fix
     wm = bpy.context.window_manager
     if wm is not None and wm.get(edit.EDITING):
         wm[edit.EDITING] = ""
@@ -62,6 +64,7 @@ def register():
 
 def unregister():
     layer_motion.unregister()
+    canvas_fit.unregister()
     view_follow.unregister()
     camera_pad.unregister()
     thumbnails.unregister()

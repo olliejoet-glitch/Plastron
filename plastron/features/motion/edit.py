@@ -212,7 +212,7 @@ class PLASTRON_OT_motion_set(bpy.types.Operator):
         if layer is None:
             return None, None
         st = strip.plastron_panel.material.plastron_stack
-        sw, sh = canvas_sync.sheet_size()
+        sw, sh = canvas_sync.sheet_size(st)
         shown = layer_trees.shown_offset(layer, st)
         other = layer.move_end if self.end == 'START' else layer.move_start
         x0, y0, x1, y1 = self.bounds
@@ -283,7 +283,7 @@ class PLASTRON_OT_motion_set(bpy.types.Operator):
         delta = view_follow.linear(p - p0, self.press_state)     # as the hand moved on screen
         if self.target == 'LAYER':
             st = self._strip(context).plastron_panel.material.plastron_stack
-            sw, sh = canvas_sync.sheet_size()
+            sw, sh = canvas_sync.sheet_size(st)
             self._put(context, (v0[0] + delta.x / sw * st.width, v0[1] + delta.z / sh * st.height))
             return
         # In Camera View with the drawing following the hand, the camera goes the other way.

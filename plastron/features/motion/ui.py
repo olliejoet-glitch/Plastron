@@ -70,6 +70,8 @@ def _apply_camera(context, preset):
     _apply_curve(m, "curve", "cam", preset)
     if "shake" in preset:
         m.shake, m.shake_speed = preset["shake"]
+    from . import canvas_fit
+    canvas_fit.request(strip)          # an overshoot can reach past the painting
     _redraw(context)
 
 

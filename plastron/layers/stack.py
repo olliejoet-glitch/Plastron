@@ -316,3 +316,44 @@ def copy_material(mat, name):
                 layer.move_curve = dot_graph.copy(layer.move_curve)
     compile_stack(new)   # fresh stack + layer trees (names cleared above)
     return new
+
+
+def _padded(img, new_w, new_h, edge):
+    """A copy of img centred on a bigger image (transparent around it, or
+    the edge colour repeated for masks)."""
+    w, h = img.size
+    px = np.empty(w * h * 4, np.float32)
+    img.pixels.foreach_get(px)
+    px = px.reshape(h, w, 4)
+    x0, y0 = (new_w - w) // 2, (new_h - h) // 2
+    pad = ((y0, new_h - h - y0), (x0, new_w - w - x0), (0, 0))
+    out = np.pad(px, pad, mode='edge' if edge else 'constant')
+    new = bpy.data.images.new(img.name, new_w, new_h, alpha=True)
+    new.pixels.foreach_set(out.ravel())
+    new.update()
+    new["plastron_owned"] = True
+    new.pack()
+    return new
+
+
+def pad_canvas(mat, new_w, new_h, frame_size):
+    """Make a painting bigger, keeping everything where it is around the
+    middle (each canvas-sized image gets a bigger copy: undoable, like
+    every pixel edit). frame_size: the picture area in pixels, kept."""
+    st = mat.plastron_stack
+    if new_w <= st.width and new_h <= st.height:
+        return False
+    new_w, new_h = max(new_w, st.width), max(new_h, st.height)
+    old = (st.width, st.height)
+    with props.suspended():
+        st.frame_w, st.frame_h = (int(round(v)) for v in frame_size)
+        for layer in st.layers:
+            img = layer.paint_image
+            if img is not None and tuple(img.size) == old:
+                layer.paint_image = _padded(img, new_w, new_h, False)
+            for m in layer.masks:
+                if m.source == "PAINT" and m.image is not None and tuple(m.image.size) == old:
+                    m.image = _padded(m.image, new_w, new_h, True)
+        st.width, st.height = new_w, new_h
+    _done(mat)
+    return True

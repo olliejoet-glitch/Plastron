@@ -71,8 +71,8 @@ def write_placeholder(path):
 
 def frame_crop(stack):
     """The camera frame's pixels within a panel's painting: (x0, y0, w, h)."""
-    fw = stack.width * defaults.PAINT_FRAME[0] / defaults.PAINT_RESOLUTION[0]
-    fh = stack.height * defaults.PAINT_FRAME[1] / defaults.PAINT_RESOLUTION[1]
+    from .canvas_sync import frame_px
+    fw, fh = frame_px(stack)
     return ((stack.width - fw) / 2, (stack.height - fh) / 2, fw, fh)
 
 

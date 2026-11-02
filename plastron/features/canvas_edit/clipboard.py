@@ -17,7 +17,7 @@ import numpy as np
 from ...layers import stack as stack_ops
 from . import pixels, selection, shapes
 
-_clip = {"pixels": None}       # full-canvas RGBA (transparent outside what was copied)
+_clip = {"pixels": None, "frame": None}   # full-canvas RGBA + its camera frame size (px)
 
 
 def copied():
@@ -62,6 +62,8 @@ class PLASTRON_OT_pixels_copy(_CanvasOp, bpy.types.Operator):
             self.report({'INFO'}, "Nothing to copy there")
             return {'CANCELLED'}
         _clip["pixels"] = a
+        from ..storyboard.canvas_sync import frame_px
+        _clip["frame"] = frame_px(mat.plastron_stack)
         if self.cut:
             rest = pixels.array(layer.paint_image).copy()
             rest[..., 3] *= (1.0 - m) if m is not None else 0.0
@@ -82,8 +84,17 @@ class PLASTRON_OT_pixels_paste(_CanvasOp, bpy.types.Operator):
             self.report({'INFO'}, "Nothing copied yet")
             return {'CANCELLED'}
         w, h = pixels.size(mat)
-        if data.shape[:2] != (h, w):            # panels painted at another size: rescale
-            grid = shapes.grid_from_corners(shapes.rect_corners(0, 0, w, h), 8)
+        from ..storyboard.canvas_sync import frame_px
+        from ...config import project_defaults as defaults
+        src_frame = _clip.get("frame") or \
+            (data.shape[1] * defaults.PAINT_FRAME[0] / defaults.PAINT_RESOLUTION[0],)   # standard share
+        dst_frame = frame_px(mat.plastron_stack)
+        if data.shape[:2] != (h, w) or abs(src_frame[0] - dst_frame[0]) > 0.5:
+            # Another painting size: keep it where it was in the camera frame.
+            sh_, sw_ = data.shape[:2]
+            k = dst_frame[0] / src_frame[0]
+            x0, y0 = w / 2 - sw_ / 2 * k, h / 2 - sh_ / 2 * k
+            grid = shapes.grid_from_corners(shapes.rect_corners(x0, y0, x0 + sw_ * k, y0 + sh_ * k), 8)
             pre = shapes.render(data, grid, w, h)
             data = shapes.over(np.zeros_like(pre), pre)
         uid = stack_ops.add_layer(mat, 'PAINT', name="Pasted")

@@ -21,6 +21,9 @@ from . import panel_cache
 class PLASTRON_PG_panel(bpy.types.PropertyGroup):
     uid: bpy.props.StringProperty()
     material: bpy.props.PointerProperty(type=bpy.types.Material)
+    # Made from a script line (script_panels): which line, and what it said.
+    script_line: bpy.props.IntProperty(default=-1)
+    script_text: bpy.props.StringProperty()
 
 
 def is_panel(strip):

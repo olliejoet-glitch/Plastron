@@ -253,6 +253,10 @@ class PLASTRON_PG_stack(bpy.types.PropertyGroup):
     ], default="SRGB", update=_structural)
     width: IntProperty(default=2400, min=16)
     height: IntProperty(default=1350, min=16)
+    # The picture area (camera frame) in this painting's pixels, centred.
+    # 0 = the standard share of the size (paintings that never grew).
+    frame_w: IntProperty(default=0, min=0)
+    frame_h: IntProperty(default=0, min=0)
     node_tree_name: StringProperty()
     node_tree = property(_tree_get, _tree_set)
     # Canvas pixels the paint sheet's UVs are shifted by while this stack is

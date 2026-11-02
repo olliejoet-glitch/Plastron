@@ -6,6 +6,16 @@ Default tracks for new projects are in project_defaults.py.
 # New panel length, in seconds.
 NEW_PANEL_SECONDS = 2.0
 
+# Panels from the script (File > Import Script / Panels from Script): one
+# panel per line of the script (blank lines skipped). Each lasts about as
+# long as it takes to read its line, between the min and max.
+SCRIPT_PANELS = {
+    "seconds_per_word": 0.4,
+    "min_seconds": 1.5,
+    "max_seconds": 8.0,
+    "file_types": "*.txt;*.md;*.fountain",
+}
+
 # How close (in screen pixels) the mouse must be to a clip edge to grab it,
 # and to a snap target (playhead, clip edge, marker) to snap to it.
 EDGE_GRAB_PX = 8

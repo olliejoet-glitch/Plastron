@@ -68,11 +68,16 @@ def _shift(mat=None):
     return tuple(mat.plastron_stack.view_shift) if mat is not None else (0.0, 0.0)
 
 
+def _sheet(mat=None):
+    mat = mat or material()
+    return canvas_sync.sheet_size(mat.plastron_stack if mat is not None else None)
+
+
 def canvas_point(context, x, y):
     """Mouse position in the canvas region -> pixel (x, y) of the layer being
     painted (canvas pixels, less how far that layer is shown moved)."""
     loc = region_2d_to_location_3d(context.region, context.region_data, (x, y), (0.0, 0.0, 0.0))
-    sw, sh = canvas_sync.sheet_size()
+    sw, sh = _sheet()
     w, h = size()
     dx, dy = _shift()
     return ((loc.x / sw + 0.5) * w - dx, (loc.z / sh + 0.5) * h - dy)
@@ -80,7 +85,7 @@ def canvas_point(context, x, y):
 
 def world_point(px, py):
     """Pixel of the layer being painted -> point on the sheet (for drawing)."""
-    sw, sh = canvas_sync.sheet_size()
+    sw, sh = _sheet()
     w, h = size()
     dx, dy = _shift()
     return (((px + dx) / w - 0.5) * sw, -0.02, ((py + dy) / h - 0.5) * sh)

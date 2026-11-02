@@ -233,6 +233,7 @@ def steps():
     small = np.zeros((hh // 2, w // 2, 4), np.float32)
     small[hh // 4 - 10:hh // 4 + 10, w // 4 - 20:w // 4 + 20] = (0, 0, 1, 1)   # centre block
     clipboard._clip["pixels"] = small
+    clipboard._clip["frame"] = (w // 2 * 0.8, hh // 2 * 0.8)        # its camera frame, as a copy records it
     h.key('V', ctrl=True)
     yield 0.4
     p = painted()

@@ -38,6 +38,12 @@ SHAKE_AMOUNT_MAX = 10.0
 SHAKE_SPEED_RANGE = (0.2, 30.0)
 SHAKE_ROTATION = 0.15        # degrees of tilt per % of shake
 
+# The painting grows to fit its camera move (checked this long after the
+# move stops changing). margin: extra room, in frame widths; max: the
+# biggest a painting gets, in frame widths (a layer at 3 frame widths is
+# about 9x the memory of one frame); step_px: sizes are rounded up to this.
+CANVAS_FIT = {"delay": 0.6, "margin": 0.05, "max": 3.0, "step_px": 32, "samples": 24}
+
 # Camera and layers move with playback and scrubbing (Ollie). Painting on a
 # moved layer is re-aimed this long (seconds) after scrubbing stops.
 LAYER_REFRESH_DELAY = 0.12

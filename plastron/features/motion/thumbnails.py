@@ -27,8 +27,10 @@ def camera_changed(state):
     ptr = state.as_pointer()
     for strip in panels.all_panels(scene):
         m = strip.plastron_motion
-        if ptr in (m.start.as_pointer(), m.end.as_pointer()):
+        if ptr in (m.start.as_pointer(), m.end.as_pointer(), m.as_pointer()):
             panel_cache.request(strip.plastron_panel.material)
+            from . import canvas_fit
+            canvas_fit.request(strip)       # the painting grows if the move needs it
             return
 
 

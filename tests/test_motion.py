@@ -266,7 +266,7 @@ def steps():
     yield 0.2
     h.redraw()
     yield 0.1
-    sw, sh = canvas_sync.sheet_size()
+    sw, sh = canvas_sync.sheet_size(st)
     c = centre.copy()
     c.y = 0
     d = c.copy()
@@ -374,6 +374,38 @@ def steps():
         bpy.ops.plastron.motion_reset(target='CAMERA')
     s0 = canvas_sync.panel_on_canvas(sc)
     h.check("Reset: no camera move", s0 is not None and not camera.moves(s0))
+
+    # The painting grows to fit the camera move (Ollie couldn't paint where the
+    # camera had panned past its edge).
+    s0 = canvas_sync.panel_on_canvas(sc)
+    mat0 = s0.plastron_panel.material
+    st0 = mat0.plastron_stack
+    w_before, h_before = st0.width, st0.height
+    lay0 = next(l for l in st0.layers if l.layer_type == 'PAINT' and l.paint_image)
+    a0 = pixels.array(lay0.paint_image)
+    ys, xs = np.nonzero(a0[..., 3] > 0.5)
+    centre_before = (xs.mean() - w_before / 2, ys.mean() - h_before / 2) if len(xs) else None
+    camera.set_state(s0.plastron_motion.start, (-40.0, 0.0, 1.0, 0.0))
+    yield h.module("config.motion").CANVAS_FIT["delay"] + 1.5
+    st0 = s0.plastron_panel.material.plastron_stack
+    sheet_half = canvas_sync.sheet_size(st0)[0] / 2
+    reach = width * (0.40 + 0.5)
+    h.check("the painting grows to cover the camera move", st0.width > w_before and sheet_half >= reach,
+            (w_before, st0.width, sheet_half, reach))
+    h.check("...keeping the frame the same size", tuple(canvas_sync.frame_px(st0)) == (2880, 1620),
+            tuple(canvas_sync.frame_px(st0)))
+    lay0 = next(l for l in st0.layers if l.layer_type == 'PAINT' and l.paint_image)
+    a1 = pixels.array(lay0.paint_image)
+    ys, xs = np.nonzero(a1[..., 3] > 0.5)
+    centre_after = (xs.mean() - st0.width / 2, ys.mean() - st0.height / 2) if len(xs) else None
+    h.check("...and the drawing where it was", centre_before is not None and centre_after is not None
+            and abs(centre_before[0] - centre_after[0]) < 1.5 and abs(centre_before[1] - centre_after[1]) < 1.5,
+            (centre_before, centre_after))
+    canvas_obj = bpy.data.objects["Canvas"]
+    h.check("...and the canvas sheet is that big", abs(canvas_obj.scale.x * canvas_sync.sheet_size()[0] / 2
+                                                   - sheet_half) < 1e-3, tuple(canvas_obj.scale))
+    camera.set_state(s0.plastron_motion.start, camera.REST)
+    yield 0.2
 
     # The Motion panel draws (tools area).
     h.redraw()

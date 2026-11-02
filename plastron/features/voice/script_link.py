@@ -88,8 +88,13 @@ def jump_to_line(scene, line_index):
         return False
     lines, _unspoken = match(scene, text)
     frame = lines.get(line_index)
-    if frame is None:
-        return False
+    if frame is None:                      # not recorded yet: the line's panel, if any
+        from ..storyboard import script_panels
+        strip = script_panels.panel_for_line(scene, line_index)
+        if strip is None:
+            return False
+        from ...timeline import clips as _clips
+        frame = _clips.start(strip)
     scene.frame_current = int(round(frame))
     return True
 

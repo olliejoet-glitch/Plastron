@@ -34,11 +34,33 @@ DEPTH_STEP = 0.01     # higher tracks sit slightly nearer the camera
 _state = {"dirty": True, "lo": 0, "hi": -1, "scene": None, "work": 0}
 
 
-def sheet_size():
-    """Width, height of the painted sheet in canvas units (camera frame + bleed)."""
-    pw, ph = defaults.PAINT_RESOLUTION
-    width = defaults.CANVAS_WIDTH * pw / defaults.PAINT_FRAME[0]
-    return width, width * ph / pw
+def frame_px(stack):
+    """The camera frame's size in a painting's pixels (it sits in the middle)."""
+    if stack.frame_w and stack.frame_h:
+        return stack.frame_w, stack.frame_h
+    return (stack.width * defaults.PAINT_FRAME[0] / defaults.PAINT_RESOLUTION[0],
+            stack.height * defaults.PAINT_FRAME[1] / defaults.PAINT_RESOLUTION[1])
+
+
+def sheet_size(stack=None):
+    """Width, height in canvas units of a painting's sheet (camera frame +
+    bleed; paintings grow to fit their camera moves). No stack: the
+    standard size, which the shared sheet mesh has."""
+    if stack is None or not stack.enabled:
+        pw, ph = defaults.PAINT_RESOLUTION
+        width = defaults.CANVAS_WIDTH * pw / defaults.PAINT_FRAME[0]
+        return width, width * ph / pw
+    per_px = defaults.CANVAS_WIDTH / frame_px(stack)[0]
+    return stack.width * per_px, stack.height * per_px
+
+
+def _scale_for(material):
+    """Object scale that makes the standard sheet the material's painting size."""
+    st = material.plastron_stack if material is not None else None
+    if st is None or not st.enabled:
+        return 1.0, 1.0
+    (w, h), (sw, sh) = sheet_size(st), sheet_size()
+    return w / sw, h / sh
 
 
 def sheet_mesh(name=SHEET):
@@ -112,6 +134,10 @@ def _set(obj, material=None, y=None, hidden=None, alpha=None):
     slot = obj.material_slots[0]
     if material is not None and slot.material != material:
         slot.material = material
+    if material is not None:
+        sx, sz = _scale_for(material)
+        if abs(obj.scale.x - sx) > 1e-6 or abs(obj.scale.z - sz) > 1e-6:
+            obj.scale = (sx, 1.0, sz)
     if y is not None and abs(obj.location.y - y) > 1e-6:
         obj.location.y = y
     if hidden is not None and obj.hide_viewport != hidden:

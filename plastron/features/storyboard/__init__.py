@@ -8,6 +8,7 @@
     onion          onion skin settings (canvas_sync shows it)
     tools          tool switching, tool strip; options_bar; brush_presets;
                    brush_palette (right-click palette, Import Brushes; abr reads .abr)
+    script_panels  panels from the script's lines (File > Import Script)
     (the Layers panel comes from plastron/layers)
 """
 
@@ -15,7 +16,7 @@ import bpy
 
 from ...core import handlers
 from . import (brush_palette, brush_presets, stabiliser, canvas_color, canvas_frame, canvas_sync, canvas_view, onion,
-               options_bar, panel_cache, panels, tools)
+               options_bar, panel_cache, panels, script_panels, tools)
 
 _CLASSES = canvas_view.classes + tools.classes
 
@@ -38,10 +39,12 @@ def register():
     panels.register()
     panel_cache.register()
     canvas_sync.register()
+    script_panels.register()
     handlers.on_load(_after_load)
 
 
 def unregister():
+    script_panels.unregister()
     canvas_sync.unregister()
     panel_cache.unregister()
     panels.unregister()

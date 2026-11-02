@@ -184,7 +184,8 @@ Plastron/
 │  │                         panel_cache (cached images, re-made after edits),
 │  │                         canvas_sync (what the canvas shows at the playhead),
 │  │                         brush_presets, brush_palette (import) + abr (.abr reader), onion,
-│  │                         stabiliser (Off / Slight / Max)
+│  │                         stabiliser (Off / Slight / Max), script_panels
+│  │                         (panels from the script's lines)
 │  │  └─ voice/              recorder (mic), takes (voice clips + takes), record
 │  │                         (Ctrl+R, switch takes), transcribe (+ _worker: own
 │  │                         process), transcript_layout (pure) + transcript_bar,
@@ -195,7 +196,8 @@ Plastron/
 │  │                         clipboard (copy / paste, flips)
 │  │  └─ motion/             camera (strip.plastron_motion, frame maths, shake),
 │  │                         view_follow (Camera View), camera_pad (camera
-│  │                         controls box), layer_motion (live positions,
+│  │                         controls box), canvas_fit (painting grows to fit
+│  │                         the camera), layer_motion (live positions,
 │  │                         painted-layer UV shift), edit (layer box), thumbnails
 │  │                         (panel_cache hook), ui (Motion panel, presets)
 │  ├─ presets/               ★ preset files, one folder per kind (brushes/, motion/); README
@@ -324,6 +326,9 @@ Plastron/
   Blender's text.scroll doesn't start from an Alt+Shift+LMB item.
 - Simulated events can't make a double-click (Blender times real clicks):
   test double-click actions through the function they call.
+- Blender's input_samples (the stabiliser's Steady) averages pen PRESSURE
+  as well as position (paint_stroke_sample_average), so Slight / Max make
+  pressure lag.
 - Keymap clashes: Plastron keys fire on PRESS; Blender items on the same key
   with CLICK / CLICK_DRAG / DOUBLE_CLICK aren't clashes (keymaps.py).
 
@@ -602,6 +607,25 @@ Plastron/
   mesh's UVs follow it (stack.view_shift, re-aimed 0.12 s after scrubbing
   stops, at clip edges and after edits) so strokes land where you see them,
   and selections / transforms / paste work in that layer's own pixels.
+- Oversized canvas grows to fit (Ollie couldn't paint where the camera had
+  panned past the painting's edge, invisible as the paper is the world
+  colour): 0.6 s after a camera move stops changing, every frame position
+  along it (ends, easing, overshoot, shake) is checked and the painting is
+  padded around the middle (layers/stack.pad_canvas, one undo step; masks
+  repeat their edge). Never shrinks; max 3 frame widths (CANVAS_FIT in
+  config/motion.py). stack.frame_w / frame_h hold the frame's pixel size
+  (0 = the standard 80 % share); canvas_sync.frame_px / sheet_size(stack)
+  give it, each sheet object is scaled to its painting, and paste between
+  panels lines up by the camera frame. Image-source fill layers would
+  shift scale when a painting grows (rare; not handled).
+- Panels from the script (Ollie): File > Import Script... (txt / md /
+  fountain into the script panel) and File > Panels from Script. One panel
+  per non-blank line, on the active video track after its last clip (the
+  blank starter panel is replaced), each about as long as its line takes
+  to read (0.4 s a word, 1.5-8 s: SCRIPT_PANELS in config/timeline.py).
+  The panel remembers its line (plastron_panel.script_line / script_text);
+  running it again only adds lines without a panel; Import starts the
+  links afresh. Clicking a script line not recorded yet jumps to its panel.
 - Panel images (thumbnails) show the panel where it starts: camera start
   frame (rotation left out) and layers at their start.
 - Motion presets (presets/motion/): Straight, Ease in, Ease out, Ease in-out,
