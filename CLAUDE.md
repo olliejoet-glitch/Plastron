@@ -46,7 +46,8 @@ theme, and keymap, with Photoshop-style drawing shortcuts.
   zoom, slight rotation) set with the camera controls box (canvas corner), Camera
   View (the canvas looks through the camera), easing dot graph
   (`widgets/dot_graph`), camera shake, layer / group start / end motion
-  (box, live in playback), motion presets, Clean View (F) (`features/motion`).
+  (box, live in playback), motion presets, Clean View (F), 3D parallax
+  (layer depths, depth chart) (`features/motion`).
 - **Next: stage 7** (planning, review, export). Wait for Ollie to ask.
 - **DONE: drawing switched from grease pencil to RASTER** (Ollie: wants to
   select/move pixels, lay down blobs of colour, erase precisely). Brush engine
@@ -77,7 +78,7 @@ theme, and keymap, with Photoshop-style drawing shortcuts.
      handler appears (update that test deliberately if one is ever justified).
    - Exception (Ollie: "I really need the layers to move with playback"):
      motion plays live. The motion frame hook moves the canvas view (camera)
-     and writes two shader values per MOVING layer; which layers move is
+     and writes a few shader values per MOVING layer (moved or at a depth); which layers move is
      cached per stretch of clips, so a still project costs nothing.
    - Panels show on the timeline as cached images, re-rendered only when edited.
    - Destructive edits (warp, perspective, flips) are applied to strokes on
@@ -197,7 +198,8 @@ Plastron/
 │  │                         clipboard (copy / paste, flips)
 │  │  └─ motion/             camera (strip.plastron_motion, frame maths, shake),
 │  │                         view_follow (Camera View), camera_pad (camera
-│  │                         controls box), canvas_fit (painting grows to fit
+│  │                         controls box), parallax + depth_pad (3D parallax,
+│  │                         depth chart), canvas_fit (painting grows to fit
 │  │                         the camera), layer_motion (live positions,
 │  │                         painted-layer UV shift), edit (layer box), thumbnails
 │  │                         (panel_cache hook), ui (Motion panel, presets)
@@ -642,6 +644,23 @@ Plastron/
 - Quick brush resize (Ollie): Ctrl+Alt+right-click and move the pen (the
   side button, in the air): Blender's radial control on the brush size,
   let go to set (release_confirm).
+- 3D parallax (Ollie: "emerging over a fallen tree to see a creature",
+  without a messy 3D view): each layer has a depth (layer.depth; 0 = as its
+  group, else 1 = the picture plane; <1 nearer, >1 further). With a camera
+  move, pan slides near layers further and far ones less, and zoom acts as
+  moving the camera forward (zoom z = 1 - 1/z of the way to the plane), so
+  near layers grow faster (motion/parallax.py has the maths). Layers at
+  depth 1 behave exactly as before. Shown as layer.para_now (shift px,
+  scale) -> shader input MoveS (uv * MoveS - Move; layer_trees.shown_affine
+  = moves + parallax); live in playback like layer motion; thumbnails at the
+  start state; the canvas paint UVs follow the painted layer's whole affine
+  (stack.view_scale + view_shift), so painting a near layer still lands
+  under the pen. Depth chart (motion/depth_pad.py, DEPTH_PAD in
+  config/motion.py): right of the camera box, one row per layer (top first,
+  up to 10), drag the dot left = nearer / right = further (log scale
+  0.25-8, snaps to the plane line), hollow dot = follows its group, click a
+  name to pick the layer, double-click a row = follow the group again.
+  Handled by the camera box's click handler (same keymap item).
 - Panel images (thumbnails) show the panel where it starts: camera start
   frame (rotation left out) and layers at their start.
 - Motion presets (presets/motion/): Straight, Ease in, Ease out, Ease in-out,

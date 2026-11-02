@@ -203,11 +203,15 @@ class Grid:
 
     def moved(self, dx, dy):
         """The same pixels, sampling a layer moved by (dx, dy) canvas pixels."""
-        if not dx and not dy:
+        return self.mapped(1.0, dx, dy)
+
+    def mapped(self, a, mx, my):
+        """The same pixels, sampling at canvas_px * a - m (layers_trees.shown_affine)."""
+        if abs(a - 1.0) < 1e-9 and not mx and not my:
             return self
         g = object.__new__(Grid)
         g.width, g.height, g.crop, g.size = self.width, self.height, self.crop, self.size
-        g.u, g.v = self.u - dx / self.width, self.v - dy / self.height
+        g.u, g.v = self.u * a - mx / self.width, self.v * a - my / self.height
         g.shifted = True
         return g
 
@@ -363,12 +367,25 @@ def _layer_source(layer, stack, grid, under):
     return rgb, a
 
 
-def _composite(stack, grid, parent_uid, under, under_a, offsets=None):
-    """offsets: {layer uid: (dx, dy)} to use instead of where layers are shown."""
-    top = grid
+def _affine(stack, layer, offsets, para):
+    """Where a layer is shown (shown_affine), with offsets / para overrides."""
+    from .layer_trees import shown_affine
+    dx = dy = 0.0
+    l, guard = layer, 0
+    while l is not None and guard < 64:
+        ox, oy = (offsets or {}).get(l.uid, l.move_now)
+        dx, dy = dx + ox, dy + oy
+        l = stack.by_uid(l.parent_uid) if l.parent_uid else None
+        guard += 1
+    return shown_affine(layer, stack, (dx, dy), (para or {}).get(layer.uid))
+
+
+def _composite(stack, grid, parent_uid, under, under_a, offsets=None, para=None, root=None):
+    """offsets: {layer uid: (dx, dy)} motion offsets to use instead of where
+    layers are shown; para: {uid: (tx, ty, scale)} parallax likewise."""
+    root = root or grid
     for layer in [l for l in stack.layers if l.parent_uid == parent_uid]:
-        dx, dy = (offsets or {}).get(layer.uid, layer.move_now)
-        grid = top.moved(dx, dy)          # (groups pass their shifted grid on)
+        grid = root.mapped(*_affine(stack, layer, offsets, para))
         vis = layer.opacity * (1.0 if layer.visible else 0.0)
         mask = _mask(layer, grid)
         if mask is not None:
@@ -376,14 +393,14 @@ def _composite(stack, grid, parent_uid, under, under_a, offsets=None):
         vis = np.broadcast_to(np.asarray(vis, np.float32), under_a.shape)
         if layer.layer_type == "GROUP":
             if layer.group_mode == "PASS_THROUGH":
-                content, content_a = _composite(stack, grid, layer.uid, under, under_a, offsets)
+                content, content_a = _composite(stack, grid, layer.uid, under, under_a, offsets, para, root)
                 if colour_adjusted(layer):
                     content = _colour_adjust(layer, content)
                 under = under + (content - under) * vis[..., None]
                 under_a = under_a + (content_a - under_a) * vis
                 continue
             cs, a_src = _composite(stack, grid, layer.uid,
-                                   np.zeros_like(under), np.zeros_like(under_a), offsets)
+                                   np.zeros_like(under), np.zeros_like(under_a), offsets, para, root)
         else:
             cs, a_src = _layer_source(layer, stack, grid, under)
         if colour_adjusted(layer):
@@ -396,15 +413,16 @@ def _composite(stack, grid, parent_uid, under, under_a, offsets=None):
     return under, under_a
 
 
-def flatten(mat, crop=None, out_size=None, offsets=None):
+def flatten(mat, crop=None, out_size=None, offsets=None, para=None):
     """Flatten mat's stack -> float32 array (rows bottom-up, w, 4), RGBA with
     gamma-encoded colour (ready for an 8-bit image) and straight alpha.
-    offsets: {layer uid: (dx, dy)} motion offsets to use (default: as shown)."""
+    offsets: {layer uid: (dx, dy)} motion offsets to use (default: as shown);
+    para: {layer uid: (tx, ty, scale)} parallax likewise."""
     stack = mat.plastron_stack
     grid = Grid(stack.width, stack.height, crop, out_size)
     w, h = grid.size
     col, alpha = _composite(stack, grid, "", np.zeros((h, w, 3), np.float32),
-                            np.zeros((h, w), np.float32), offsets)
+                            np.zeros((h, w), np.float32), offsets, para)
     if stack.blend_space == "LINEAR":
         col = _encode(col)
     return np.concatenate((np.clip(col, 0, 1), np.clip(alpha, 0, 1)[..., None]), -1).astype(np.float32)

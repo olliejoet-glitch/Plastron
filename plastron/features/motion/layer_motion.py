@@ -23,7 +23,7 @@ from ...config import motion as cfg
 from ...layers import compiler, layer_trees, paint_target, props
 from ...timeline import clips, tracks
 from ...widgets import dot_graph
-from . import camera
+from . import camera, parallax
 
 _state = {"last": 0.0, "shifted": None, "busy": False}
 
@@ -57,33 +57,70 @@ def _push_all(mat):
         compiler.push_layer(mat, layer)
 
 
-def _show(mat, t):
-    """Write every layer's shown position; True if any changed."""
+def _camera_state(scene, strip):
+    if not camera.moves(strip):
+        return camera.REST
+    fps = scene.render.fps / scene.render.fps_base
+    return camera.state_at(strip, scene.frame_current, fps)
+
+
+def _para(layer, stack, state):
+    if state is camera.REST:
+        return (0.0, 0.0, 1.0)
+    return parallax.para_for(parallax.effective_depth(layer, stack), state,
+                             canvas_sync_frame_w(stack))
+
+
+def canvas_sync_frame_w(stack):
+    from ..storyboard import canvas_sync
+    return canvas_sync.frame_px(stack)[0]
+
+
+def _close(a, b, tol=1e-4):
+    return all(abs(p - q) <= tol for p, q in zip(a, b))
+
+
+def _show(mat, t, state=camera.REST):
+    """Write every layer's shown position and parallax; True if any changed."""
     changed = False
+    st = mat.plastron_stack
     with props.suspended():
-        for layer in mat.plastron_stack.layers:
+        for layer in st.layers:
             pos = position(layer, t)
-            if abs(layer.move_now[0] - pos[0]) > 1e-4 or abs(layer.move_now[1] - pos[1]) > 1e-4:
+            if not _close(layer.move_now, pos):
                 layer.move_now = pos
+                changed = True
+            para = _para(layer, st, state)
+            if not _close(layer.para_now, para):
+                layer.para_now = para
                 changed = True
     return changed
 
 
-def _set_shift(mat, shift):
+def _set_shift(mat, affine):
+    """The canvas's paint UVs follow the painted layer: (scale, shift x, y)."""
     st = mat.plastron_stack
-    if abs(st.view_shift[0] - shift[0]) < 1e-4 and abs(st.view_shift[1] - shift[1]) < 1e-4:
+    a, mx, my = affine
+    if abs(st.view_scale - a) < 1e-6 and _close(st.view_shift, (mx, my)):
         return False
     with props.suspended():
-        st.view_shift = shift
+        st.view_scale = a
+        st.view_shift = (mx, my)
     return True
 
 
-def painted_shift(mat):
-    """How far the layer being painted on is shown moved (canvas pixels)."""
+def painted_affine(mat):
+    """Where the layer being painted on is shown: (a, mx, my) as in
+    layer_trees.shown_affine (1, 0, 0 = where it was painted)."""
     if mat is None or paint_target.target_image(mat) is None:
-        return (0.0, 0.0)
+        return (1.0, 0.0, 0.0)
     st = mat.plastron_stack
-    return layer_trees.shown_offset(st.active, st)
+    return layer_trees.shown_affine(st.active, st)
+
+
+def painted_shift(mat):
+    a, mx, my = painted_affine(mat)
+    return (mx, my)
 
 
 def refresh(scene=None):
@@ -98,7 +135,8 @@ def refresh(scene=None):
         frame = scene.frame_current
         for strip in panels_at(scene, frame):
             mat = strip.plastron_panel.material
-            if mat.plastron_stack.enabled and _show(mat, camera.clip_time(strip, frame)):
+            if mat.plastron_stack.enabled and _show(mat, camera.clip_time(strip, frame),
+                                                    _camera_state(scene, strip)):
                 _push_all(mat)
         _aim(scene)
     finally:
@@ -111,14 +149,15 @@ def _aim(scene):
     mat = paint_target.active_material()
     previous = bpy.data.materials.get(_state["shifted"] or "")
     if previous is not None and previous != mat and previous.plastron_stack.enabled:
-        if _set_shift(previous, (0.0, 0.0)):
+        if _set_shift(previous, (1.0, 0.0, 0.0)):
             _push_all(previous)
-    shift = painted_shift(mat)
+    affine = painted_affine(mat)
     if mat is not None:
-        if _set_shift(mat, shift):
+        if _set_shift(mat, affine):
             _push_all(mat)
         st = mat.plastron_stack
-        canvas_sync.shift_paint_uv(scene, shift[0] / max(st.width, 1), shift[1] / max(st.height, 1))
+        a, mx, my = affine
+        canvas_sync.shift_paint_uv(scene, mx / max(st.width, 1), my / max(st.height, 1), a)
         _state["shifted"] = mat.name
     else:
         canvas_sync.shift_paint_uv(scene, 0.0, 0.0)
@@ -155,7 +194,10 @@ def _moving(scene):
         items = []
         for strip in panels_at(scene, scene.frame_current):
             mat = strip.plastron_panel.material
-            uids = [l.uid for l in mat.plastron_stack.layers if has_motion(l)]
+            st = mat.plastron_stack
+            cam = camera.moves(strip)
+            uids = [l.uid for l in st.layers
+                    if has_motion(l) or (cam and parallax.has_depth(l, st))]
             if uids and mat.plastron_stack.enabled:
                 items.append((strip.name, mat, uids))
         _live.update(key=key, items=items)
@@ -171,13 +213,17 @@ def live(scene):
             continue
         t = camera.clip_time(strip, scene.frame_current)
         st = mat.plastron_stack
+        state = _camera_state(scene, strip)
         for uid in uids:
             layer = st.by_uid(uid)
             if layer is None:
                 continue
             pos = position(layer, t)
-            if abs(layer.move_now[0] - pos[0]) > 1e-3 or abs(layer.move_now[1] - pos[1]) > 1e-3:
+            if not _close(layer.move_now, pos, 1e-3):
                 layer.move_now = pos          # pushes this layer (+ a group's layers)
+            para = _para(layer, st, state)
+            if not _close(layer.para_now, para, 1e-5):
+                layer.para_now = para         # pushes this layer
 
 
 def _motion_frame(scene, *_args):

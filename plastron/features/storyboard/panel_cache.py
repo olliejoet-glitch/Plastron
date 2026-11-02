@@ -76,7 +76,7 @@ def frame_crop(stack):
     return ((stack.width - fw) / 2, (stack.height - fh) / 2, fw, fh)
 
 
-# Hook: func(strip, stack) -> (crop, offsets) or None. What a panel's image
+# Hook: func(strip, stack) -> (crop, offsets[, parallax]) or None. What a panel's image
 # shows (e.g. features/motion: the camera and layers where the panel starts).
 VIEW_PROVIDERS = []
 
@@ -86,8 +86,8 @@ def view(strip, stack):
     for provider in VIEW_PROVIDERS:
         answer = provider(strip, stack)
         if answer:
-            return answer
-    return frame_crop(stack), None
+            return tuple(answer) + (None,) * (3 - len(answer))
+    return frame_crop(stack), None, None
 
 
 def render(strip):
@@ -96,8 +96,8 @@ def render(strip):
     mat = strip.plastron_panel.material
     if mat is None or not mat.plastron_stack.enabled:
         return
-    crop, offsets = view(strip, mat.plastron_stack)
-    rgba = flatten(mat, crop=crop, out_size=SIZE, offsets=offsets)
+    crop, offsets, para = view(strip, mat.plastron_stack)
+    rgba = flatten(mat, crop=crop, out_size=SIZE, offsets=offsets, para=para)
     alpha = rgba[..., 3:4]
     rgba[..., :3] = rgba[..., :3] * alpha + paper() * (1.0 - alpha)
     rgba[..., 3] = 1.0

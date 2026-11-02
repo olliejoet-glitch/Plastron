@@ -112,6 +112,14 @@ def _view_shift(self, context):
         push_layer(self.id_data, layer)
 
 
+def _value_one(self, context):
+    """Display only (this layer's look): no thumbnail."""
+    if _suspend:
+        return
+    from .compiler import push_layer
+    push_layer(self.id_data, self)
+
+
 def _moved(self, context):
     """A start / end position changed: listeners (thumbnail, motion) hear it."""
     if not _suspend:
@@ -202,6 +210,12 @@ class PLASTRON_PG_layer(bpy.types.PropertyGroup):
                                   precision=0, update=_moved)
     move_curve: StringProperty()
     move_now: FloatVectorProperty(size=2, default=(0.0, 0.0), update=_value_tree)
+    # 3D parallax: how far away the layer is (1 = the picture plane, smaller
+    # = nearer the camera, bigger = further; 0 = as its group, or 1). Camera
+    # moves then shift / scale each layer by its depth; para_now is that
+    # shift (canvas px) and scale right now (written by the motion feature).
+    depth: FloatProperty(name="Depth", default=0.0, min=0.0, max=20.0, update=_moved)
+    para_now: FloatVectorProperty(size=3, default=(0.0, 0.0, 1.0), update=_value_one)
     # adjustment
     adjust_kind: EnumProperty(name="Adjustment", items=ADJUST_KINDS, default="HUE_SAT", update=_structural)
     hs_hue: FloatProperty(name="Hue", default=0, min=-180, max=180, update=_value)
@@ -264,6 +278,8 @@ class PLASTRON_PG_stack(bpy.types.PropertyGroup):
     # still take strokes where you see them (features/motion). Every layer
     # is shown shifted back by the same amount.
     view_shift: FloatVectorProperty(size=2, default=(0.0, 0.0), update=_view_shift)
+    # ...and scaled by (painted px = canvas px * view_scale - view_shift).
+    view_scale: FloatProperty(default=1.0, update=_view_shift)
 
     @property
     def active(self):

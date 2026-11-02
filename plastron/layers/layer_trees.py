@@ -14,7 +14,7 @@ from . import blend_lib
 from .nodes import NB, iface
 
 TREE_PREFIX = ".PLASTRON L "
-COMPILER_REV = 2   # bump when layer trees change without a property change (2: motion offsets)
+COMPILER_REV = 3   # bump when layer trees change without a property change (2: motion, 3: parallax scale)
 BI_CHANNELS = ("GREY", "R", "G", "B")
 BI_EPS = 0.006     # EEVEE samples ramps from a 256-entry LUT; keep off the ends
 BI_DEFAULT = [(0.0, (0, 0, 0, 1)), (0.0, (1, 1, 1, 1)), (1.0, (1, 1, 1, 1)), (1.0, (0, 0, 0, 1))]
@@ -113,7 +113,8 @@ def normalise_blend_if_ramp(ramp):
 # --- pieces ---------------------------------------------------------------------
 
 def _uv(nb):
-    """The canvas UV this layer samples at: shifted by its motion offset."""
+    """The canvas UV this layer samples at: uv * MoveS - Move (its motion
+    offset, parallax shift and scale; see shown_affine)."""
     uv = nb.node('ShaderNodeTexCoord').outputs["UV"]
     move = getattr(nb, "move", None)
     if move is None:
@@ -121,7 +122,7 @@ def _uv(nb):
     shift = nb.node('ShaderNodeCombineXYZ')
     nb.feed(shift.inputs["X"], move[0])
     nb.feed(shift.inputs["Y"], move[1])
-    return nb.v('SUBTRACT', uv, shift.outputs[0])
+    return nb.v('SUBTRACT', nb.vscale(uv, move[2]), shift.outputs[0])
 
 
 def _colour_adjust(nb, gi, layer, c):
@@ -319,6 +320,7 @@ def _build_into(layer, stack, tree, snap):
     iface(tree, 'INPUT', "Visible", 'NodeSocketFloat', 1.0, 0, 1)
     iface(tree, 'INPUT', "MoveU", 'NodeSocketFloat', 0.0)
     iface(tree, 'INPUT', "MoveV", 'NodeSocketFloat', 0.0)
+    iface(tree, 'INPUT', "MoveS", 'NodeSocketFloat', 1.0)
     if t == "GROUP":
         iface(tree, 'INPUT', "Content", 'NodeSocketColor', (0, 0, 0, 1))
         iface(tree, 'INPUT', "ContentA", 'NodeSocketFloat', 0.0)
@@ -346,7 +348,7 @@ def _build_into(layer, stack, tree, snap):
     nb = NB(tree)
     gi = nb.node('NodeGroupInput')
     go = nb.node('NodeGroupOutput')
-    nb.move = (gi.outputs["MoveU"], gi.outputs["MoveV"])
+    nb.move = (gi.outputs["MoveU"], gi.outputs["MoveV"], gi.outputs["MoveS"])
     under, under_a = gi.outputs["Under"], gi.outputs["UnderA"]
     vis = nb.mul(gi.outputs["Opacity"], gi.outputs["Visible"])
     mask = _masks(nb, gi, layer, stack)
@@ -403,15 +405,29 @@ def shown_offset(layer, stack):
     return x, y
 
 
+def shown_affine(layer, stack, move=None, para=None):
+    """Where a layer is shown: sample_px = canvas_px * a - m, as (a, mx, my).
+    Its motion offset (with its groups') and its parallax (shift tx, ty and
+    scale s about the middle). move / para: values to use instead."""
+    dx, dy = move if move is not None else shown_offset(layer, stack)
+    tx, ty, s = para if para is not None else layer.para_now
+    s = s if s > 1e-6 else 1.0
+    kx, ky = stack.width / 2, stack.height / 2
+    return 1.0 / s, (kx + tx) / s - kx + dx, (ky + ty) / s - ky + dy
+
+
 def values(layer, stack):
     """Socket values for the layer's instance node. Colour props are COLOR_GAMMA
     (what the picker shows); in Linear blend space they're decoded."""
     col = (lambda c: (*c, 1.0)) if stack.blend_space == "SRGB" else (lambda c: (*_decode(c), 1.0))
-    du, dv = shown_offset(layer, stack)
-    du, dv = du - stack.view_shift[0], dv - stack.view_shift[1]
+    a, mx, my = shown_affine(layer, stack)
+    av = stack.view_scale if stack.view_scale > 1e-6 else 1.0
+    vx, vy = stack.view_shift
+    move_s = a / av
+    du, dv = mx - a * vx / av, my - a * vy / av
     v = {"LA Hue": layer.la_hue, "LA Sat": layer.la_saturation, "LA Val": layer.la_value,
          "Opacity": layer.opacity, "Visible": 1.0 if layer.visible else 0.0,
-         "MoveU": du / max(stack.width, 1), "MoveV": dv / max(stack.height, 1)}
+         "MoveU": du / max(stack.width, 1), "MoveV": dv / max(stack.height, 1), "MoveS": move_s}
     t = layer.layer_type
     if t == "FILL" and layer.fill_source == "COLOR":
         v["Color"] = col(layer.fill_color)

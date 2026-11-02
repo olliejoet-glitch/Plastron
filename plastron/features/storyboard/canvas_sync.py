@@ -112,11 +112,12 @@ def canvas_object(scene):
     return _sheet_object(scene, CANVAS, True, PAINT_SHEET)
 
 
-def shift_paint_uv(scene, du, dv):
-    """Shift the canvas sheet's UVs by (-du, -dv) (fractions of the painting),
-    so strokes land in a layer shown moved by (du, dv) (features/motion)."""
+def shift_paint_uv(scene, du, dv, a=1.0):
+    """Map the canvas sheet's UVs to uv * a - (du, dv) (fractions of the
+    painting), so strokes land in a layer shown moved / scaled
+    (features/motion: layer motion, parallax)."""
     uv = canvas_object(scene).data.uv_layers[0].data
-    want = [(0 - du, 0 - dv), (1 - du, 0 - dv), (1 - du, 1 - dv), (0 - du, 1 - dv)]
+    want = [(x * a - du, y * a - dv) for x, y in ((0, 0), (1, 0), (1, 1), (0, 1))]
     if any(abs(uv[i].uv[0] - x) > 1e-7 or abs(uv[i].uv[1] - y) > 1e-7 for i, (x, y) in enumerate(want)):
         for i, co in enumerate(want):
             uv[i].uv = co

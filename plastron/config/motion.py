@@ -20,6 +20,12 @@ CAMERA_PAD = {
     "turn_per_px": 0.15,      # degrees per pixel
 }
 
+# Depth chart (3D parallax), right of the camera box: one row per layer (up
+# to max_rows), its dot dragged between range[0] (nearest) and range[1]
+# (furthest); depth 1 = the picture plane, dots within `snap` (log) of it snap.
+DEPTH_PAD = {"row": 16, "name": 64, "track": 110, "max_rows": 10,
+             "range": (0.25, 8.0), "snap": 0.06}
+
 # Setting a layer's position (Motion panel: Start / End): a transform
 # box on the canvas. (The camera's own box mode below is still there for
 # code / tests but has no key.) Drag inside = move the camera · a corner or side handle

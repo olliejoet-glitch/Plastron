@@ -213,12 +213,14 @@ class PLASTRON_OT_motion_set(bpy.types.Operator):
             return None, None
         st = strip.plastron_panel.material.plastron_stack
         sw, sh = canvas_sync.sheet_size(st)
-        shown = layer_trees.shown_offset(layer, st)
+        a, mx, my = layer_trees.shown_affine(layer, st)          # moved + parallax
         other = layer.move_end if self.end == 'START' else layer.move_start
         x0, y0, x1, y1 = self.bounds
         boxes = []
-        for dx, dy in (shown, (shown[0] - layer.move_now[0] + other[0], shown[1] - layer.move_now[1] + other[1])):
-            boxes.append([Vector((((px + dx) / st.width - 0.5) * sw, -0.03, ((py + dy) / st.height - 0.5) * sh))
+        for ox, oy in ((mx, my), (mx - layer.move_now[0] + other[0], my - layer.move_now[1] + other[1])):
+            # painted px p is shown at canvas px (p + m) / a
+            boxes.append([Vector((((px + ox) / a / st.width - 0.5) * sw, -0.03,
+                                  ((py + oy) / a / st.height - 0.5) * sh))
                           for px, py in ((x1, y1), (x1, y0), (x0, y0), (x0, y1))])
         return boxes
 

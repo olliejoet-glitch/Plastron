@@ -160,6 +160,8 @@ def draw():
     bx0, _by0, bx1, by1 = parts["BOX"]
     _text("Camera", (bx0, by1 - _ui(15), bx1, by1 - _ui(2)), dim, 10)
     gpu.state.blend_set('NONE')
+    from . import depth_pad
+    depth_pad.draw(context)
 
 
 # --- dragging ---------------------------------------------------------------------------
@@ -191,8 +193,35 @@ class PLASTRON_OT_camera_pad(bpy.types.Operator):
         if scene.frame_current != frame:
             scene.frame_current = frame
 
+    def _depth(self, context, event, what, uid):
+        """A click on the depth chart."""
+        from . import depth_pad
+        stack = depth_pad._stack(context.scene)
+        layer = stack.by_uid(uid) if stack and uid else None
+        if layer is None:
+            return {'FINISHED'}
+        if what == 'NAME':
+            stack.active_index = list(stack.layers).index(layer)
+            context.area.tag_redraw()
+            return {'FINISHED'}
+        if event.value == 'DOUBLE_CLICK':
+            layer.depth = 0.0                     # follow its group again
+            self._push(context)
+            return {'FINISHED'}
+        self.part, self.uid = 'DEPTH', uid
+        self.track = depth_pad.track_of(context.region, stack, uid)
+        self.depth_before = layer.depth
+        depth_pad.set_depth(stack, uid, self.track, event.mouse_region_x)
+        context.area.tag_redraw()
+        context.window_manager.modal_handler_add(self)
+        return {'RUNNING_MODAL'}
+
     def invoke(self, context, event):
         region = context.region
+        from . import depth_pad
+        dhit = depth_pad.hit(region, context.scene, event.mouse_region_x, event.mouse_region_y)
+        if dhit is not None:
+            return self._depth(context, event, *dhit)
         part = part_at(region, event.mouse_region_x, event.mouse_region_y)
         if part is None:
             from ..storyboard import stroke_guard
@@ -263,6 +292,8 @@ class PLASTRON_OT_camera_pad(bpy.types.Operator):
         context.area.tag_redraw()
 
     def modal(self, context, event):
+        if self.part == 'DEPTH':
+            return self._depth_modal(context, event)
         if event.type in {'MOUSEMOVE', 'INBETWEEN_MOUSEMOVE'}:
             self._apply(context, event)
             return {'RUNNING_MODAL'}
@@ -275,6 +306,26 @@ class PLASTRON_OT_camera_pad(bpy.types.Operator):
             if strip is not None:
                 camera.set_state(self._state(strip), self.start_value)
             context.area.tag_redraw()
+            return {'CANCELLED'}
+        return {'RUNNING_MODAL'}
+
+
+    def _depth_modal(self, context, event):
+        from . import depth_pad
+        stack = depth_pad._stack(context.scene)
+        if stack is None:
+            return {'CANCELLED'}
+        if event.type in {'MOUSEMOVE', 'INBETWEEN_MOUSEMOVE'}:
+            depth_pad.set_depth(stack, self.uid, self.track, event.mouse_x - context.region.x)
+            context.area.tag_redraw()
+            return {'RUNNING_MODAL'}
+        if event.type == 'LEFTMOUSE' and event.value == 'RELEASE':
+            self._push(context)
+            return {'FINISHED'}
+        if event.type in {'ESC', 'RIGHTMOUSE'} and event.value == 'PRESS':
+            layer = stack.by_uid(self.uid)
+            if layer is not None:
+                layer.depth = self.depth_before
             return {'CANCELLED'}
         return {'RUNNING_MODAL'}
 

@@ -341,7 +341,7 @@ def steps():
     # Panel image: where the panel starts (layers at their start, the camera's start frame).
     m.end.zoom = 1.0
     camera.set_state(m.start, (0.0, 0.0, 2.0, 0.0))
-    crop, offsets = panel_cache.view(strip, st)
+    crop, offsets, _para = panel_cache.view(strip, st)
     fx, fy, fw, fh = panel_cache.frame_crop(st)
     h.check("the panel's image uses the camera's start frame", abs(crop[2] - fw / 2) < 1e-3
             and abs(crop[0] - (fx + fw / 4)) < 1e-3, crop)
@@ -406,6 +406,62 @@ def steps():
                                                    - sheet_half) < 1e-3, tuple(canvas_obj.scale))
     camera.set_state(s0.plastron_motion.start, camera.REST)
     yield 0.2
+
+    # --- 3D parallax: layers at depths ------------------------------------------------------
+    par = h.module("features.motion.parallax")
+    depth_pad = h.module("features.motion.depth_pad")
+    fl = h.module("layers.flatten")
+    t1 = par.para_for(0.5, (10.0, 0.0, 1.0, 0.0), 2880)
+    t2 = par.para_for(2.0, (10.0, 0.0, 1.0, 0.0), 2880)
+    h.check("parallax: a near layer slides twice as far, a far one half",
+            abs(t1[0] + 288) < 1e-6 and abs(t2[0] - 144) < 1e-6 and t1[2] == 1.0, (t1, t2))
+    z = par.para_for(2.0, (0.0, 0.0, 2.0, 0.0), 2880)
+    zn = par.para_for(0.75, (0.0, 0.0, 2.0, 0.0), 2880)
+    h.check("...and pushing in grows near layers faster than far ones",
+            z[2] < 1.0 < zn[2] and par.para_for(1.0, (5, 5, 2, 0), 2880) == (0.0, 0.0, 1.0), (z, zn))
+
+    s1 = canvas_sync.panel_on_canvas(sc)
+    st1 = s1.plastron_panel.material.plastron_stack
+    lay1 = next(l for l in st1.layers if l.layer_type == 'PAINT')
+    st1.active_index = list(st1.layers).index(lay1)
+    m1 = s1.plastron_motion
+    camera.set_state(m1.start, camera.REST)
+    camera.set_state(m1.end, (20.0, 0.0, 1.0, 0.0))
+    sc.frame_current = clips.end(s1) - 1
+    yield 1.2
+    h.redraw()
+    yield 0.2
+    rows, frame = depth_pad.rows(r, st1)
+    track = next(t for u, _n, t in rows if u == lay1.uid)
+    x_near = depth_pad.depth_x(track, 0.5)
+    h.move(r.x + depth_pad.depth_x(track, 1.0), r.y + (track[1] + track[3]) / 2)
+    yield
+    yield from h.drag((r.x + depth_pad.depth_x(track, 1.0), r.y + (track[1] + track[3]) / 2),
+                      (r.x + x_near, r.y + (track[1] + track[3]) / 2))
+    yield 0.3
+    h.check("dragging a layer's dot on the depth chart sets its depth", abs(lay1.depth - 0.5) < 0.03, lay1.depth)
+    h.screenshot("depth_chart")
+    yield 0.3
+    want = par.para_for(par.effective_depth(lay1, st1), camera.state_at(s1, sc.frame_current, sc.render.fps),
+                        canvas_sync.frame_px(st1)[0])
+    h.check("...and the layer shows its parallax at the playhead",
+            close(tuple(lay1.para_now), want, 1e-2), (tuple(lay1.para_now), want))
+    h.check("...painting on it still lands under the pen (canvas UVs scale / shift with it)",
+            abs(st1.view_scale - 1.0 / want[2]) < 1e-4)
+    # The numpy flatten (thumbnails) agrees with where the layer is shown.
+    w1, h1 = st1.width, st1.height
+    dot = np.zeros((h1, w1, 4), np.float32)
+    dot[h1 // 2 - 20:h1 // 2 + 20, w1 // 2 - 20:w1 // 2 + 20] = (0, 0, 0, 1)
+    pixels.write(lay1.paint_image, dot)
+    flat = fl.flatten(s1.plastron_panel.material, para={lay1.uid: (-300.0, 0.0, 2.0)},
+                      offsets={lay1.uid: (0.0, 0.0)})
+    ys, xs = np.nonzero(flat[..., 3] > 0.5)
+    h.check("flatten: a layer with parallax (scaled 2x, shifted) lands where it should",
+            abs(xs.mean() - (w1 / 2 - 300)) < 3 and abs((xs.max() - xs.min()) - 80) < 4,
+            (xs.mean() if len(xs) else None, (xs.max() - xs.min()) if len(xs) else None))
+    lay1.depth = 0.0
+    camera.set_state(m1.end, camera.REST)
+    yield 0.3
 
     # The Motion panel draws (tools area).
     h.redraw()
