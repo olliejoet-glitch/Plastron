@@ -67,6 +67,19 @@ def steps():
             script_panels.script_text().as_string().startswith("Line one.\nLine two"))
     h.check("...and makes its panels", len(panels.all_panels(sc)) == 6,
             [(s.name, s.plastron_panel.script_line) for s in panels.all_panels(sc)])
+    # Paste Script: the copied script lands in the script panel, panels follow.
+    bpy.context.window_manager.clipboard = "Pasted one.\r\nPasted two.\n"
+    area = h.area('TEXT_EDITOR')
+    bar = h.region(area, 'HEADER')
+    h.check("the script panel has its bar", bar is not None and bar.height > 10)
+    with h.override('TEXT_EDITOR'):
+        bpy.ops.plastron.script_paste()
+    yield 0.3
+    h.check("Paste Script adds the copied lines to the script",
+            script_panels.script_text().as_string().rstrip().endswith("Pasted one.\nPasted two."))
+    h.check("...and makes their panels", len(panels.all_panels(sc)) == 8, len(panels.all_panels(sc)))
+    h.redraw()
+    yield 0.2
     h.screenshot("script_panels")
 
 

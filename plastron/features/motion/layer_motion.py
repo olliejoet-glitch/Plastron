@@ -136,6 +136,9 @@ def _timer():
     wait = cfg.LAYER_REFRESH_DELAY - (time.monotonic() - _state["last"])
     if wait > 0.01:
         return wait
+    from ..storyboard import stroke_guard
+    if stroke_guard.busy():
+        return 0.25                        # don't change the canvas sheet under a stroke
     if not _playing():
         refresh()
     return None

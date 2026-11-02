@@ -175,6 +175,8 @@ def _on_stroke(scene, depsgraph):
     # playback). Other image updates (e.g. writing these images) are ignored.
     if not depsgraph.id_type_updated('IMAGE'):
         return
+    from . import stroke_guard
+    stroke_guard.ended()                   # a stroke (or any image edit) has finished
     mat = paint_target.active_material()
     target = paint_target.target_image(mat)
     if target is not None and any(u.id.original == target for u in depsgraph.updates

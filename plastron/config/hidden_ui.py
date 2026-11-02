@@ -25,4 +25,5 @@ REPLACE_HEADERS = [
     "TOPBAR_HT_upper_bar",       # top bar: File menu, undo/redo, mode switcher
     "SEQUENCER_HT_header",       # timeline header: transport controls
     "VIEW3D_HT_tool_header",     # canvas options bar: brush size, strength...
+    "TEXT_HT_header",            # script bar: Paste Script, Make Panels, Import
 ]

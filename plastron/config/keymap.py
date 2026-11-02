@@ -55,6 +55,12 @@ SHORTCUTS = [
     ("canvas",       "Shift+S",          "plastron.canvas_tool",         "Smudge",                 {"tool": 'SMUDGE'}),
     ("canvas",       "RMB",              "wm.call_asset_shelf_popover",  "Brush palette",          {"name": "VIEW3D_AST_brush_texture_paint"}),
     ("canvas",       "Alt+LMB",          "paint.sample_color",           "Pick colour (what you see)", {"merged": True}),
+    ("canvas",       "Ctrl+Alt+RMB",     "wm.radial_control",            "Brush size: hold + move the pen (in the air too), let go to set",
+     {"data_path_primary": "tool_settings.image_paint.brush.size",
+      "data_path_secondary": "tool_settings.image_paint.unified_paint_settings.size",
+      "use_secondary": "tool_settings.image_paint.unified_paint_settings.use_unified_size",
+      "image_id": "tool_settings.image_paint.brush",
+      "release_confirm": True}),
     ("canvas",       "Q",                "brush.scale_size",             "Smaller brush",          {"scalar": 0.8}),
     ("canvas",       "W",                "brush.scale_size",             "Bigger brush",           {"scalar": 1.25}),
 

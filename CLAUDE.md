@@ -185,7 +185,8 @@ Plastron/
 │  │                         canvas_sync (what the canvas shows at the playhead),
 │  │                         brush_presets, brush_palette (import) + abr (.abr reader), onion,
 │  │                         stabiliser (Off / Slight / Max), script_panels
-│  │                         (panels from the script's lines)
+│  │                         (panels from the script's lines + script bar),
+│  │                         stroke_guard (is a brush stroke running?)
 │  │  └─ voice/              recorder (mic), takes (voice clips + takes), record
 │  │                         (Ctrl+R, switch takes), transcribe (+ _worker: own
 │  │                         process), transcript_layout (pure) + transcript_bar,
@@ -329,6 +330,8 @@ Plastron/
 - Blender's input_samples (the stabiliser's Steady) averages pen PRESSURE
   as well as position (paint_stroke_sample_average), so Slight / Max make
   pressure lag.
+- An open pop-up (popover) swallows the next click anywhere: close it (Esc)
+  before simulating clicks in tests.
 - Keymap clashes: Plastron keys fire on PRESS; Blender items on the same key
   with CLICK / CLICK_DRAG / DOUBLE_CLICK aren't clashes (keymaps.py).
 
@@ -626,6 +629,19 @@ Plastron/
   The panel remembers its line (plastron_panel.script_line / script_text);
   running it again only adds lines without a panel; Import starts the
   links afresh. Clicking a script line not recorded yet jumps to its panel.
+  The script panel has a bar (replaces Blender's text header): Paste Script
+  (Ollie: "just copy and paste a script in": the clipboard goes into the
+  script, or after what's there, and the panels are made), Make Panels,
+  Import (file).
+- Crash guard (Ollie: Blender crashed painting while the camera had just
+  moved): nothing swaps layer images or changes the canvas sheet during a
+  brush stroke. storyboard/stroke_guard: a stroke starts at the camera box's
+  pass-through press, ends at the painted-image depsgraph update (60 s
+  timeout); canvas_fit and the layer_motion re-aim timers wait while busy.
+  The camera box grows the painting right when its drag ends.
+- Quick brush resize (Ollie): Ctrl+Alt+right-click and move the pen (the
+  side button, in the air): Blender's radial control on the brush size,
+  let go to set (release_confirm).
 - Panel images (thumbnails) show the panel where it starts: camera start
   frame (rotation left out) and layers at their start.
 - Motion presets (presets/motion/): Straight, Ease in, Ease out, Ease in-out,

@@ -8,6 +8,10 @@ replaced. Lines that already have a panel are left alone, so running it
 again after adding lines only adds the new ones. Each panel lasts about as
 long as its line takes to read (SCRIPT_PANELS in config/timeline.py).
 
+The script bar (on top of the script panel): Paste Script pastes what you
+copied into the script (replacing an empty one, else added at the end) and
+makes the panels; Make Panels does it for what's typed; Import reads a file.
+
 A panel remembers its line, so clicking that line in the script jumps to
 it (until it's been recorded: then to where it's spoken).
 """
@@ -154,12 +158,39 @@ class PLASTRON_OT_script_import(bpy.types.Operator, ImportHelper):
         return _report(self, make_panels(context.scene, text))
 
 
-classes = (PLASTRON_OT_script_panels, PLASTRON_OT_script_import)
+class PLASTRON_OT_script_paste(bpy.types.Operator):
+    """Paste the script you copied (from anywhere) and make a panel for each line"""
+    bl_idname = "plastron.script_paste"
+    bl_label = "Paste Script"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        body = context.window_manager.clipboard.replace("\r\n", "\n").replace("\r", "\n")
+        if not body.strip():
+            self.report({'INFO'}, "Copy a script first (nothing to paste)")
+            return {'CANCELLED'}
+        text = script_text() or bpy.data.texts.new(defaults.SCRIPT_TEXT_NAME)
+        old = text.as_string()
+        text.from_string(body if not old.strip() else old.rstrip("\n") + "\n" + body)
+        return _report(self, make_panels(context.scene, text))
+
+
+def draw_bar(self, context):
+    """The script bar (replaces Blender's text editor header)."""
+    row = self.layout.row(align=True)
+    row.operator("plastron.script_paste", text="Paste Script", icon='PASTEDOWN')
+    row.operator("plastron.script_panels", text="Make Panels", icon='SEQ_STRIP_DUPLICATE')
+    self.layout.operator("plastron.script_import", text="", icon='FILEBROWSER')
+
+
+classes = (PLASTRON_OT_script_panels, PLASTRON_OT_script_import, PLASTRON_OT_script_paste)
 
 
 def register():
     for cls in classes:
         bpy.utils.register_class(cls)
+    from ...core import hidden_ui
+    hidden_ui.replace("TEXT_HT_header", "draw", draw_bar)
 
 
 def unregister():

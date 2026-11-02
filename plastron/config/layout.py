@@ -38,7 +38,7 @@ DEFAULT_MODE = "Storyboard"
 AREAS = {
     "script": {
         "editor": 'TEXT_EDITOR',
-        "header": False, "footer": False, "sidebar": False,
+        "header": True, "footer": False, "sidebar": False,     # header: the script bar
         "settings": {
             "show_line_numbers": True,
             "show_word_wrap": True,

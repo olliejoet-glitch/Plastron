@@ -80,6 +80,9 @@ def _timer():
     wait = FIT["delay"] - (time.monotonic() - _pending["last"])
     if wait > 0.01:
         return wait                        # the camera's still being moved
+    from ..storyboard import stroke_guard
+    if stroke_guard.busy():
+        return 0.25                        # never swap images under a brush stroke (crashed)
     names, _pending["strips"] = _pending["strips"], set()
     scene = bpy.context.scene
     sed = scene.sequence_editor if scene else None

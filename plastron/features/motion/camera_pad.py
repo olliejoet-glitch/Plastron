@@ -195,7 +195,9 @@ class PLASTRON_OT_camera_pad(bpy.types.Operator):
         region = context.region
         part = part_at(region, event.mouse_region_x, event.mouse_region_y)
         if part is None:
-            return {'PASS_THROUGH'}          # not on the box: paint as usual
+            from ..storyboard import stroke_guard
+            stroke_guard.began()             # not on the box: a brush stroke starts
+            return {'PASS_THROUGH'}
         scene = context.scene
         strip = camera.shot(scene)
         if part in {"START", "END"}:
@@ -214,6 +216,8 @@ class PLASTRON_OT_camera_pad(bpy.types.Operator):
         self.start_value = camera.as_tuple(state)
         if event.value == 'DOUBLE_CLICK':     # put that part back
             reset_part(state, part)
+            self.strip_name = strip.name
+            self._grow(context)
             self._push(context)
             return {'FINISHED'}
         self.mouse = (event.mouse_x, event.mouse_y)
@@ -243,6 +247,14 @@ class PLASTRON_OT_camera_pad(bpy.types.Operator):
         view_follow.follow(context.scene)
         context.area.tag_redraw()
 
+    def _grow(self, context):
+        """The painting grows to fit the move now, while nothing is painting
+        (the pen was on this box)."""
+        strip = self._strip(context)
+        if strip is not None:
+            from . import canvas_fit
+            canvas_fit.fit(strip)
+
     def _push(self, context):
         try:
             bpy.ops.ed.undo_push(message="Camera move")
@@ -255,6 +267,7 @@ class PLASTRON_OT_camera_pad(bpy.types.Operator):
             self._apply(context, event)
             return {'RUNNING_MODAL'}
         if event.type == 'LEFTMOUSE' and event.value == 'RELEASE':
+            self._grow(context)
             self._push(context)
             return {'FINISHED'}
         if event.type in {'ESC', 'RIGHTMOUSE'} and event.value == 'PRESS':

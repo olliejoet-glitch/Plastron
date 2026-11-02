@@ -138,6 +138,33 @@ def steps():
         bpy.ops.plastron.canvas_tool(tool='PENCIL')
     h.check("...and Off turns it all off", stab_state()[:2] == (1, False), stab_state())
 
+    # Quick brush resize (Ollie): Ctrl+Alt+right-click, move the pen (in the air), let go.
+    def size_now():
+        return ups.size if ups.use_unified_size else ip.brush.size
+    area3d = h.area('VIEW_3D')
+    reg3d = h.region(area3d)
+    cx, cy = reg3d.x + reg3d.width // 2, reg3d.y + reg3d.height // 2
+    before = size_now()
+    h.move(cx, cy)
+    yield 0.3
+    h.key('ESC')                      # (close the stabiliser pop-up opened above)
+    yield 0.3
+    h.hold_mods({"ctrl": True, "alt": True}, 'PRESS')
+    h._event('RIGHTMOUSE', 'PRESS', ctrl=True, alt=True)
+    yield 0.2
+    for i in range(1, 9):
+        h.move(cx + 25 * i, cy, ctrl=True, alt=True)
+        yield 0.03
+    h._event('RIGHTMOUSE', 'RELEASE', ctrl=True, alt=True)
+    h.hold_mods({"ctrl": True, "alt": True}, 'RELEASE')
+    yield 0.3
+    h.check("Ctrl+Alt+right-drag resizes the brush (let go to set)", size_now() != before,
+            (before, size_now()))
+    if ups.use_unified_size:
+        ups.size = before
+    else:
+        ip.brush.size = before
+
     # Paint (directly), save, reopen.
     img = st.layers[0].paint_image
     w, hgt = img.size

@@ -69,7 +69,7 @@ def steps():
                 main.view2d.region_to_view(0, 0)[1] <= 1.0 and
                 main.view2d.region_to_view(0, main.height)[1] >= 5.0,
                 (main.view2d.region_to_view(0, 0)[1], main.view2d.region_to_view(0, main.height)[1]))
-        h.check("script panel: no header", not script.spaces.active.show_region_header)
+        h.check("script panel: has its bar (Paste Script...)", script.spaces.active.show_region_header)
         h.check("script panel shows the project's Script",
                 script.spaces.active.text and script.spaces.active.text.name == defaults.SCRIPT_TEXT_NAME)
     h.check("status bar hidden", not screen.show_statusbar)
