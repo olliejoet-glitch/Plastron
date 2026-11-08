@@ -66,3 +66,11 @@ HEADER_COLORS = {
     "video_track":   "#5d7a76",    # small kind marker
     "audio_track":   "#2f6a8a",
 }
+
+# Fades: the little handles at a clip's top corners (drag inward to fade).
+FADE_HANDLE_PX = 9            # how near counts as grabbing one (also its size)
+FADE_HANDLE_Y = 0.9           # their height in the row (0 = bottom, 1 = top)
+FADE_RAMP_BOTTOM = 0.12       # where the drawn ramp starts at the clip's edge
+FADE_MIN_CLIP_PX = 28         # clips narrower than this on screen show no handles
+FADE_COLOR = "#ffffffcc"
+DIP_SECONDS = 0.5             # Ctrl+D: a dip on the cut (half out, half in)

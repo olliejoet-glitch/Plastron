@@ -62,8 +62,8 @@ theme, and keymap, with Photoshop-style drawing shortcuts.
   (`features/edit`, `timeline/edit_keys.py`). Then: clips stay on tracks
   they belong on (`timeline/placement.py`), Clip panel (opacity, blend,
   flips, speed, volume), move / size / turn a clip by hand in the preview.
-  Then info windows (nested timelines in a UI frame, `features/edit/windows.py`).
-  Next: fades / transitions, then audio mode.
+  Then info windows (nested timelines in a UI frame, `features/edit/windows.py`),
+  fades (`timeline/fades.py`). Next: wait for Ollie (ideas: audio mode).
 - **DONE: drawing switched from grease pencil to RASTER** (Ollie: wants to
   select/move pixels, lay down blobs of colour, erase precisely). Brush engine
   = **Blender's own Texture Paint** (fast, Ollie likes the feel, can add his own
@@ -92,7 +92,8 @@ theme, and keymap, with Photoshop-style drawing shortcuts.
      All handlers go through `core/handlers.py`; a test fails if any per-frame
      handler appears (update that test deliberately if one is ever justified).
    - Exception: the 3D Camera's keyframes (Ollie asked for auto-keyed
-     camera moves) are played by Blender's animation system.
+     camera moves) are played by Blender's animation system. Fades too:
+     a few keyframes per faded clip (opacity / volume), written on edit.
    - Exception (Ollie: "I really need the layers to move with playback"):
      motion plays live. The motion frame hook moves the canvas view (camera)
      and writes a few shader values per MOVING layer (moved or at a depth); which layers move is
@@ -193,8 +194,8 @@ Plastron/
 │  │                         ripple (pure planners), snapping, mix, track_headers,
 │  │                         header, ops, view (framing), edit_tools (Move / Slice),
 │  │                         edit_keys (Q / W, Up / Down, J / K / L), placement (which
-│  │                         clips may go on which track), events (features listen;
-│  │                         timeline knows no features)
+│  │                         clips may go on which track), fades (fade in / out, dips),
+│  │                         events (features listen; timeline knows no features)
 │  ├─ layers/                Photoshop-style layer stacks on materials (from CaraPainter):
 │  │                         props, blend_lib, layer_trees, compiler (node trees),
 │  │                         flatten (same maths in numpy), stack (edits), paint_target
@@ -884,6 +885,19 @@ Plastron/
   inside; going back, the window clip's length follows (ripple). The preview
   box sizes the whole window by its frame picture. Saved inside a window /
   switching mode inside one: back on the main timeline first.
+- Fades (timeline/fades.py, any mode): strip.plastron.fade_in / fade_out
+  (frames) + strip.plastron.opacity (a clip's own opacity, what fades rise
+  to; the Clip panel shows it, not blend_alpha). Written as linear
+  keyframes (group "Fades") on blend_alpha / volume, rewritten only when a
+  signature (name, span, fades, base) changes; sounds go up to the mix
+  volume (mix.py writes through fades.write). Small handles at each clip's
+  top corners (FADE_* in config/timeline.py): drag inward to fade (linked
+  clips with the same span follow); the ramp is drawn over the clip.
+  Ctrl+D = dip on the cut at the playhead (DIP_SECONDS, half out / half
+  in; active track first). Split: the left half keeps the fade in, the
+  right half the fade out. A true crossfade (both pictures at once) needs
+  overlapping clips, which tracks don't allow: not done. Fade keys also
+  show in the Storyboard keyframe view (Dope Sheet).
 - Editing keys: Q / W trim the clip under the playhead (selected, else the
   active track's) from its start / to its end at the playhead; Up / Down
   jump to the previous / next cut (any track; also over the canvas); J / K /

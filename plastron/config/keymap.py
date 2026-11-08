@@ -140,6 +140,8 @@ SHORTCUTS = [
     ("timeline",     "A",                "plastron.timeline_tool",       "Move tool (move / resize clips)", {"tool": 'MOVE'}),
     # Premiere's editing keys (over the timeline; J / K / L, Up / Down also
     # over the video preview; Up / Down over the canvas too).
+    ("timeline",     "LMB",              "plastron.fade_drag",           "Drag a clip's top-corner handle inward: fade in / out"),
+    ("timeline",     "Ctrl+D",           "plastron.fade_dip",            "Dip on the cut at the playhead (fade out, fade in)"),
     ("timeline",     "Q",                "plastron.trim_to_playhead",    "Trim the clip's start to the playhead (ripple closes up)",
      {"side": 'LEFT'}),
     ("timeline",     "W",                "plastron.trim_to_playhead",    "Trim the clip's end to the playhead (ripple closes up)",
@@ -170,7 +172,7 @@ SHORTCUTS = [
 # item on the same key keeps working (e.g. the script click still places
 # the text cursor). board_click only runs while the Board view is on (its
 # poll), so the timeline's own clicks work normally otherwise.
-PASSES_ON = {"plastron.board_click", "plastron.preview_transform", "plastron.view_focus", "plastron.camera_pad", "plastron.drag_scroll", "plastron.script_click", "plastron.transcript_click", "plastron.transcript_hover"}
+PASSES_ON = {"plastron.board_click", "plastron.preview_transform", "plastron.fade_drag", "plastron.view_focus", "plastron.camera_pad", "plastron.drag_scroll", "plastron.script_click", "plastron.transcript_click", "plastron.transcript_hover"}
 
 # Blender items switched off even though BLENDER_KEEP keeps their keymap.
 BLENDER_DROP = {

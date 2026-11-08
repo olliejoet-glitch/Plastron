@@ -11,6 +11,7 @@
     edit_tools.py     Move / Slice tools (S / A)
     edit_keys.py      Q / W trim to playhead, Up / Down jump to cuts, J / K / L
     placement.py      which clips may go on which track (kept after Blender's drags)
+    fades.py          fade in / out per clip (corner handles; Ctrl+D dip at a cut)
     events.py         events features listen to
 """
 
@@ -18,9 +19,9 @@ import bpy
 
 from ..config import project_defaults
 from ..core import handlers
-from . import clips, edit_keys, edit_tools, events, header, mix, ops, placement, snapping, track_headers, tracks
+from . import clips, edit_keys, edit_tools, events, fades, header, mix, ops, placement, snapping, track_headers, tracks
 
-_MODULES = (tracks, mix, header, track_headers, ops, edit_tools, edit_keys, placement)
+_MODULES = (tracks, mix, header, track_headers, ops, edit_tools, edit_keys, placement, fades)
 _pending = set()   # scene names waiting for a debounced clips_changed
 
 

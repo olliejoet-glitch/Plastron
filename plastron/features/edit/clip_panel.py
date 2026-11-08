@@ -104,13 +104,17 @@ class PLASTRON_PT_clip(bpy.types.Panel):
         visual = strip.type != 'SOUND'
         if visual and not _is_panel(strip):
             col = layout.column(align=True)
-            col.prop(strip, "blend_alpha", text="Opacity", slider=True)
+            col.prop(strip.plastron, "opacity", text="Opacity", slider=True)
             col.prop(strip, "blend_type", text="")
             row = layout.row(align=True)
             row.prop(strip, "use_flip_x", text="Flip ↔", toggle=True)
             row.prop(strip, "use_flip_y", text="Flip ↕", toggle=True)
             layout.label(text="Drag it in the picture to move / size / turn it")
             layout.operator("plastron.clip_reset_frame", icon='LOOP_BACK')
+        layout.separator()
+        row = layout.row(align=True)                 # (or drag the clip's corner handles on the timeline)
+        row.prop(strip.plastron, "fade_in", text="Fade In")
+        row.prop(strip.plastron, "fade_out", text="Out")
         if strip.type in {'MOVIE', 'SOUND'}:
             layout.separator()
             layout.label(text="Speed")
