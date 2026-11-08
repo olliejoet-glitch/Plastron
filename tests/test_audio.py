@@ -134,7 +134,33 @@ def more_steps(sc, folder, voice, music):
 
 
 def beat_steps(sc, folder):
-    yield 0.1
+    # --- Beats: a 120 BPM click track -> a marker every half second.
+    fps = sc.render.fps / sc.render.fps_base
+    x = np.random.RandomState(1).randn(int(10 * RATE)).astype(np.float32) * 0.005
+    for k in range(20):
+        i = int((0.25 + k * 0.5) * RATE)
+        x[i:i + 600] += np.random.RandomState(k).randn(600).astype(np.float32) * 0.5
+    song = add_sound(sc, write_wav(os.path.join(folder, "clicks.wav"), x), track_named(sc, "Music"), 200)
+    events.clips_changed(sc)
+    for s in clips.all_clips(sc):
+        s.select = s == song
+    with h.override('SEQUENCE_EDITOR'):
+        bpy.ops.plastron.beats_find()
+    marks = sorted(m.frame for m in sc.timeline_markers if m.name == cfg.BEAT_MARKER)
+    gaps = np.diff(marks)
+    h.check("Find Beats: a marker on every beat (120 BPM = every half second)",
+            len(marks) >= 18 and np.all(np.abs(gaps - 0.5 * fps) <= 1), (len(marks), list(gaps)))
+    h.check("...on the beats themselves", abs(marks[0] - (200 + 0.25 * fps)) <= 2, marks[:3])
+    snapping = h.module("timeline.snapping")
+    h.check("...and clips snap to them", set(marks) <= set(snapping.targets(sc)))
+    with h.override('SEQUENCE_EDITOR'):
+        bpy.ops.sequencer.view_all()
+    h.redraw()
+    yield 0.4
+    h.screenshot("audio_beats")
+    with h.override('SEQUENCE_EDITOR'):
+        bpy.ops.plastron.beats_clear()
+    h.check("Clear Beats removes them", not [m for m in sc.timeline_markers if m.name == cfg.BEAT_MARKER])
 
 
 h.run(steps())

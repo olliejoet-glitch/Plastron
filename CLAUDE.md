@@ -63,7 +63,12 @@ theme, and keymap, with Photoshop-style drawing shortcuts.
   they belong on (`timeline/placement.py`), Clip panel (opacity, blend,
   flips, speed, volume), move / size / turn a clip by hand in the preview.
   Then info windows (nested timelines in a UI frame, `features/edit/windows.py`),
-  fades (`timeline/fades.py`). Next: wait for Ollie (ideas: audio mode).
+  fades (`timeline/fades.py`).
+- **Audio mode, first milestone done**: "Audio" mode (picture over a big
+  timeline with a Sound sidebar), mix per track, loudness Normalise (LUFS),
+  auto-ducking under the voice, beat markers (`features/audio`). Next: wait
+  for Ollie (from the brief: breath remover, creature voice stacks, music
+  fitting; also captions .srt, colour grading...).
 - **DONE: drawing switched from grease pencil to RASTER** (Ollie: wants to
   select/move pixels, lay down blobs of colour, erase precisely). Brush engine
   = **Blender's own Texture Paint** (fast, Ollie likes the feel, can add his own
@@ -169,6 +174,7 @@ Plastron/
 │  │  ├─ review.py           shot statuses, guides, speeds, temp sounds, board look, compare
 │  │  ├─ export.py           animatic size / codec, panel sheet page + grid
 │  │  ├─ edit.py             Edit mode: Video Sound track, still length, preview size / proxies, bin folder
+│  │  ├─ audio.py            Audio mode: loudness targets, ducking, beats
 │  │  ├─ theme.py            palette + where each colour is used; canvas overlay colours
 │  │  ├─ hidden_ui.py        Blender panels/shelves to hide, headers to replace
 │  │  ├─ preferences.py      Blender preferences set at every start
@@ -235,6 +241,8 @@ Plastron/
 │  │                         tracks; Blender's drops re-placed), bin (media bin, preview size),
 │  │                         clip_panel (Clip panel), frame_box (move / size / turn in the preview),
 │  │                         windows (info windows: a clip with its own timeline in a UI frame)
+│  │  └─ audio/              Audio mode: analysis (numpy: LUFS, envelope, beats), loudness
+│  │                         (Normalise), duck (auto-ducking), beats (markers), panel (Sound panel)
 │  ├─ presets/               ★ preset files, one folder per kind (brushes/, motion/, windows/); README
 │  │                         lists the fields. Store code: core/presets.py
 │  └─ assets/                icon_256.png, plastron.ico
@@ -351,6 +359,11 @@ Plastron/
   tools (Move / Transform gizmo) here, though clicks select; Plastron's own
   box (features/edit/frame_box) is used and tested instead. The preview's
   view is in project pixels, (0, 0) at the frame's middle.
+- Reading sound as numbers: aud.Sound(path).rechannel(1).resample(rate,
+  False).data() -> numpy (n, 1). bpy Sounds have no aud factory in 5.2; a
+  packed sound is written to a temp file first (features/audio/analysis).
+- The sequencer preview's sidebar has a C-defined Metadata panel that
+  can't be hidden (shows when no Plastron panel does).
 - A scene strip shows another scene's timeline with scene_input
   'SEQUENCER'; empty parts are see-through. Switching window.scene (and
   workspace.sequencer_scene) makes all Plastron code (context.scene) work on
@@ -460,7 +473,7 @@ Plastron/
   when the drag starts on a button; it passes on elsewhere, so the canvas /
   timeline pans still work.
 - Top bar: Plastron icon, File (New, Open, Open Recent, Save, Save As, Recover,
-  Quit), undo/redo, mode switcher (Storyboard | Edit). Project name on the right.
+  Quit), undo/redo, mode switcher (Storyboard | Edit | Audio). Project name on the right.
 - Canvas colour: Ollie found white too bright. Default is soft paper
   `#d2cec6`; the Canvas panel (tools area) has swatches (CANVAS_PRESETS in
   config/theme.py) and a picker; the choice is remembered in
@@ -898,6 +911,23 @@ Plastron/
   right half the fade out. A true crossfade (both pictures at once) needs
   overlapping clips, which tracks don't allow: not done. Fade keys also
   show in the Storyboard keyframe view (Dope Sheet).
+- Audio mode (Ollie: "next phase"): layout picture 34 % (no sidebar) over
+  the timeline 66 % with its sidebar showing the Sound tab: Mix (each audio
+  track: volume, Solo, Duck) and Sound Tools. Loudness: BS.1770 LUFS
+  (K-weighting applied in the frequency domain at 48 kHz, 400 ms blocks,
+  -70 / -10 gates); Normalise (Selected / All) sets each sound clip's clip
+  volume so it lands on its kind's target (TARGETS: voice -16, music -24,
+  other -20; kind from the track name, voice clips count as voice). Clip
+  volume can go to 8× (+18 dB) for that. Auto-ducking: audio tracks with
+  Duck on get a gain curve dipping DUCK_DB (-12 dB) wherever the voice
+  tracks (VOICE_TRACKS) are louder than -40 dB, pauses < 0.6 s bridged,
+  0.15 s attack / 0.5 s release; stored as strip["plastron_gain"] and written
+  by fades.write together with fades and the mix volume (keys at every
+  breakpoint); worked out on edits (envelopes cached per file), never in
+  playback. Beats: Find Beats (selected sound clips): spectral-flux onsets,
+  tempo by autocorrelation (60-190 BPM, leaning to ~120), best-fitting grid
+  -> timeline markers named "beat" (old ones in the clip's span replaced;
+  Clear Beats); clip edges snap to markers already.
 - Editing keys: Q / W trim the clip under the playhead (selected, else the
   active track's) from its start / to its end at the playhead; Up / Down
   jump to the previous / next cut (any track; also over the canvas); J / K /

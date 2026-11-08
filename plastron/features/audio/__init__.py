@@ -3,12 +3,13 @@
     analysis   sound as numbers: loudness (LUFS), envelope, beats
     loudness   Normalise: clip volumes to each kind's loudness target
     duck       auto-ducking (tracks with Duck dip under the voice)
+    beats      Find Beats: a marker on every beat of a music clip
     panel      the Sound panel (Audio mode's timeline sidebar)
 """
 
-from . import duck, loudness, panel
+from . import beats, duck, loudness, panel
 
-_MODULES = (loudness, duck, panel)
+_MODULES = (loudness, duck, panel, beats)
 
 
 def register():
