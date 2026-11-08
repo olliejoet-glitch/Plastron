@@ -49,7 +49,13 @@ theme, and keymap, with Photoshop-style drawing shortcuts.
   (box, live in playback), motion presets, Clean View (F)
   (`features/motion`). Then: a 3D multiplane view under the script (track
   cards moved in depth, 3D camera keyed as it moves) (`features/scene3d`).
-- **Next: stage 7** (planning, review, export). Wait for Ollie to ask.
+- **Stage 7 done** (planning, review, export): shot status (clip colour),
+  notes, versions (keep / flip / compare), framing guides, speed playback
+  (pitch kept), temp sounds bin, board view (drag to reorder), exports
+  (animatic MP4, panel sheet PDF, shot list CSV) (`features/review`,
+  `features/export`). Not yet: the animatic shows each panel's start state
+  (no camera moves / 3D camera); drag-and-drop import is Blender's own.
+- **Next**: wait for Ollie to ask.
 - **DONE: drawing switched from grease pencil to RASTER** (Ollie: wants to
   select/move pixels, lay down blobs of colour, erase precisely). Brush engine
   = **Blender's own Texture Paint** (fast, Ollie likes the feel, can add his own
@@ -151,6 +157,8 @@ Plastron/
 │  │  ├─ voice.py            recording, transcription model + prompt, transcript bar look
 │  │  ├─ motion.py           camera zoom / rotation limits, drag handles, shake, layer refresh delay
 │  │  ├─ scene3d.py          the 3D scene: its camera lens, the view's start angle, card colour
+│  │  ├─ review.py           shot statuses, guides, speeds, temp sounds, board look, compare
+│  │  ├─ export.py           animatic size / codec, panel sheet page + grid
 │  │  ├─ theme.py            palette + where each colour is used; canvas overlay colours
 │  │  ├─ hidden_ui.py        Blender panels/shelves to hide, headers to replace
 │  │  ├─ preferences.py      Blender preferences set at every start
@@ -208,6 +216,9 @@ Plastron/
 │  │                         painted-layer UV shift), edit (layer box), thumbnails
 │  │                         (panel_cache hook), ui (Motion panel, presets)
 │  │  └─ scene3d/            the 3D (multiplane) view: track cards, keyed camera, pen-follows modes
+│  │  └─ review/             notes (Panel panel: status, note), versions, guides,
+│  │                         speed (2x etc. playback), sounds (temp sounds bin), board
+│  │  └─ export/             animatic (MP4), sheet (hand-written PDF), shotlist (CSV)
 │  ├─ presets/               ★ preset files, one folder per kind (brushes/, motion/); README
 │  │                         lists the fields. Store code: core/presets.py
 │  └─ assets/                icon_256.png, plastron.ico
@@ -291,6 +302,15 @@ Plastron/
   never do heavy work right after a stroke.
 - `clips._set` must MOVE content for a pure shift (content_start += d):
   moving handles instead trims, which slides a sound clip's audio.
+- Blender 5 video output: set `image_settings.media_type = 'VIDEO'` before
+  `file_format = 'FFMPEG'` (the enum item isn't there otherwise).
+- In camera view, test screenshots are stale until a mouse move + redraw +
+  a short wait.
+- `clips.apply` can't untangle a cyclic reorder (each clip wants another's
+  place): park the clips past the end first (review/board.reorder).
+- A new sound strip overlapping another is bumped: make it on a spare
+  channel, trim it, then set its channel (review/sounds.drop).
+- aud has no audio device under Xvfb: test audio by writing files.
 - Strip.split copies Plastron's PointerProperties (voice takes, panel data).
 - A Plastron action that passes clicks on (PASSES_ON in config/keymap.py)
   doesn't count as a clash, so Blender's own item on that key stays on
@@ -737,5 +757,27 @@ Plastron/
   halves of a split panel keep the whole move.
 - Clean View (F, or the options bar button): outside the frame is hidden in
   the area background colour instead of dimmed.
+- Stage 7 (review): Panel panel (tools area) shows the panel being drawn
+  on: name, status Sketch / Blocking / Animated / Final (sets the clip's
+  colour tag; STATUS in config/review.py), a note, the script line, versions.
+  Versions: New Version keeps the painting (stacked under the panel) and
+  carries on with a copy; arrows flip which one the panel uses; Compare
+  shows the version before, 40 % opaque, just in front of the canvas
+  ("Canvas Compare" sheet). Guides (options bar pop-up, remembered): rule
+  of thirds, YouTube safe areas (action 93 %, title 90 %), 9:16 (Shorts) frame. Speed playback
+  (timeline header 1x / 1.5x / 2x): picture via fps_base, sound mixed down
+  and time-stretched with pitch kept (audaspace), project audio muted while
+  it plays. Temp sounds: a bin folder in Plastron's config
+  (plastron_sounds/, subfolders = tags), Sounds pop-up in the timeline
+  header, + drops at the playhead on a "Temp Sounds" track, pink, named
+  "TEMP ...", Select Temp Sounds finds them. Board (timeline header): the
+  board track's panels (active video track, else first with panels) as
+  cards; drag to reorder (one after another from the first's start, lengths
+  kept), click = playhead there, double-click = back to the timeline.
+- Stage 7 (export, File menu): Export Animatic (MP4, H.264 + AAC, 1920×1080;
+  panels re-flattened at that size from their start state, project render
+  settings put back), Export Panel Sheet (PDF written by hand, A4 landscape,
+  3×2 grid, number / name / status / length / note / script under each),
+  Export Shot List (CSV). config/export.py.
 - Value swatches (value groups sampled from an image) are **deferred** to the
   later "value group editor" feature. Don't build them in storyboard mode.
