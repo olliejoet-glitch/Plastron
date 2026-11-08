@@ -180,6 +180,35 @@ def steps():
     yield from h.drag(c, (c[0] + 60, c[1] + 20), alt=True)
     yield 0.2
     h.check("Alt+drag orbits the 3D scene", space.region_3d.view_rotation.rotation_difference(rot).angle > 0.05)
+    cam = scene3d.camera(sc)
+    h.check("the 3D Camera is drawn big enough to click",
+            abs(cam.data.display_size - cfg.CAMERA_DISPLAY_SIZE) < 1e-4, cam.data.display_size)
+    h.check("the canvas's flat camera can't be clicked by mistake",
+            bpy.data.objects["Canvas Camera"].hide_select)
+    with h.override('SCENE_3D'):
+        bpy.ops.plastron.scene_select_camera()
+    h.check("the scene view's Camera button selects the camera (and only it)",
+            cam.select_get() and bpy.context.view_layer.objects.active == cam
+            and [o.name for o in bpy.context.selected_objects] == [cam.name],
+            [o.name for o in bpy.context.selected_objects])
+    h.redraw()
+    yield 0.3
+    h.screenshot("scene3d_camera_selected")
+    # Clicking the camera itself in the scene view selects it too.
+    for o in bpy.context.selected_objects:
+        o.select_set(False)
+    vreg = h.region(view)
+    from bpy_extras.view3d_utils import location_3d_to_region_2d
+    # a point on the camera's drawing: its frame corner nearest the viewer's side
+    frame = [cam.matrix_world @ v for v in cam.data.view_frame(scene=sc)]
+    p = location_3d_to_region_2d(vreg, space.region_3d, (frame[0] + frame[1]) / 2)
+    h.move(vreg.x + p.x, vreg.y + p.y)
+    yield 0.2
+    h._event('LEFTMOUSE', 'PRESS')
+    h._event('LEFTMOUSE', 'RELEASE')
+    yield 0.3
+    h.check("clicking the camera in the 3D scene selects it", cam.select_get(),
+            [o.name for o in bpy.context.selected_objects])
     h.move(*centre(canvas))
     yield 0.3
     h.move(centre(canvas)[0] + 5, centre(canvas)[1])

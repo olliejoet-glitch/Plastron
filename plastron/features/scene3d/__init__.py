@@ -92,6 +92,8 @@ def ensure(scene):
         return
     cam = camera(scene)
     remember_pose(cam)
+    if abs(cam.data.display_size - cfg.CAMERA_DISPLAY_SIZE) > 1e-4:
+        cam.data.display_size = cfg.CAMERA_DISPLAY_SIZE          # big enough to click
     for _area, space in scene_views():
         if space.camera != cam:
             space.camera = cam
@@ -114,6 +116,8 @@ def ensure(scene):
             flat.hide_viewport = False
         if flat.type == 'CAMERA' and flat.data.display_size > 0.051:
             flat.data.display_size = 0.05
+        if not flat.hide_select:           # clicks in the 3D scene go to the real camera
+            flat.hide_select = True
     bpy.app.timers.register(lambda: hide_shelves() and None, first_interval=0.3)
 
 
@@ -406,6 +410,46 @@ class PLASTRON_OT_view_focus(bpy.types.Operator):
         return {'PASS_THROUGH'}
 
 
+class PLASTRON_OT_scene_select_camera(bpy.types.Operator):
+    """Select the 3D Camera (its move / turn gizmos show straight away)"""
+    bl_idname = "plastron.scene_select_camera"
+    bl_label = "Select Camera"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    @classmethod
+    def poll(cls, context):
+        return context.scene is not None and hasattr(context.scene, "plastron_timeline")
+
+    def execute(self, context):
+        select_camera(context)
+        if context.area is not None:
+            context.area.tag_redraw()
+        return {'FINISHED'}
+
+
+def select_camera(context):
+    cam = camera(context.scene)
+    view_layer = context.view_layer
+    if context.mode != 'OBJECT' and view_layer.objects.active is not None:
+        bpy.ops.object.mode_set(mode='OBJECT')
+    for obj in view_layer.objects:
+        if obj.select_get() and obj != cam:
+            obj.select_set(False)
+    cam.hide_select = False
+    cam.select_set(True)
+    view_layer.objects.active = cam
+    return cam
+
+
+def _draw_header(self, context):
+    """Scene view header: a Camera button (on while the camera is selected)."""
+    if not is_scene_view(context.space_data):
+        return
+    cam = bpy.data.objects.get(cfg.CAMERA_NAME)
+    selected = cam is not None and cam.name in context.view_layer.objects and cam.select_get()
+    self.layout.operator("plastron.scene_select_camera", text="Camera", icon='CAMERA_DATA', depress=selected)
+
+
 # --- card outlines in the scene view (empty cards are see-through) --------------------------
 
 _draw_handle = [None]
@@ -439,7 +483,7 @@ def _draw_cards():
     gpu.state.blend_set('NONE')
 
 
-classes = (PLASTRON_OT_view_focus,)
+classes = (PLASTRON_OT_view_focus, PLASTRON_OT_scene_select_camera)
 
 
 def _on_load(scene):
@@ -476,12 +520,14 @@ def register():
     handlers.add("undo_post", _forget_animated)
     handlers.add("redo_post", _forget_animated)
     _draw_handle[0] = bpy.types.SpaceView3D.draw_handler_add(_draw_cards, (), 'WINDOW', 'POST_VIEW')
+    bpy.types.VIEW3D_HT_header.prepend(_draw_header)      # (left end: the header is narrow)
     handlers.on_load(_on_load)
     from ...timeline import events
     events.listen("project_created", ensure)
 
 
 def unregister():
+    bpy.types.VIEW3D_HT_header.remove(_draw_header)
     if _draw_handle[0] is not None:
         bpy.types.SpaceView3D.draw_handler_remove(_draw_handle[0], 'WINDOW')
         _draw_handle[0] = None

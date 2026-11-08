@@ -10,6 +10,7 @@ ORIGIN = (0.0, 0.0, 0.0)           # the picture plane's middle (where the cards
 CAMERA_NAME = "3D Camera"
 COLLECTION = "3D Scene"
 CAMERA_LENS = 35.0                 # mm. The camera starts square-on, exactly framing the picture
+CAMERA_DISPLAY_SIZE = 3.0          # how big the 3D Camera is drawn (Blender's 1 was hard to click)
 VIEW_DISTANCE = 34.0               # the scene view starts this far from ORIGIN...
 VIEW_ANGLES = (75.0, 0.0, -35.0)   # ...looking at the cards from the front-left (degrees, X/Y/Z)
 CLIP_END = 1000.0

@@ -744,6 +744,12 @@ Plastron/
   another to choose leaked memory). Ctrl+Space maximises any area (again:
   back). Blender's brush shelf strip under it is folded away at load.
   Blender's toolbar panel is no longer hidden in 3D views.
+- Selecting the 3D camera (Ollie: hard to select): a Camera button at the
+  left of the scene view's header selects it (lit while selected); the
+  camera is drawn 3x Blender's size (CAMERA_DISPLAY_SIZE); click / Shift+click
+  select work in the scene view (view3d.select in its "Object Mode" items);
+  the canvas's flat ortho camera (drawn at its full 16-unit frame there)
+  can't be clicked (hide_select).
 - Blend If isn't in the Layers panel any more (Ollie: superfluous); the
   engine still supports it (PLASTRON_PT_blend_if, not registered).
 - Panel images (thumbnails) show the panel where it starts: camera start
