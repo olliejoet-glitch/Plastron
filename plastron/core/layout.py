@@ -239,3 +239,16 @@ def configure_mode(placed):
     """Phase 2 (after a UI refresh): configure each area."""
     for name, area in placed.items():
         configure_area(area, cfg.AREAS[name])
+        if cfg.AREAS[name].get("tool"):
+            set_tool(bpy.context.window, area, cfg.AREAS[name]["tool"])
+
+
+def set_tool(window, area, tool_id):
+    """An area's active tool (saved with its workspace)."""
+    region = next((r for r in area.regions if r.type == 'PREVIEW'), None) or \
+        next((r for r in area.regions if r.type == 'WINDOW'), None)
+    try:
+        with bpy.context.temp_override(window=window, screen=window.screen, area=area, region=region):
+            bpy.ops.wm.tool_set_by_id(name=tool_id, space_type=area.type)
+    except (RuntimeError, TypeError) as err:
+        print("Plastron layout: couldn't set the tool", tool_id, err)

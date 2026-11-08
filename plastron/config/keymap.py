@@ -149,6 +149,8 @@ SHORTCUTS = [
     ("timeline",     "J",                "plastron.shuttle",             "Play backwards", {"direction": -1}),
     ("timeline",     "K",                "plastron.shuttle",             "Stop", {"direction": 0}),
     ("timeline",     "L",                "plastron.shuttle",             "Play"),
+    ("preview",      "LMB",              "plastron.preview_transform",   "Drag the selected clip: inside moves, a corner sizes, outside turns"),
+    ("preview",      "Shift+LMB",        "plastron.preview_transform",   "...turning in 15° steps"),
     ("preview",      "J",                "plastron.shuttle",             "Play backwards", {"direction": -1}),
     ("preview",      "K",                "plastron.shuttle",             "Stop", {"direction": 0}),
     ("preview",      "L",                "plastron.shuttle",             "Play"),
@@ -166,7 +168,7 @@ SHORTCUTS = [
 # item on the same key keeps working (e.g. the script click still places
 # the text cursor). board_click only runs while the Board view is on (its
 # poll), so the timeline's own clicks work normally otherwise.
-PASSES_ON = {"plastron.board_click", "plastron.view_focus", "plastron.camera_pad", "plastron.drag_scroll", "plastron.script_click", "plastron.transcript_click", "plastron.transcript_hover"}
+PASSES_ON = {"plastron.board_click", "plastron.preview_transform", "plastron.view_focus", "plastron.camera_pad", "plastron.drag_scroll", "plastron.script_click", "plastron.transcript_click", "plastron.transcript_hover"}
 
 # Blender items switched off even though BLENDER_KEEP keeps their keymap.
 BLENDER_DROP = {
@@ -199,6 +201,8 @@ BLENDER_KEEP = {
     # Tool keymaps (what a tool does on click/drag) keep everything.
     "3D View Tool: *":       ["*"],
     "Sequencer Tool: *":     ["*"],
+    "Preview Tool: *":       ["*"],                       # Edit mode's preview: move / size / turn clips
+    "Preview":               ["sequencer.select", "sequencer.view_all_preview"],
     "File Browser*":         ["*"],                       # Open / Save / Import dialogs
     "Sequence Editor Tool: Sequencer, Slice": ["*"],      # Plastron's Slice tool
     "Generic Gizmo*":        ["*"],

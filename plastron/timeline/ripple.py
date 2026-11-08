@@ -207,3 +207,82 @@ def split(scene, strips, frame):
     if new:
         events.clips_changed(scene)
     return new
+
+
+# --- Speed ----------------------------------------------------------------------
+
+def _speed_of(strip):
+    return float(strip.get("plastron_speed", 1.0))
+
+
+def _timeline_override():
+    import bpy
+    wm = bpy.context.window_manager
+    for window in (wm.windows if wm else []):
+        for area in window.screen.areas:
+            if area.type == 'SEQUENCE_EDITOR' and area.spaces.active.view_type == 'SEQUENCER':
+                region = next((r for r in area.regions if r.type == 'WINDOW'), None)
+                return dict(window=window, area=area, region=region)
+    return None
+
+
+def _retime(scene, strip, speed):
+    """Blender's own speed change (its retiming): strip plays at speed; it
+    keeps its start."""
+    import bpy
+    where = _timeline_override()
+    if where is None:
+        return False
+    s = clips.start(strip)
+    sed = clips.editor(scene)
+    was = {x: x.select for x in sed.strips_all}
+    active = sed.active_strip
+    for x in was:
+        x.select = x == strip
+    sed.active_strip = strip
+    try:
+        with bpy.context.temp_override(scene=scene, **where):
+            bpy.ops.sequencer.retiming_segment_speed_set(speed=speed * 100.0)
+    except RuntimeError as err:
+        print("Plastron: couldn't change the speed:", err)
+        return False
+    finally:
+        for x, sel in was.items():
+            x.select = sel
+        sed.active_strip = active
+    if clips.start(strip) != s:                  # (keep its start: a pure move)
+        strip.content_start += s - clips.start(strip)
+    if hasattr(strip, "pitch_correction"):
+        strip.pitch_correction = True            # (a voice keeps its pitch)
+    return True
+
+
+def set_speed(scene, strip, speed):
+    """Change a clip's speed (1 = normal, 2 = twice as fast); its linked clips
+    too. The clip keeps its start; ripple tracks close up / make room, else
+    a slower clip stops at the next one."""
+    speed = max(0.05, float(speed))
+    group = [s for s in clips.with_linked([strip], clips.top_clips(scene)) if not _locked(scene, s)]
+    if not group or abs(speed - _speed_of(strip)) < 1e-6:
+        return False
+    ratio = speed / _speed_of(strip)
+    orig = snapshot(scene)
+    s, e = orig[strip]
+    wanted = s + max(MIN_LENGTH, round((e - s) / ratio))
+    plan = plan_trim(scene, orig, strip, 'RIGHT', wanted)
+    allowed_end = plan.get(strip, (s, e))[1]
+    others = {o: t for o, t in plan.items() if o not in group}
+    clips.apply(scene, others)                       # make room / close up first
+    spare = max([x.channel for x in clips.editor(scene).strips_all] + [len(tracks.all_tracks(scene))]) + 1
+    home = {}
+    for i, g in enumerate(group):                    # retimed out of the way, then back
+        home[g] = g.channel
+        g.channel = spare + i
+        _retime(scene, g, speed)
+        if clips.end(g) > allowed_end:
+            g.right_handle = allowed_end
+        g["plastron_speed"] = speed
+    for g in group:
+        g.channel = home[g]
+    events.clips_changed(scene)
+    return True

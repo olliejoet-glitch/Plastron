@@ -122,7 +122,7 @@ AREAS = {
     # Edit mode: the video as it plays (the timeline's picture).
     "preview": {
         "editor": 'SEQUENCE_EDITOR',
-        "header": True, "footer": False, "toolbar": False, "sidebar": False, "hud": False,
+        "header": True, "footer": False, "toolbar": False, "sidebar": True, "hud": False,   # sidebar: Clip panel
         "settings": {
             "view_type": 'PREVIEW',
             "show_overlays": True,

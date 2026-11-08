@@ -26,3 +26,14 @@ PROXY_BUILD = ("build_50",)          # which copies are made (build_25 / 50 / 75
 # Where the media bin starts (the first time): the project's folder once
 # saved, else the first of these that exists ("~" = your home folder).
 MEDIA_START = ("~/Videos", "~")
+
+# The Clip panel (the preview's sidebar): speed buttons.
+SPEED_BUTTONS = (0.5, 1.0, 2.0)
+
+# The box around the selected clip in the preview: drag inside = move, a
+# corner = size, just outside = turn (Shift: in steps).
+FRAME_BOX = {
+    "handle_px": 10,          # how near a corner counts as grabbing it
+    "rotate_px": 40,          # how far outside the box still turns it
+    "rotate_snap_deg": 15,
+}

@@ -2,6 +2,7 @@
 the timeline (video on a video track, its sound on Video Sound), Blender's
 own drops placed again properly, Add to Timeline from the bin."""
 
+import math
 import os
 import subprocess
 import sys
@@ -218,6 +219,85 @@ def steps():
     ripple.delete(sc, [rv])
     h.check("deleting a video deletes its sound", len(clips.all_clips(sc)) == n - 2
             and rs.name not in [s.name for s in clips.all_clips(sc)] if False else len(clips.all_clips(sc)) == n - 2)
+
+    # --- Speed: the clip (and its sound) play faster / slower; ripple closes up.
+    clip = next(s for s in clips.top_clips(sc) if s.type == 'MOVIE' and clips.linked(s))
+    csound = clips.linked(clip)[0]
+    s0, l0 = clips.start(clip), clips.length(clip)
+    after = [s for s in clips.on_channel(sc, clip.channel) if clips.start(s) >= clips.end(clip)]
+    nxt0 = clips.start(after[0]) if after else None
+    for s in clips.all_clips(sc):
+        s.select = s in (clip, csound)
+    sc.sequence_editor.active_strip = clip
+    with h.override('PREVIEW'):
+        bpy.ops.plastron.clip_speed(speed=2.0)
+    h.check("2x speed: the clip (and its sound) half as long, same start",
+            clips.start(clip) == s0 and clips.length(clip) == round(l0 / 2)
+            and (clips.start(csound), clips.end(csound)) == (clips.start(clip), clips.end(clip))
+            and abs(clip['plastron_speed'] - 2.0) < 1e-6,
+            (clips.start(clip), clips.length(clip), l0, clips.length(csound)))
+    if after:
+        h.check("...on a ripple track the next clip closes up", clips.start(after[0]) == nxt0 - (l0 - clips.length(clip)),
+                (clips.start(after[0]), nxt0))
+    with h.override('PREVIEW'):
+        bpy.ops.plastron.clip_speed(speed=1.0)
+    h.check("...and back to normal speed", clips.length(clip) == l0 and clips.length(csound) == l0,
+            (clips.length(clip), l0))
+    h.check("a sped-up voice keeps its pitch", csound.pitch_correction)
+
+    # --- The preview: a box around the selected clip; drag to move / size / turn it.
+    fb = h.module("features.edit.frame_box")
+    pv = h.area('PREVIEW')
+    sc.frame_current = clips.start(clip) + 2
+    for s_ in clips.all_clips(sc):
+        s_.select = s_ in (clip, csound)
+    sc.sequence_editor.active_strip = clip
+    with h.override('PREVIEW', 'PREVIEW'):
+        bpy.ops.sequencer.view_all_preview()
+        bpy.ops.view2d.zoom_out()           # (room around the picture for the corners)
+        bpy.ops.view2d.zoom_out()
+    h.redraw()
+    yield 0.5
+    preg = h.region(pv, 'PREVIEW')
+    t = clip.transform
+
+    def at(p):
+        q = fb.to_region(preg, p)
+        return preg.x + q.x, preg.y + q.y
+
+    corners = fb.corners_view(clip)
+    centre = (corners[0] + corners[2]) / 2
+    start = at(centre + (corners[1] - centre) * 0.3)
+    yield from h.drag(start, (start[0] + 60, start[1] + 20), steps=10)
+    yield 0.3
+    h.check("dragging inside the clip's box moves it", t.offset_x > 100 and t.offset_y > 20, (t.offset_x, t.offset_y))
+    sx0 = t.scale_x
+    corners = fb.corners_view(clip)
+    c2 = at(corners[0])                     # (bottom-left: still on screen after the move)
+    centre_r = at((corners[0] + corners[2]) / 2)
+    yield from h.drag(c2, (centre_r[0] + (c2[0] - centre_r[0]) * 0.5, centre_r[1] + (c2[1] - centre_r[1]) * 0.5),
+                      steps=10)
+    yield 0.3
+    h.check("dragging a corner sizes it (keeping its shape)",
+            abs(t.scale_x / sx0 - 0.5) < 0.08 and abs(t.scale_x / t.scale_y - 1.0) < 1e-3, (sx0, t.scale_x, t.scale_y))
+    corners = fb.corners_view(clip)
+    centre_v = (corners[0] + corners[2]) / 2
+    right_mid = (corners[1] + corners[2]) / 2
+    out = at(centre_v + (right_mid - centre_v) * 1.15)
+    centre_r = at(centre_v)
+    up = (centre_r[0], centre_r[1] + (out[0] - centre_r[0]))
+    yield from h.drag(out, up, steps=12, shift=True)
+    yield 0.3
+    h.check("dragging just outside turns it (Shift: 15° steps)", abs(math.degrees(t.rotation) - 90) < 0.5,
+            math.degrees(t.rotation))
+    h.redraw()
+    yield 0.5
+    h.screenshot("edit_clip_panel")
+    with h.override('PREVIEW'):
+        bpy.ops.plastron.clip_reset_frame()
+    h.check("Reset Position puts it back: in the middle, filling the frame, not turned",
+            (t.offset_x, t.offset_y, t.rotation) == (0, 0, 0) and abs(t.scale_x - sx0) < 1e-4
+            and abs(t.scale_y - sx0) < 1e-4, (t.offset_x, t.scale_x, sx0))
 
     with h.override('PREVIEW'):
         bpy.ops.sequencer.view_all_preview()
