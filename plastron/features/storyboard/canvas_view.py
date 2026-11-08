@@ -264,7 +264,7 @@ def fit_all_canvases():
                 space = area.spaces.active
                 fit(window.scene, region, space, space.region_3d)
                 area.tag_redraw()
-            elif area.type == 'SEQUENCE_EDITOR':
+            elif area.type == 'SEQUENCE_EDITOR' and area.spaces.active.view_type == 'SEQUENCER':
                 timeline_view.frame(window, area, region, window.scene)
 
 

@@ -139,6 +139,9 @@ def draw():
     context = bpy.context
     if not on(context) or context.region is None:
         return
+    from ...core.views import is_timeline
+    if not is_timeline(context.space_data):
+        return
     region = context.region
     scene = context.scene
     strips = board_panels(scene)

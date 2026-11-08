@@ -25,9 +25,10 @@ def active_tool(context):
 
 
 def _timeline_area(context):
-    if context.area and context.area.type == 'SEQUENCE_EDITOR':
+    from ..core.views import is_timeline
+    if context.area and is_timeline(context.area.spaces.active):
         return context.area
-    return next((a for a in context.window.screen.areas if a.type == 'SEQUENCE_EDITOR'), None)
+    return next((a for a in context.window.screen.areas if is_timeline(a.spaces.active)), None)
 
 
 class PLASTRON_OT_timeline_tool(bpy.types.Operator):
@@ -90,6 +91,9 @@ def _draw_cut_line():
     context = bpy.context
     area, region = context.area, context.region
     if area is None or _hover["area"] != area.as_pointer() or active_tool(context) != 'SLICE':
+        return
+    from ..core.views import is_timeline
+    if not is_timeline(context.space_data):
         return
     scene = context.scene
     frame = cut_frame(scene, region, _hover["x"], _hover["ctrl"])

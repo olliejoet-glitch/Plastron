@@ -20,3 +20,14 @@ def through_camera(space):
     """Is this canvas looking through the 3D Camera?"""
     r3d = getattr(space, "region_3d", None)
     return is_canvas(space) and r3d is not None and r3d.view_perspective == 'CAMERA'
+
+
+def is_timeline(space):
+    """A Sequencer area showing clips (not a video preview: Edit mode has both)."""
+    return space is not None and getattr(space, "type", "") == 'SEQUENCE_EDITOR' and \
+        getattr(space, "view_type", 'SEQUENCER') == 'SEQUENCER'
+
+
+def is_preview(space):
+    return space is not None and getattr(space, "type", "") == 'SEQUENCE_EDITOR' and \
+        getattr(space, "view_type", '') == 'PREVIEW'

@@ -98,6 +98,8 @@ def configure_area(area, spec):
         if key in spec and hasattr(space, attr):
             setattr(space, attr, spec[key])
     for path, value in spec.get("settings", {}).items():
+        if path == "view_type":          # (set_view_types, a refresh earlier)
+            continue
         set_path(space, path, value)
     if area.type == 'VIEW_3D':
         if spec.get("scene_view"):
@@ -106,6 +108,8 @@ def configure_area(area, spec):
             _setup_canvas_view(space)
     if area.type == 'PROPERTIES':
         _properties_as_panel_holder(space)
+    if area.type == 'FILE_BROWSER' and spec.get("media_browser"):
+        setup_media_browser(space)
 
 
 def _properties_as_panel_holder(space):
@@ -115,6 +119,26 @@ def _properties_as_panel_holder(space):
         name = prop.identifier
         if name.startswith("show_properties_"):
             setattr(space, name, name == "show_properties_" + space.context.lower())
+
+
+MEDIA_FILTERS = ("use_filter_movie", "use_filter_sound", "use_filter_image", "use_filter_folder")
+
+
+def setup_media_browser(space):
+    """The media bin: thumbnails of video, sound and pictures (and folders)."""
+    params = space.params
+    if params is None:              # (made when the area first draws)
+        return False
+    params.display_type = 'THUMBNAIL'
+    params.use_filter = True
+    for prop in params.bl_rna.properties:
+        name = prop.identifier
+        if name.startswith("use_filter_") and prop.type == 'BOOLEAN' and name != "use_filter":
+            if name in ("use_filter_blender", "use_filter_backup", "use_filter_blendid"):
+                setattr(params, name, False)
+            else:
+                setattr(params, name, name in MEDIA_FILTERS)
+    return True
 
 
 def use_project_scene(window):
@@ -200,6 +224,15 @@ def split_mode(window, mode_name, placed):
     for name, area in placed.items():
         area.type = cfg.AREAS[name]["editor"]
     window.screen.show_statusbar = cfg.WINDOW["status_bar"]
+
+
+def set_view_types(placed):
+    """Phase 1b: a Sequencer area's view (timeline / preview). Like an editor
+    type, it needs a UI refresh before the area's other settings."""
+    for name, area in placed.items():
+        view_type = cfg.AREAS[name].get("settings", {}).get("view_type")
+        if view_type and area.spaces.active.view_type != view_type:
+            area.spaces.active.view_type = view_type
 
 
 def configure_mode(placed):

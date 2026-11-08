@@ -154,6 +154,9 @@ def draw():
     scene, region = context.scene, context.region
     if scene is None or not hasattr(scene, "plastron_timeline") or scene.sequence_editor is None:
         return
+    from ...core.views import is_timeline
+    if not is_timeline(context.space_data):
+        return
     boxes, ellipses, bands = layout_for(region, scene)
     shader = gpu.shader.from_builtin('UNIFORM_COLOR')
     gpu.state.blend_set('ALPHA')

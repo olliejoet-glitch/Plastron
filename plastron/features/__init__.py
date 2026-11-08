@@ -14,6 +14,7 @@ FEATURES = [
     "scene3d",
     "review",
     "export",
+    "edit",
 ]
 
 _loaded = []

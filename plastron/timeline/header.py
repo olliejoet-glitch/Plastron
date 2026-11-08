@@ -11,10 +11,27 @@ def add_section(func):
     _sections.append(func)
 
 
+def draw_preview(layout, context):
+    """Edit mode's video preview: transport, frame, how big the picture plays."""
+    scene = context.scene
+    playing = context.screen.is_animation_playing
+    row = layout.row(align=True)
+    row.operator("screen.frame_jump", text="", icon='REW').end = False
+    row.operator("screen.animation_play", text="", icon='PAUSE' if playing else 'PLAY')
+    row.operator("screen.frame_jump", text="", icon='FF').end = True
+    layout.prop(scene, "frame_current", text="")
+    layout.separator_spacer()
+    layout.prop(context.space_data, "proxy_render_size", text="")
+    layout.operator("sequencer.view_all_preview", text="", icon='ZOOM_ALL')
+
+
 def draw(self, context):
     layout = self.layout
     scene = context.scene
     playing = context.screen.is_animation_playing
+    if getattr(context.space_data, "view_type", 'SEQUENCER') == 'PREVIEW':
+        draw_preview(layout, context)
+        return
 
     row = layout.row(align=True)
     row.operator("screen.frame_jump", text="", icon='REW').end = False

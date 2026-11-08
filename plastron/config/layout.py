@@ -23,6 +23,15 @@ MODES = {
         ]},
         {"size": 0.30, "area": "timeline"},
     ]},
+    # Cutting the real video on the same timeline: media (your files, drag
+    # them onto the timeline) | the video preview; the timeline below.
+    "Edit": {"rows": [
+        {"size": 0.58, "columns": [
+            {"size": 0.24, "area": "media"},
+            {"size": 0.76, "area": "preview"},
+        ]},
+        {"size": 0.42, "area": "timeline"},
+    ]},
 }
 
 # The mode Plastron opens in.
@@ -101,6 +110,22 @@ AREAS = {
             "ui_mode": 'DOPESHEET',
             "dopesheet.show_only_selected": False,
             "show_region_channels": True,
+        },
+    },
+    # Edit mode: Blender's file browser as the media bin (thumbnails; drag a
+    # file onto the timeline). Plastron puts dropped clips on the right tracks.
+    "media": {
+        "editor": 'FILE_BROWSER',
+        "header": True, "toolbar": True, "sidebar": False,     # toolbar: drives / bookmarks
+        "media_browser": True,
+    },
+    # Edit mode: the video as it plays (the timeline's picture).
+    "preview": {
+        "editor": 'SEQUENCE_EDITOR',
+        "header": True, "footer": False, "toolbar": False, "sidebar": False, "hud": False,
+        "settings": {
+            "view_type": 'PREVIEW',
+            "show_overlays": True,
         },
     },
     "tools": {

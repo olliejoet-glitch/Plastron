@@ -51,6 +51,9 @@ def build_steps():
         placed = {}
         yield from layout.split_mode(window, mode, placed)
         yield
+        layout.set_view_types(placed)
+        yield
+        yield
         layout.configure_mode(placed)
         yield
         layout.hide_navigation_bars(window, placed)

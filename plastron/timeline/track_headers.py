@@ -128,6 +128,9 @@ def draw_active_row():
     scene, region = context.scene, context.region
     if scene is None or not hasattr(scene, "plastron_timeline"):
         return
+    from ..core.views import is_timeline
+    if not is_timeline(context.space_data):
+        return
     active = tracks.active(scene)
     ch = tracks.channel_of(scene, active) if active else None
     if ch is None:
