@@ -104,6 +104,37 @@ def steps():
             len(clips.all_clips(sc)) == before + 2
             and any(s.type == 'MOVIE' and clips.start(s) == 500 for s in clips.all_clips(sc)))
 
+    # A real drag from the media bin onto the timeline (Blender's own drop,
+    # then placed properly): a folder with just the video, its first thumbnail.
+    only = os.path.join(bpy.app.tempdir, "drag")
+    os.makedirs(only, exist_ok=True)
+    import shutil
+    shutil.copy(movie, os.path.join(only, "drag.mp4"))
+    barea = h.area('FILE_BROWSER')
+    browser.params.directory = only.encode() if isinstance(browser.params.directory, bytes) else only
+    with h.override('FILE_BROWSER'):
+        bpy.ops.file.refresh()
+    h.redraw()
+    yield 1.0
+    breg = h.region(barea)
+    item = (breg.x + 61, breg.y + breg.height - 70)
+    tl = h.area('SEQUENCE_EDITOR')
+    treg = h.region(tl)
+    # drop on the Background track (a video track) at frame ~800
+    bg = next(t for t in tracks.video_tracks(sc) if tracks.name(sc, t) == "Background")
+    x, y = treg.view2d.view_to_region(clips.end(max(clips.all_clips(sc), key=clips.end)) + 20,
+                                      tracks.channel_of(sc, bg) + 0.5, clip=False)
+    yield from h.drag(item, (treg.x + min(x, treg.width - 40), treg.y + y), steps=12)
+    yield 0.5
+    h.redraw()
+    yield 0.5
+    dragged = [s for s in clips.all_clips(sc) if s.type == 'MOVIE' and "drag" in s.name]
+    h.check("dragging a file from the bin onto a track puts it there (its sound on Video Sound)",
+            dragged and dragged[0].channel == tracks.channel_of(sc, bg) and media.is_media(dragged[0])
+            and any(s.type == 'SOUND' and "drag" in s.name and s.channel == tracks.channel_of(sc, vs)
+                    for s in clips.all_clips(sc)),
+            [(s.name, s.type, s.channel) for s in clips.all_clips(sc)])
+
     right = ripple.split(sc, [video], clips.start(video) + 24)
     h.check("splitting footage keeps both halves as media", right and media.is_media(right[0]))
     yield 0.3

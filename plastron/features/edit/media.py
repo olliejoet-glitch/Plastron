@@ -177,7 +177,9 @@ def take_drops(scene, **_info):
         groups.setdefault(os.path.normpath(path), []).append(strip)
     for path, group in groups.items():
         main = next((s for s in group if s.type != 'SOUND'), group[0])
-        frame, channel = clips.start(main), main.channel
+        # Blender drops a video's sound on the channel under the mouse and the
+        # picture just above it: the lowest channel is where it was dropped.
+        frame, channel = clips.start(main), min(s.channel for s in group)
         for strip in group:
             sed.strips.remove(strip)
         result = place(scene, path, frame, tracks.track_of_channel(scene, channel))
