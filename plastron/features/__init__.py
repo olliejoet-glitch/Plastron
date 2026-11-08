@@ -12,6 +12,7 @@ FEATURES = [
     "canvas_edit",
     "motion",
     "scene3d",
+    "review",
 ]
 
 _loaded = []

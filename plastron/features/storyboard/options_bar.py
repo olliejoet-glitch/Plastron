@@ -30,6 +30,7 @@ def draw(self, context):
         layout.prop(wm, "plastron_canvas_3d", text="3D Camera", toggle=True, icon='OUTLINER_OB_CAMERA')
     if hasattr(wm, "plastron_camera_view") and not getattr(wm, "plastron_canvas_3d", False):
         layout.prop(wm, "plastron_camera_view", text="Camera View", toggle=True, icon='VIEW_CAMERA')
+    layout.popover("PLASTRON_PT_guides", text="Guides", icon='GRID')
     layout.prop(wm, "plastron_clean_view", text="Clean View", toggle=True,
                 icon='HIDE_ON' if wm.plastron_clean_view else 'HIDE_OFF')
 
