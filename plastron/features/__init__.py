@@ -15,6 +15,7 @@ FEATURES = [
     "review",
     "export",
     "edit",
+    "audio",
 ]
 
 _loaded = []

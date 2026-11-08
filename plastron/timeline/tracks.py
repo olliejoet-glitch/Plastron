@@ -48,7 +48,7 @@ def _fades_changed(self, context):
 class PLASTRON_PG_clip(bpy.types.PropertyGroup):
     """Plastron data on every timeline clip (strip.plastron)."""
     volume: bpy.props.FloatProperty(
-        name="Clip Volume", default=1.0, min=0.0, max=2.0, subtype='FACTOR',
+        name="Clip Volume", default=1.0, min=0.0, max=8.0, soft_max=2.0, subtype='FACTOR',
         update=_mix_changed)
     opacity: bpy.props.FloatProperty(
         name="Opacity", description="How see-through the clip's picture is (fades go up to this)",

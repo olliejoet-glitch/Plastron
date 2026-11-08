@@ -19,7 +19,7 @@ def apply(scene, **_info):
         track_volume = track.volume if track else 1.0
         silenced = any_solo and not (track and track.solo)
         volume = 0.0 if silenced else strip.plastron.volume * track_volume
-        if fades.has_fades(strip) or fades.SIG in strip:
+        if fades.has_fades(strip) or fades.SIG in strip:              # (fades, ducking)
             fades.write(scene, strip, volume)          # (fades go up to the mix volume)
         elif abs(strip.volume - volume) > 1e-6:
             strip.volume = volume

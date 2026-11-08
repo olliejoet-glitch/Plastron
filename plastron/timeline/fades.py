@@ -51,12 +51,45 @@ def prop_of(strip):
     return "volume" if strip.type == 'SOUND' else "blend_alpha"
 
 
+GAIN = "plastron_gain"       # extra gain curve on a clip: [(frame, gain)...] (e.g. ducking)
+
+
+def gain_points(strip):
+    raw = strip.get(GAIN)
+    return [tuple(p) for p in raw] if raw else []
+
+
+def set_gain(strip, points):
+    """An extra gain curve (frames, 0-1 gains) multiplied into the clip's
+    volume / opacity (e.g. ducking). Empty: none. True if it changed."""
+    points = [(round(float(f), 2), round(float(g), 4)) for f, g in points]
+    if points == gain_points(strip):
+        return False
+    if points:
+        strip[GAIN] = points
+    elif GAIN in strip:
+        del strip[GAIN]
+    return True
+
+
 def has_fades(strip):
-    return strip.plastron.fade_in > 0 or strip.plastron.fade_out > 0
+    return strip.plastron.fade_in > 0 or strip.plastron.fade_out > 0 or bool(strip.get(GAIN))
+
+
+def _interp(points, f):
+    if not points:
+        return 1.0
+    if f <= points[0][0]:
+        return points[0][1]
+    for (f0, g0), (f1, g1) in zip(points, points[1:]):
+        if f <= f1:
+            return g0 if f1 == f0 else g0 + (g1 - g0) * (f - f0) / (f1 - f0)
+    return points[-1][1]
 
 
 def write(scene, strip, base=None):
-    """Write strip's fades as keyframes (or its plain value if it has none)."""
+    """Write strip's fades (and extra gain curve) as keyframes, or its plain
+    value if it has neither."""
     prop = prop_of(strip)
     if base is None:
         base = strip.plastron.opacity if prop == "blend_alpha" else strip.get("plastron_volume_now", strip.volume)
@@ -65,22 +98,25 @@ def write(scene, strip, base=None):
     if fin + fout > e - s:                                 # (fades can't be longer than the clip)
         k = (e - s) / max(1, fin + fout)
         fin, fout = int(fin * k), int(fout * k)
-    sig = repr((strip.name, s, e, fin, fout, round(base, 5)))
+    extra = [(f, g) for f, g in gain_points(strip) if s <= f <= e]
+    sig = repr((strip.name, s, e, fin, fout, round(base, 5), extra))
     if strip.get(SIG) == sig:
         return
     path = strip.path_from_id(prop)
     _remove(scene, path)
     if prop == "volume":
         strip["plastron_volume_now"] = base
-    if not fin and not fout:
+    if not fin and not fout and not extra:
         setattr(strip, prop, base)
         if SIG in strip:
             del strip[SIG]
         return
-    points = [(s, 0.0), (s + fin, base)] if fin else [(s, base)]
-    points += [(e - fout, base), (e, 0.0)] if fout else [(e, base)]
-    for frame, value in points:
-        setattr(strip, prop, value)
+    shape = [(s, 0.0), (s + fin, 1.0)] if fin else [(s, 1.0)]
+    shape += [(e - fout, 1.0), (e, 0.0)] if fout else [(e, 1.0)]
+    whole = [(s, _interp(gain_points(strip), s))] + extra + [(e, _interp(gain_points(strip), e))]
+    frames = sorted({f for f, _v in shape} | {f for f, _v in whole})
+    for frame in frames:
+        setattr(strip, prop, base * _interp(shape, frame) * _interp(whole, frame))
         strip.keyframe_insert(prop, frame=frame, group=GROUP)
     action = _action(scene)
     for bag in _bags(action) if action else []:

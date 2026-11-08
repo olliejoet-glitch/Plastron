@@ -32,6 +32,12 @@ MODES = {
         ]},
         {"size": 0.42, "area": "timeline"},
     ]},
+    # Sound design on the same timeline: the picture small on top, a big
+    # timeline with the Sound panel (mix, loudness, ducking, beats) at its side.
+    "Audio": {"rows": [
+        {"size": 0.34, "area": "preview_plain"},
+        {"size": 0.66, "area": "timeline_sound"},
+    ]},
 }
 
 # The mode Plastron opens in.
@@ -148,6 +154,11 @@ AREAS = {
         },
     },
 }
+
+# Audio mode's timeline: the same, with its sidebar (the Sound panel) showing;
+# its picture without a sidebar (Blender's own Metadata tab can't be hidden).
+AREAS["timeline_sound"] = dict(AREAS["timeline"], sidebar=True)
+AREAS["preview_plain"] = dict(AREAS["preview"], sidebar=False)
 
 # Whole-window options.
 WINDOW = {
