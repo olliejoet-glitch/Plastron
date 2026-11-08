@@ -4,11 +4,23 @@ Features add their own controls with add_section() (e.g. voice recording)."""
 from ..core import hidden_ui
 
 _sections = []     # draw(layout, context) functions from features
+_prefixes = []     # ...drawn first (both headers); True = draw nothing else in the timeline's
+_preview = []      # ...in the video preview's header
 
 
 def add_section(func):
     """func(layout, context) draws after the track buttons."""
     _sections.append(func)
+
+
+def add_prefix(func):
+    """func(layout, context) draws at the start of the timeline and preview headers."""
+    _prefixes.append(func)
+
+
+def add_preview_section(func):
+    """func(layout, context) draws in the video preview's header."""
+    _preview.append(func)
 
 
 def draw_preview(layout, context):
@@ -20,6 +32,11 @@ def draw_preview(layout, context):
     row.operator("screen.animation_play", text="", icon='PAUSE' if playing else 'PLAY')
     row.operator("screen.frame_jump", text="", icon='FF').end = True
     layout.prop(scene, "frame_current", text="")
+    for func in _prefixes:
+        func(layout, context)
+    for func in _preview:
+        layout.separator(type='LINE')
+        func(layout, context)
     layout.separator_spacer()
     layout.prop(context.space_data, "proxy_render_size", text="")
     layout.operator("sequencer.view_all_preview", text="", icon='ZOOM_ALL')
@@ -32,6 +49,8 @@ def draw(self, context):
     if getattr(context.space_data, "view_type", 'SEQUENCER') == 'PREVIEW':
         draw_preview(layout, context)
         return
+    for func in _prefixes:
+        func(layout, context)
 
     row = layout.row(align=True)
     row.operator("screen.frame_jump", text="", icon='REW').end = False

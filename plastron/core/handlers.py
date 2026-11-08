@@ -32,9 +32,13 @@ def add(list_name, func, first=False):
 _on_load = []  # functions run after every project load
 
 
-def on_load(func):
-    """Run func(scene) after any project is opened or a new one is made."""
-    _on_load.append(func)
+def on_load(func, first=False):
+    """Run func(scene) after any project is opened or a new one is made.
+    first: before the others (e.g. put the window back on the main scene)."""
+    if first:
+        _on_load.insert(0, func)
+    else:
+        _on_load.append(func)
     return func
 
 

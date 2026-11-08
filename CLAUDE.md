@@ -62,7 +62,8 @@ theme, and keymap, with Photoshop-style drawing shortcuts.
   (`features/edit`, `timeline/edit_keys.py`). Then: clips stay on tracks
   they belong on (`timeline/placement.py`), Clip panel (opacity, blend,
   flips, speed, volume), move / size / turn a clip by hand in the preview.
-  Next: wait for Ollie (ideas: fades / transitions, audio mode).
+  Then info windows (nested timelines in a UI frame, `features/edit/windows.py`).
+  Next: fades / transitions, then audio mode.
 - **DONE: drawing switched from grease pencil to RASTER** (Ollie: wants to
   select/move pixels, lay down blobs of colour, erase precisely). Brush engine
   = **Blender's own Texture Paint** (fast, Ollie likes the feel, can add his own
@@ -231,8 +232,9 @@ Plastron/
 │  │  └─ export/             animatic (MP4), sheet (hand-written PDF), shotlist (CSV)
 │  │  └─ edit/               Edit mode: media (placing footage / sound / pictures on
 │  │                         tracks; Blender's drops re-placed), bin (media bin, preview size),
-│  │                         clip_panel (Clip panel), frame_box (move / size / turn in the preview)
-│  ├─ presets/               ★ preset files, one folder per kind (brushes/, motion/); README
+│  │                         clip_panel (Clip panel), frame_box (move / size / turn in the preview),
+│  │                         windows (info windows: a clip with its own timeline in a UI frame)
+│  ├─ presets/               ★ preset files, one folder per kind (brushes/, motion/, windows/); README
 │  │                         lists the fields. Store code: core/presets.py
 │  └─ assets/                icon_256.png, plastron.ico
 ├─ tools/
@@ -348,6 +350,11 @@ Plastron/
   tools (Move / Transform gizmo) here, though clicks select; Plastron's own
   box (features/edit/frame_box) is used and tested instead. The preview's
   view is in project pixels, (0, 0) at the frame's middle.
+- A scene strip shows another scene's timeline with scene_input
+  'SEQUENCER'; empty parts are see-through. Switching window.scene (and
+  workspace.sequencer_scene) makes all Plastron code (context.scene) work on
+  the nested timeline. load_post code must put the window back on the main
+  scene before anything else (handlers.on_load(..., first=True)).
 - Window.modal_operators lists running modal operators (placement waits
   while a TRANSFORM_OT_* drag runs).
 - Strip.split copies Plastron's PointerProperties (voice takes, panel data).
@@ -861,6 +868,22 @@ Plastron/
   selected clip in the preview: drag inside = move, a corner = size (keeps
   its shape), just outside = turn (Shift: 15° steps); Esc / right-click puts
   it back (FRAME_BOX in config/edit.py). Clicks elsewhere pass on (select).
+- Info windows (Ollie: "little info windows using this UI ... a nested
+  timeline ... clips that auto-crop to the UI"): Window (preview header)
+  picks a style (presets/windows/*.png + your own folder plastron_windows/:
+  frame pictures whose middle is see-through; the opening is found by
+  scanning out from the middle). A window = its own Blender scene ("Window
+  n", scene["plastron_window_of"] = the main scene) with tracks Video Sound,
+  Content (ripple) and a locked Frame track holding the picture (fit to the
+  frame), shown on the main timeline by a scene clip (on the Video track,
+  half the frame's size; never on a panels track). Tab (timeline / preview)
+  or the Clip panel's Edit Inside goes in: the timeline + preview show the
+  window's timeline, a red "Back (inside Window n)" button in both headers;
+  Tab again goes back. Clips put on Content fill the opening (cover, then
+  cropped symmetrically; centred on it). The frame lasts as long as what's
+  inside; going back, the window clip's length follows (ripple). The preview
+  box sizes the whole window by its frame picture. Saved inside a window /
+  switching mode inside one: back on the main timeline first.
 - Editing keys: Q / W trim the clip under the playhead (selected, else the
   active track's) from its start / to its end at the playhead; Up / Down
   jump to the previous / next cut (any track; also over the canvas); J / K /

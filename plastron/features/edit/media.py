@@ -57,9 +57,12 @@ def sound_track(scene):
     return tracks.add(scene, 'AUDIO', track_name=cfg.VIDEO_SOUND_TRACK)
 
 
+FOOTAGE_TYPES = {'MOVIE', 'IMAGE'}       # (+ 'SCENE': info windows)
+
+
 def is_footage(strip):
     from ..storyboard.panels import is_panel
-    return strip.type in {'MOVIE', 'IMAGE'} and not is_panel(strip)
+    return strip.type in FOOTAGE_TYPES and not is_panel(strip)
 
 
 def _holds(scene, track, test, besides=None):

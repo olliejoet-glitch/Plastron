@@ -34,3 +34,10 @@ for the camera only.
 | curve  | the easing graph's points, [time, amount] from [0, 0] to [1, 1]; amount over 1 overshoots |
 | handle | point shape: "AUTO" (smooth, the default), "AUTO_CLAMPED", "VECTOR" (sharp) |
 | shake  | camera shake [amount in % of the frame width, wobbles per second]     |
+
+## windows/
+
+Info window frames (Edit mode: Window in the preview header). Not JSON: a
+picture (PNG) per style, its middle see-through: clips put inside a window
+fill that opening (Plastron finds it from the middle out). Your own go in
+Blender's config folder, `plastron_windows/` (Window > Your Window Styles...).

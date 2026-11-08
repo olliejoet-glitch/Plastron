@@ -151,6 +151,8 @@ SHORTCUTS = [
     ("timeline",     "L",                "plastron.shuttle",             "Play"),
     ("preview",      "LMB",              "plastron.preview_transform",   "Drag the selected clip: inside moves, a corner sizes, outside turns"),
     ("preview",      "Shift+LMB",        "plastron.preview_transform",   "...turning in 15° steps"),
+    ("timeline",     "Tab",              "plastron.window_toggle",       "Edit inside the selected info window / back out"),
+    ("preview",      "Tab",              "plastron.window_toggle",       "Edit inside the selected info window / back out"),
     ("preview",      "J",                "plastron.shuttle",             "Play backwards", {"direction": -1}),
     ("preview",      "K",                "plastron.shuttle",             "Stop", {"direction": 0}),
     ("preview",      "L",                "plastron.shuttle",             "Play"),

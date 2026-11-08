@@ -37,3 +37,12 @@ FRAME_BOX = {
     "rotate_px": 40,          # how far outside the box still turns it
     "rotate_snap_deg": 15,
 }
+
+# Info windows (preview header: Window): a clip with its own timeline inside
+# a UI frame. Styles: PNG frames whose middle is see-through, from
+# plastron/presets/windows/ and your own folder (in Plastron's settings).
+WINDOW_NAME = "Window"
+WINDOW_SECONDS = 5.0           # a new window lasts this long (then: as long as what's in it)
+WINDOW_SCALE = 0.5             # its size in the picture (1 = the frame's width)
+WINDOW_USER_FOLDER = "plastron_windows"
+WINDOW_CLEAR_ALPHA = 0.5       # how see-through counts as the opening

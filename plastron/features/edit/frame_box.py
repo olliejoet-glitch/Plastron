@@ -36,12 +36,15 @@ def boxed_clip(context):
         return None
     if strip.mute or not (clips.start(strip) <= scene.frame_current < clips.end(strip)):
         return None
-    if not getattr(strip, "elements", None):
+    if not getattr(strip, "elements", None) and strip.type != 'SCENE':
         return None
     return strip
 
 
 def media_size(strip):
+    if strip.type == 'SCENE' and strip.scene is not None:         # (an info window: its own frame)
+        from .windows import window_size
+        return window_size(strip.scene)
     e = strip.elements[0]
     w, h = e.orig_width, e.orig_height
     if not w or not h:
@@ -54,9 +57,12 @@ def corners_view(strip):
     """The picture's four corners in view (project pixel) coordinates."""
     t = strip.transform
     w, h = media_size(strip)
-    hw, hh = w * t.scale_x / 2, h * t.scale_y / 2
+    cr = getattr(strip, "crop", None)
+    l, r, b, tp = (cr.min_x, cr.max_x, cr.min_y, cr.max_y) if cr is not None and strip.type != 'SCENE' else (0, 0, 0, 0)
+    hw, hh = (w - l - r) * t.scale_x / 2, (h - b - tp) * t.scale_y / 2       # (what the crop leaves)
     c, s = math.cos(t.rotation), math.sin(t.rotation)
-    centre = Vector((t.offset_x, t.offset_y))
+    sx, sy = (l - r) / 2 * t.scale_x, (b - tp) / 2 * t.scale_y               # (an uneven crop moves the middle)
+    centre = Vector((t.offset_x + sx * c - sy * s, t.offset_y + sx * s + sy * c))
     return [centre + Vector((x * c - y * s, x * s + y * c)) for x, y in ((-hw, -hh), (hw, -hh), (hw, hh), (-hw, hh))]
 
 

@@ -98,6 +98,9 @@ class PLASTRON_PT_clip(bpy.types.Panel):
         layout = self.layout
         strip = active_clip(context)
         layout.prop(strip, "name", text="", icon='SEQUENCE')
+        from .windows import is_window_clip
+        if is_window_clip(strip):
+            layout.operator("plastron.window_toggle", text="Edit Inside (Tab)", icon='WINDOW')
         visual = strip.type != 'SOUND'
         if visual and not _is_panel(strip):
             col = layout.column(align=True)

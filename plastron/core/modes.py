@@ -25,10 +25,15 @@ def _set(self, value):
     switch_to(list(cfg.MODES)[value])
 
 
+before_switch = []    # features: func(context) run before another mode is shown
+
+
 def switch_to(mode_name):
     workspace = bpy.data.workspaces.get(mode_name)
     window = bpy.context.window
     if workspace and window and window.workspace != workspace:
+        for func in before_switch:          # (e.g. step out of an info window first)
+            func(bpy.context)
         window.workspace = workspace
 
 
