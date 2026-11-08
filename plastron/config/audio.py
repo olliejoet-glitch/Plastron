@@ -24,3 +24,29 @@ BEAT_MARKER = "beat"
 
 # Analysis sample rate (lower = faster; loudness always uses 48 kHz).
 ANALYSIS_RATE = 16000
+
+# Breath remover: breaths in voice clips (short, quiet, noise-like) dip by
+# BREATH_DB. Found in 20 ms steps.
+BREATH_DB = -18.0
+BREATH_SECONDS = (0.12, 0.9)      # how long a breath can be
+BREATH_BELOW_SPEECH_DB = 18.0     # at least this much quieter than the voice's loud parts
+BREATH_ABOVE_FLOOR_DB = 8.0       # ...and this much louder than the silence
+BREATH_FLATNESS = 0.25            # how noise-like (0 = a pure tone, 1 = white noise)
+BREATH_RAMP = 0.03                # seconds to dip in / out
+
+# Creature voices: the voice baked into a stack of pitched copies (same
+# length), put on the "Creature" track under it; the plain voice is muted.
+# Each: the voice itself (dry_db) + layers (semitones up / down, level dB).
+CREATURE_TRACK = "Creature"
+CREATURES = {
+    "Ogre":   {"dry_db": -4.0, "layers": [(-12, 0.0), (-7, -6.0)]},
+    "Goblin": {"dry_db": -3.0, "layers": [(7, -2.0), (12, -8.0)]},
+    "Demon":  {"dry_db": -8.0, "layers": [(-12, 0.0), (-19, -3.0), (-5, -9.0)]},
+    "Robot":  {"dry_db": -2.0, "layers": [(0.3, -3.0), (-0.3, -3.0), (12, -14.0)]},
+}
+
+# Music fitting: Fit to Video stretches the music a little (at most
+# FIT_MAX_STRETCH) so a beat lands on the video's end, cuts it there and
+# fades it out over FIT_FADE seconds.
+FIT_MAX_STRETCH = 0.08
+FIT_FADE = 1.0

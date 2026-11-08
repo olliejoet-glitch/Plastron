@@ -51,29 +51,46 @@ def prop_of(strip):
     return "volume" if strip.type == 'SOUND' else "blend_alpha"
 
 
-GAIN = "plastron_gain"       # extra gain curve on a clip: [(frame, gain)...] (e.g. ducking)
+GAIN = "plastron_gain"       # + "_<name>": extra gain curves on a clip, [(frame, gain)...]
+                             # (e.g. ducking, breaths), multiplied together
 
 
-def gain_points(strip):
-    raw = strip.get(GAIN)
-    return [tuple(p) for p in raw] if raw else []
+def _key(name):
+    return f"{GAIN}_{name}"
 
 
-def set_gain(strip, points):
+def curves(strip):
+    """{name: [(frame, gain)...]} of every extra gain curve on the clip."""
+    out = {}
+    for k in strip.keys():
+        if k == GAIN:                                   # (older projects: one unnamed curve = ducking)
+            out.setdefault("duck", [tuple(p) for p in strip[k]])
+        elif k.startswith(GAIN + "_"):
+            out[k[len(GAIN) + 1:]] = [tuple(p) for p in strip[k]]
+    return out
+
+
+def gain_points(strip, name="duck"):
+    return curves(strip).get(name, [])
+
+
+def set_gain(strip, points, name="duck"):
     """An extra gain curve (frames, 0-1 gains) multiplied into the clip's
-    volume / opacity (e.g. ducking). Empty: none. True if it changed."""
+    volume / opacity (e.g. ducking, breaths). Empty: none. True if it changed."""
     points = [(round(float(f), 2), round(float(g), 4)) for f, g in points]
-    if points == gain_points(strip):
+    if points == gain_points(strip, name):
         return False
-    if points:
-        strip[GAIN] = points
-    elif GAIN in strip:
+    if name == "duck" and GAIN in strip:
         del strip[GAIN]
+    if points:
+        strip[_key(name)] = points
+    elif _key(name) in strip:
+        del strip[_key(name)]
     return True
 
 
 def has_fades(strip):
-    return strip.plastron.fade_in > 0 or strip.plastron.fade_out > 0 or bool(strip.get(GAIN))
+    return strip.plastron.fade_in > 0 or strip.plastron.fade_out > 0 or bool(curves(strip))
 
 
 def _interp(points, f):
@@ -98,8 +115,9 @@ def write(scene, strip, base=None):
     if fin + fout > e - s:                                 # (fades can't be longer than the clip)
         k = (e - s) / max(1, fin + fout)
         fin, fout = int(fin * k), int(fout * k)
-    extra = [(f, g) for f, g in gain_points(strip) if s <= f <= e]
-    sig = repr((strip.name, s, e, fin, fout, round(base, 5), extra))
+    gains = curves(strip)
+    extra = sorted({f for pts in gains.values() for f, _g in pts if s <= f <= e})
+    sig = repr((strip.name, s, e, fin, fout, round(base, 5), sorted(gains.items())))
     if strip.get(SIG) == sig:
         return
     path = strip.path_from_id(prop)
@@ -113,10 +131,16 @@ def write(scene, strip, base=None):
         return
     shape = [(s, 0.0), (s + fin, 1.0)] if fin else [(s, 1.0)]
     shape += [(e - fout, 1.0), (e, 0.0)] if fout else [(e, 1.0)]
-    whole = [(s, _interp(gain_points(strip), s))] + extra + [(e, _interp(gain_points(strip), e))]
-    frames = sorted({f for f, _v in shape} | {f for f, _v in whole})
+    frames = sorted({f for f, _v in shape} | set(extra))
+
+    def gain(f):
+        g = 1.0
+        for pts in gains.values():
+            g *= _interp(pts, f)
+        return g
+
     for frame in frames:
-        setattr(strip, prop, base * _interp(shape, frame) * _interp(whole, frame))
+        setattr(strip, prop, base * _interp(shape, frame) * gain(frame))
         strip.keyframe_insert(prop, frame=frame, group=GROUP)
     action = _action(scene)
     for bag in _bags(action) if action else []:

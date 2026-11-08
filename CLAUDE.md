@@ -66,9 +66,10 @@ theme, and keymap, with Photoshop-style drawing shortcuts.
   fades (`timeline/fades.py`).
 - **Audio mode, first milestone done**: "Audio" mode (picture over a big
   timeline with a Sound sidebar), mix per track, loudness Normalise (LUFS),
-  auto-ducking under the voice, beat markers (`features/audio`). Next: wait
-  for Ollie (from the brief: breath remover, creature voice stacks, music
-  fitting; also captions .srt, colour grading...).
+  auto-ducking under the voice, beat markers (`features/audio`). Then:
+  breath remover, creature voices, music fitting. Next: wait for Ollie
+  (from the brief: captions .srt, colour grading, value group editor,
+  Shorts reframing, export presets, video templates...).
 - **DONE: drawing switched from grease pencil to RASTER** (Ollie: wants to
   select/move pixels, lay down blobs of colour, erase precisely). Brush engine
   = **Blender's own Texture Paint** (fast, Ollie likes the feel, can add his own
@@ -242,7 +243,9 @@ Plastron/
 │  │                         clip_panel (Clip panel), frame_box (move / size / turn in the preview),
 │  │                         windows (info windows: a clip with its own timeline in a UI frame)
 │  │  └─ audio/              Audio mode: analysis (numpy: LUFS, envelope, beats), loudness
-│  │                         (Normalise), duck (auto-ducking), beats (markers), panel (Sound panel)
+│  │                         (Normalise), duck (auto-ducking), beats (markers), breaths
+│  │                         (breath remover), creature (voice stacks), fit (music fitting),
+│  │                         panel (Sound panel)
 │  ├─ presets/               ★ preset files, one folder per kind (brushes/, motion/, windows/); README
 │  │                         lists the fields. Store code: core/presets.py
 │  └─ assets/                icon_256.png, plastron.ico
@@ -928,6 +931,28 @@ Plastron/
   tempo by autocorrelation (60-190 BPM, leaning to ~120), best-fitting grid
   -> timeline markers named "beat" (old ones in the clip's span replaced;
   Clear Beats); clip edges snap to markers already.
+- Gain curves (timeline/fades.py): a clip can carry several named curves,
+  strip["plastron_gain_<name>"] = [(frame, gain)] ("duck", "breath"; an
+  older unnamed "plastron_gain" counts as duck), multiplied with the fades
+  and the base value into one set of keyframes.
+- Breath remover (Sound Tools > Breaths, selected clips): 20 ms steps;
+  a breath = 0.12-0.9 s that's 18+ dB under the voice's loud parts (95th
+  percentile), 8+ dB over the silence (10th), noise-like (spectral
+  flatness > 0.25); dipped BREATH_DB (-18 dB) with 30 ms ramps. Stored as
+  times in the recording (strip["plastron_breaths"]), so moves / trims /
+  splits keep them right; Keep Breaths clears.
+- Creature voices (Sound Tools > Creature Voice menu; CREATURES in
+  config/audio.py: Ogre, Goblin, Demon, Robot = the voice at dry_db + layers
+  (semitones, dB)): the whole recording baked with audaspace
+  timeStretchPitchScale (pitch only, same length), summed in numpy, peak-
+  limited, written as a WAV in the project's cache folder and packed. The
+  baked clip goes on a "Creature" audio track (made if missing) at the
+  voice's span, linked to the voice, which is muted.
+- Music fitting (Sound Tools > Fit to Video, selected music clip): the
+  video's end = the latest non-sound clip's end; the clip's beats (as Find
+  Beats) -> the speed (within ±FIT_MAX_STRETCH 8 %, pitch kept) that puts
+  the nearest beat on that end; then cut there and fade out FIT_FADE (1 s).
+  No beat in reach: only trimmed (or slowed if a bit short).
 - Editing keys: Q / W trim the clip under the playhead (selected, else the
   active track's) from its start / to its end at the playhead; Up / Down
   jump to the previous / next cut (any track; also over the canvas); J / K /
