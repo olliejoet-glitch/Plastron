@@ -15,9 +15,10 @@ MODES = {
         {"size": 0.70, "columns": [
             {"size": 0.12, "area": "tools"},      # Ollie: tools on the left,
             {"size": 0.70, "area": "canvas"},
-            {"size": 0.18, "rows": [               # on the right: script over the 3D scene
-                {"size": 0.55, "area": "script"},
-                {"size": 0.45, "area": "scene3d"},
+            {"size": 0.18, "rows": [               # on the right: script, 3D scene, its keyframes
+                {"size": 0.40, "area": "script"},
+                {"size": 0.38, "area": "scene3d"},
+                {"size": 0.22, "area": "keys"},
             ]},
         ]},
         {"size": 0.30, "area": "timeline"},
@@ -88,6 +89,18 @@ AREAS = {
             "overlay.show_axis_y": True,
             "show_gizmo_navigate": True,
             "clip_end": 1000.0,
+        },
+    },
+    # The 3D scene's keyframes (Ollie: "an editable keyframe view so I know
+    # what transforms I've done"): Blender's Dope Sheet. The camera and each
+    # card ("Card: <track>"); select / drag / delete keys there.
+    "keys": {
+        "editor": 'DOPESHEET_EDITOR',
+        "header": True, "sidebar": False,
+        "settings": {
+            "ui_mode": 'DOPESHEET',
+            "dopesheet.show_only_selected": False,
+            "show_region_channels": True,
         },
     },
     "tools": {

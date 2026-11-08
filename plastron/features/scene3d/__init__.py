@@ -253,7 +253,51 @@ def _place_from(track, obj, scene):
     if abs(track.place_scale - scale) > 1e-6 and scale > 1e-4:
         track.place_scale = scale
         changed = True
+    if changed:
+        key_card(scene, track)
     return changed
+
+
+# Cards animate (Ollie: "the frames need to be moveable and animateable"):
+# moving a card keys its track's placement at the playhead, like the camera.
+CARD_PROPS = ("place_offset", "place_rotation", "place_scale")
+_animated = {"scene": None, "yes": False}
+
+
+def card_group(scene, track):
+    from ...timeline import tracks
+    return f"Card: {tracks.name(scene, track)}"
+
+
+def key_card(scene, track):
+    frame = scene.frame_current
+    for prop in CARD_PROPS:
+        track.keyframe_insert(prop, frame=frame, group=card_group(scene, track))
+    _animated.update(scene=scene.name, yes=True)
+
+
+def cards_animated(scene):
+    """Does any track's card have keys? (Worked out once per edit / load.)"""
+    if _animated["scene"] != scene.name:
+        ad = scene.animation_data
+        action = ad.action if ad else None
+        yes = action is not None and any("plastron_timeline.tracks" in fc.data_path
+                                         for fc in _all_fcurves(action))
+        _animated.update(scene=scene.name, yes=yes)
+    return _animated["yes"]
+
+
+def _forget_animated(*_args):
+    _animated["scene"] = None
+
+
+def _cards_frame(scene, *_args):
+    # Per-frame hook (allowed: Ollie asked for animated cards). O(1) when no
+    # card is keyed; else re-places the track sheets (Blender has already
+    # played the keys into the tracks' placement).
+    if cards_animated(scene):
+        from ..storyboard import canvas_sync
+        canvas_sync.apply_places(scene)
 
 
 def _keyed(owner, path, frame):
@@ -399,6 +443,7 @@ classes = (PLASTRON_OT_view_focus,)
 
 
 def _on_load(scene):
+    _animated["scene"] = None
     ensure(scene)
     link_canvases(scene, fit=False)      # (the canvas is fitted once the window is ready)
 
@@ -427,6 +472,9 @@ def register():
     # First: a card moved in the scene view must be kept on its track before
     # the timeline's edit handler re-syncs the canvas (which would put it back).
     handlers.add("depsgraph_update_post", _on_edit, first=True)
+    handlers.add("frame_change_post", _cards_frame)
+    handlers.add("undo_post", _forget_animated)
+    handlers.add("redo_post", _forget_animated)
     _draw_handle[0] = bpy.types.SpaceView3D.draw_handler_add(_draw_cards, (), 'WINDOW', 'POST_VIEW')
     handlers.on_load(_on_load)
     from ...timeline import events

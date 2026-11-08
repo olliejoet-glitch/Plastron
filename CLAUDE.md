@@ -385,7 +385,7 @@ Plastron/
   standard). Project resolution **3840×2160**, previews at **50 %**.
 - Colour view transform **Standard** (AgX shifts greys).
 - Layout (Ollie swapped them): tools 12 % | canvas 70 % | script over the
-  3D scene 18 %, timeline 30 % high. No status bar (messages show in the top bar).
+  3D scene over its keyframes 18 %, timeline 30 % high. No status bar (messages show in the top bar).
 - Pen scrolling (Ollie couldn't scroll the tools area: a pen has no wheel):
   Alt+Shift+drag scrolls the tools area and the script 1:1 with the hand
   (ui/drag_scroll.py, using view2d.pan with exact pixels: scroll_up / down
@@ -703,7 +703,15 @@ Plastron/
   dimming use the 3D camera's frame. Switching the view into the camera
   makes Blender set scene.camera to it: put back to "Canvas Camera". The
   camera is keyed only when it actually moved (its pose vs the last seen),
-  not on any update. Scene view: no toolbar (Ollie: "get rid of all the
+  not on any update. Cards animate too (Ollie: "the frames need to be
+  moveable and animateable"): moving a card keys its track's place_offset /
+  place_rotation / place_scale at the playhead (scene action, group "Card:
+  <track>"); a frame hook (_cards_frame, nothing if no card is keyed)
+  re-places the sheets from the played values (canvas_sync.apply_places).
+  Keyframe view (Ollie: "an editable keyframe view"): a Dope Sheet area under
+  the 3D scene view (layout "keys": script 40 % / 3D 38 % / keys 22 %), its
+  keymaps kept (Dopesheet, Dopesheet Generic, Animation Channels): select,
+  drag, delete keys. Scene view: no toolbar (Ollie: "get rid of all the
   unnecessary stuff"); select something and move + rotate gizmos show
   (show_gizmo_object_translate / rotate). The scene view is told apart by
   having no options bar (core/views: tool header = canvas). Modes follow the pen (MouseMove item

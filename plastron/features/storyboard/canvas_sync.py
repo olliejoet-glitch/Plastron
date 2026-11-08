@@ -204,6 +204,16 @@ def _set(obj, material=None, y=None, hidden=None, alpha=None, placed=None):
         obj.hide_viewport = hidden
 
 
+def apply_places(scene):
+    """Put every track's sheet where its (maybe animated) placement says, now."""
+    active = _state["canvas_track"]
+    for depth, track in enumerate(tracks.video_tracks(scene)):
+        obj = canvas_object(scene) if track.uid == active else bpy.data.objects.get(DISPLAY_PREFIX + track.uid)
+        if obj is None:
+            continue
+        _set(obj, material=obj.material_slots[0].material, y=-depth * DEPTH_STEP, placed=place(track))
+
+
 def _material_at(scene, track, frame):
     from .panels import is_panel
     clip = clips.at(scene, tracks.channel_of(scene, track), frame)

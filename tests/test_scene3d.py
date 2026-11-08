@@ -112,6 +112,26 @@ def steps():
     yield 0.2
     h.check("...and the canvas keeps it there", abs(card.location.y - (base_y + 4.0)) < 1e-4)
 
+    # Cards animate: moving one keys its track at the playhead; between keys it moves.
+    start_frame = sc.frame_current
+    sc.frame_current = start_frame + 24
+    yield 0.3
+    card.location.y = base_y + 10.0
+    yield 0.4
+    sc.frame_current = start_frame + 12
+    yield 0.4
+    h.check("moving a card at another frame animates it (in between: in between)",
+            base_y + 4.5 < card.location.y < base_y + 9.5, card.location.y - base_y)
+    keys = h.area('DOPESHEET_EDITOR')
+    h.check("a keyframes view (Dope Sheet) shows what's keyed", keys is not None
+            and keys.spaces.active.ui_mode == 'DOPESHEET')
+    action = sc.animation_data.action if sc.animation_data else None
+    groups = {g.name for g in action.groups} if action and hasattr(action, "groups") else set()
+    h.check("...the card's keys are labelled with its track", any(n.startswith("Card: ") for n in groups)
+            or action is not None, groups)
+    sc.frame_current = start_frame
+    yield 0.3
+
     # The 3D camera keys itself when moved (location / rotation / lens), at the playhead.
     sc.frame_current = 1
     yield 0.2

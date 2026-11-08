@@ -179,4 +179,9 @@ BLENDER_KEEP = {
     "File Browser*":         ["*"],                       # Open / Save / Import dialogs
     "Sequence Editor Tool: Sequencer, Slice": ["*"],      # Plastron's Slice tool
     "Generic Gizmo*":        ["*"],
+    # The keyframes area (Dope Sheet): select, drag (G), delete (X / Delete),
+    # copy / paste keys, and its channel list.
+    "Dopesheet":             ["*"],
+    "Dopesheet Generic":     ["*"],
+    "Animation Channels":    ["*"],
 }
