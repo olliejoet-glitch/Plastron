@@ -152,5 +152,34 @@ def steps():
     wm.plastron_board = False
     yield 0.2
 
+    # --- Versions: keep the drawing as a version, flip between, compare faintly.
+    versions = h.module("features.review.versions")
+    strip = canvas_sync.panel_on_canvas(sc)
+    info = strip.plastron_panel
+    old = info.material
+    versions.new_version(sc, strip)
+    h.check("New Version keeps the drawing stacked under the panel and carries on with a copy",
+            len(info.versions) == 1 and info.versions[0].material == old and info.material != old
+            and len(info.material.plastron_stack.layers) == len(old.plastron_stack.layers),
+            (len(info.versions), info.material, old))
+    new = info.material
+    versions.flip(sc, strip, -1)
+    h.check("flipping shows the old version", info.material == old and info.versions[0].material == new
+            and info.version_shown == 0)
+    versions.flip(sc, strip, 1)
+    h.check("...and back", info.material == new and info.version_shown == 1)
+    wm.plastron_compare = True
+    yield 0.2
+    cmp_obj = bpy.data.objects.get(versions.COMPARE)
+    h.check("Compare shows the version before, faintly, in front of the canvas",
+            cmp_obj is not None and not cmp_obj.hide_viewport and cmp_obj.material_slots[0].material == old
+            and abs(cmp_obj.color[3] - cfg.COMPARE_ALPHA) < 1e-4)
+    h.redraw()
+    yield 0.3
+    h.screenshot("compare")
+    wm.plastron_compare = False
+    yield 0.1
+    h.check("...and off", cmp_obj.hide_viewport)
+
 
 h.run(steps())

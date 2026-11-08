@@ -51,3 +51,8 @@ BOARD = {
     "text": "#d6e2e0ff",
     "text_dim": "#83a4a0ff",
 }
+
+# Versions (Panel panel): keep the drawing as a version and carry on with a
+# copy; flip between versions; Compare shows a kept version faintly over the
+# current one.
+COMPARE_ALPHA = 0.4

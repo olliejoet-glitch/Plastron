@@ -55,6 +55,8 @@ class PLASTRON_PT_panel_info(bpy.types.Panel):
         layout.prop(info, "note", text="", icon='TEXT')
         if info.script_text:
             layout.label(text=info.script_text, icon='SCRIPT')
+        from .versions import draw_versions
+        draw_versions(layout, context)
 
 
 classes = (PLASTRON_PT_panel_info,)
