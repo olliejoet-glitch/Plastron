@@ -6,9 +6,9 @@ that lands on another), makes room on the track like New Panel does
 onto their tracks. A video's sound goes on the "Video Sound" track.
 
 Blender's own drop (a file dragged from the media bin or from Windows onto
-the timeline) makes its clips wherever the mouse was: they're spotted on
-the next timeline change (new, not Plastron's) and placed again properly
-at the same frame, on the track under the drop.
+the timeline) makes its clips wherever the mouse was: right after Blender's
+add-a-clip operator, its new clips are placed again properly at the same
+frame, on the track under the drop.
 """
 
 import os
@@ -20,6 +20,8 @@ from ...timeline import clips, events, ripple, tracks
 
 MARK = "plastron_media"
 ADOPTED = "plastron_media_adopted"
+DROP_OPS = {"SEQUENCER_OT_movie_strip_add", "SEQUENCER_OT_sound_strip_add", "SEQUENCER_OT_image_strip_add"}
+_seen = [None]      # the last add operator already dealt with
 
 
 def kind_of(path):
@@ -135,6 +137,8 @@ def place(scene, path, frame=None, track=None):
             sed.strips.remove(sound)
             made.remove(sound)
     _proxies(main)
+    if len(made) > 1:
+        clips.link(made)          # the video and its sound move / trim / cut together
     for s in clips.all_clips(scene):
         s.select = s in made
     sed.active_strip = main
@@ -166,7 +170,14 @@ def take_drops(scene, **_info):
     sed = scene.sequence_editor if scene else None
     if sed is None or not scene.get(ADOPTED):         # (not before adopt() at load)
         return
-    dropped = [s for s in sed.strips if s.type in {'MOVIE', 'SOUND', 'IMAGE'} and not owned(s)]
+    # Only right after Blender's own add-a-clip operator (what a drop runs),
+    # once each: clips other code makes are left alone.
+    wm = bpy.context.window_manager
+    last = wm.operators[-1] if wm and len(wm.operators) else None
+    if last is None or last.bl_idname not in DROP_OPS or last.as_pointer() == _seen[0]:
+        return
+    _seen[0] = last.as_pointer()
+    dropped = [s for s in sed.strips if s.type in {'MOVIE', 'SOUND', 'IMAGE'} and s.select and not owned(s)]
     if not dropped:
         return
     groups = {}

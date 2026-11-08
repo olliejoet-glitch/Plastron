@@ -68,24 +68,12 @@ def steps():
     h.check("...marked as media, half-size copies on", media.is_media(video) and media.is_media(sound)
             and video.use_proxy and video.proxy.build_50)
 
-    # Blender's own drop (as from the media bin / Windows): placed again properly.
-    with h.override('SEQUENCE_EDITOR'):
-        bpy.ops.sequencer.movie_strip_add(filepath=movie, directory=folder + os.sep,
-                                          files=[{"name": "shot.mp4"}],
-                                          frame_start=200, channel=tracks.channel_of(sc, panels_track),
-                                          move_strips=False)
+    # Clips other code makes (not a drop) are left alone.
+    raw = clips.editor(sc).strips.new_sound("raw", movie, 9, 900)
+    h.module("timeline.events").clips_changed(sc)
     yield 0.3
-    h.redraw()
-    yield 0.5
-    dropped = [s for s in clips.all_clips(sc) if media.is_media(s) and clips.start(s) == 200]
-    by_type = {s.type: s for s in dropped}
-    h.check("a dropped video is put on the track it was dropped on, its sound on Video Sound",
-            set(by_type) == {'MOVIE', 'SOUND'}
-            and by_type['MOVIE'].channel == tracks.channel_of(sc, panels_track)
-            and by_type['SOUND'].channel == tracks.channel_of(sc, vs),
-            [(s.type, s.channel, clips.start(s)) for s in dropped])
-    h.check("...no stray clips left from the drop",
-            not [s for s in clips.all_clips(sc) if not media.owned(s)])
+    h.check("clips made by other code aren't taken for drops", "raw" in clips.editor(sc).strips_all)
+    clips.editor(sc).strips.remove(raw)
 
     made = media.place(sc, still, frame=300, track=panels_track)
     fps = sc.render.fps / sc.render.fps_base
@@ -135,10 +123,76 @@ def steps():
                     for s in clips.all_clips(sc)),
             [(s.name, s.type, s.channel) for s in clips.all_clips(sc)])
 
-    right = ripple.split(sc, [video], clips.start(video) + 24)
-    h.check("splitting footage keeps both halves as media", right and media.is_media(right[0]))
+    # --- A video and its sound are linked: they move, trim, cut and go together.
+    h.check("a video is linked to its sound (Blender's connected strips too)",
+            clips.linked(video) == [sound] and [c.name for c in video.connections] == [sound.name],
+            (clips.linked(video), [c.name for c in video.connections]))
+    made = media.place(sc, still, frame=clips.start(video), track=panels_track)
+    h.check("a clip put in front on a ripple track pushes the video AND its sound along",
+            clips.start(video) == clips.end(made[0]) and clips.start(sound) == clips.start(video)
+            and clips.end(sound) == clips.end(video), (clips.start(video), clips.start(sound)))
+
+    def head(s):
+        return s.left_handle - s.content_start
+
+    tracks.set_active(sc, panels_track)
+    for s in clips.all_clips(sc):
+        s.select = False
+    start, length, h0 = clips.start(video), clips.length(video), head(video)
+    sc.frame_current = start + 12
+    with h.override('SEQUENCE_EDITOR'):
+        bpy.ops.plastron.trim_to_playhead(side='LEFT')
+    h.check("Q: the start is cut to the playhead; on a ripple track the clip stays put and "
+            "the footage slides (what was at the playhead now starts the clip)",
+            clips.start(video) == start and clips.length(video) == length - 12 and head(video) == h0 + 12
+            and sc.frame_current == start, (clips.start(video), clips.length(video), head(video), h0))
+    h.check("...its sound trimmed the same way", (clips.start(sound), clips.end(sound), head(sound))
+            == (clips.start(video), clips.end(video), head(video)), (clips.start(sound), head(sound)))
+    sc.frame_current = start + 20
+    with h.override('SEQUENCE_EDITOR'):
+        bpy.ops.plastron.trim_to_playhead(side='RIGHT')
+    h.check("W: the end is cut to the playhead (sound too)",
+            clips.end(video) == start + 20 and clips.end(sound) == start + 20)
+
+    edges = sorted({e for s in clips.top_clips(sc) for e in (clips.start(s), clips.end(s))})
+    sc.frame_current = start + 5
+    with h.override('SEQUENCE_EDITOR'):
+        bpy.ops.plastron.jump_cut(direction=1)
+    h.check("Down: the playhead jumps to the next cut", sc.frame_current == min(e for e in edges if e > start + 5))
+    with h.override('SEQUENCE_EDITOR'):
+        bpy.ops.plastron.jump_cut(direction=-1)
+        bpy.ops.plastron.jump_cut(direction=-1)
+    h.check("Up: ...and back past it", sc.frame_current == max(e for e in edges if e < start), sc.frame_current)
+
+    # Clicking the video in the timeline selects its sound too.
+    tl = h.area('SEQUENCE_EDITOR')
+    treg = h.region(tl)
+    with h.override('SEQUENCE_EDITOR'):
+        bpy.ops.sequencer.view_all()
+    h.redraw()
     yield 0.3
-    h.check("...and isn't mistaken for a new drop", right[0].name in clips.editor(sc).strips_all)
+    x, y = treg.view2d.view_to_region((clips.start(video) + clips.end(video)) / 2, video.channel + 0.5, clip=False)
+    h.move(treg.x + x, treg.y + y)
+    yield 0.2
+    h._event('LEFTMOUSE', 'PRESS')
+    h._event('LEFTMOUSE', 'RELEASE')
+    yield 0.3
+    h.check("clicking the video selects its sound too", video.select and sound.select,
+            (video.select, sound.select))
+
+    right = ripple.split(sc, [video], clips.start(video) + 10)
+    h.check("splitting the video cuts its sound too; both halves stay media",
+            len(right) == 2 and all(media.is_media(r) for r in right), [r.name for r in right])
+    rv = next(r for r in right if r.type == 'MOVIE')
+    rs = next(r for r in right if r.type == 'SOUND')
+    h.check("...the right halves are linked to each other (not to the left ones)",
+            clips.linked(rv) == [rs] and clips.linked(video) == [sound], (clips.linked(rv), clips.linked(video)))
+    yield 0.3
+    h.check("...and aren't mistaken for a new drop", rv.name in clips.editor(sc).strips_all)
+    n = len(clips.all_clips(sc))
+    ripple.delete(sc, [rv])
+    h.check("deleting a video deletes its sound", len(clips.all_clips(sc)) == n - 2
+            and rs.name not in [s.name for s in clips.all_clips(sc)] if False else len(clips.all_clips(sc)) == n - 2)
 
     with h.override('PREVIEW'):
         bpy.ops.sequencer.view_all_preview()

@@ -24,6 +24,7 @@ WHERE = {
     "canvas":     ("3D View", 'VIEW_3D', 'WINDOW'),
     "scene3d":    ("Object Mode", 'EMPTY', 'WINDOW'),         # 3D scene view (Object mode only)
     "timeline":   ("Sequencer", 'SEQUENCE_EDITOR', 'WINDOW'),
+    "preview":    ("Preview", 'SEQUENCE_EDITOR', 'WINDOW'),   # Edit mode's video preview
     "timeline_view": ("View2D", 'EMPTY', 'WINDOW'),       # timeline pan / zoom
     "track_headers": ("Sequencer Channels", 'SEQUENCE_EDITOR', 'WINDOW'),
     "script":     ("Text", 'TEXT_EDITOR', 'WINDOW'),
@@ -137,6 +138,20 @@ SHORTCUTS = [
     ("timeline",     "S",                "plastron.timeline_tool",       "Slice tool (click a clip to cut it)", {"tool": 'SLICE'}),
     ("canvas",       "S",                "plastron.timeline_tool",       "Slice tool (click a clip to cut it)", {"tool": 'SLICE'}),
     ("timeline",     "A",                "plastron.timeline_tool",       "Move tool (move / resize clips)", {"tool": 'MOVE'}),
+    # Premiere's editing keys (over the timeline; J / K / L, Up / Down also
+    # over the video preview; Up / Down over the canvas too).
+    ("timeline",     "Q",                "plastron.trim_to_playhead",    "Trim the clip's start to the playhead (ripple closes up)",
+     {"side": 'LEFT'}),
+    ("timeline",     "W",                "plastron.trim_to_playhead",    "Trim the clip's end to the playhead (ripple closes up)",
+     {"side": 'RIGHT'}),
+    ("playback",     "Up",               "plastron.jump_cut",            "Playhead to the previous cut", {"direction": -1}),
+    ("playback",     "Down",             "plastron.jump_cut",            "Playhead to the next cut", {"direction": 1}),
+    ("timeline",     "J",                "plastron.shuttle",             "Play backwards", {"direction": -1}),
+    ("timeline",     "K",                "plastron.shuttle",             "Stop", {"direction": 0}),
+    ("timeline",     "L",                "plastron.shuttle",             "Play"),
+    ("preview",      "J",                "plastron.shuttle",             "Play backwards", {"direction": -1}),
+    ("preview",      "K",                "plastron.shuttle",             "Stop", {"direction": 0}),
+    ("preview",      "L",                "plastron.shuttle",             "Play"),
     ("canvas",       "A",                "plastron.timeline_tool",       "Move tool (move / resize clips)", {"tool": 'MOVE'}),
     ("timeline",     "I",                "plastron.loop_set",            "Loop range start",       {"side": 'IN'}),
     ("timeline",     "O",                "plastron.loop_set",            "Loop range end",         {"side": 'OUT'}),

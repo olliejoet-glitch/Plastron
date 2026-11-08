@@ -89,10 +89,22 @@ class PLASTRON_OT_clip_trim(bpy.types.Operator):
         """Not on an edge: Blender's own click (select; a drag then moves).
         Blender's version of this click is off: it grabbed edges itself."""
         pos = dict(mouse_x=event.mouse_region_x, mouse_y=event.mouse_region_y)
+        scene = bpy.context.scene
+        before = {s: s.select for s in clips.top_clips(scene)}
         if self.extend:
             bpy.ops.sequencer.select('EXEC_DEFAULT', toggle=True, **pos)
         else:
             bpy.ops.sequencer.select('EXEC_DEFAULT', deselect_all=True, **pos)
+        # Linked clips (a video and its sound) are selected / deselected together:
+        # what the click changed decides (deselections first, the click's pick last).
+        changed = [s for s, was in before.items() if s.select != was]
+        for strip in sorted(changed, key=lambda s: s.select):
+            for other in clips.linked(strip):
+                other.select = strip.select
+        if not self.extend:          # (clicking an already-selected clip: it keeps its links)
+            for strip in [s for s in clips.top_clips(scene) if s.select]:
+                for other in clips.linked(strip):
+                    other.select = True
         return {'PASS_THROUGH'}       # a drag from here moves the clip (Blender)
 
     def invoke(self, context, event):
@@ -123,6 +135,7 @@ class PLASTRON_OT_clip_trim(bpy.types.Operator):
         self.strip.select = True
         scene.sequence_editor.active_strip = self.strip
         self.orig = ripple.snapshot(scene)
+        self.content = ripple.content_snapshot(scene)
         self.targets = snapping.targets(scene, exclude={self.strip})
         context.window_manager.modal_handler_add(self)
         return {'RUNNING_MODAL'}
@@ -133,8 +146,9 @@ class PLASTRON_OT_clip_trim(bpy.types.Operator):
         if snapping.enabled(scene) != event.ctrl:      # Ctrl flips snapping while held
             frame = snapping.snap(frame, self.targets,
                                   cfg.SNAP_PX * snapping.frames_per_pixel(region))
-        plan = ripple.plan_trim(scene, self.orig, self.strip, self.side, frame)
-        clips.apply(scene, {s: plan.get(s, se) for s, se in self.orig.items()})
+        plan = ripple.resolve(ripple.plan_trim(scene, self.orig, self.strip, self.side, frame, self.content),
+                              self.content)
+        clips.apply(scene, {s: plan.get(s, (*se, self.content[s])) for s, se in self.orig.items()})
 
     def modal(self, context, event):
         if event.type in {'MOUSEMOVE', 'INBETWEEN_MOUSEMOVE'}:
@@ -143,7 +157,7 @@ class PLASTRON_OT_clip_trim(bpy.types.Operator):
             events.clips_changed(context.scene)
             return {'FINISHED'}
         elif event.type in {'ESC', 'RIGHTMOUSE'}:
-            clips.apply(context.scene, self.orig)
+            clips.apply(context.scene, {s: (*se, self.content[s]) for s, se in self.orig.items()})
             return {'CANCELLED'}
         return {'RUNNING_MODAL'}
 

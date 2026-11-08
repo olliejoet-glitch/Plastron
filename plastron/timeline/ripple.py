@@ -21,6 +21,16 @@ def snapshot(scene):
     return {s: (clips.start(s), clips.end(s)) for s in clips.top_clips(scene)}
 
 
+def content_snapshot(scene):
+    """Current {strip: content_start}: where each clip's content sits."""
+    return {s: s.content_start for s in clips.top_clips(scene)}
+
+
+def resolve(plan, content):
+    """A plan's content slides (start, end, slide) -> absolute content_start."""
+    return {s: (t[0], t[1], content[s] + t[2]) if len(t) > 2 else t for s, t in plan.items()}
+
+
 def _ripples(scene, strip):
     track = tracks.track_of_clip(scene, strip)
     return bool(track and track.ripple)
@@ -35,11 +45,20 @@ def _shift_after(scene, orig, frame, delta, changes, exclude=()):
     if not delta:
         return
     channels = tracks.ripple_channels(scene)
+    moved = []
     for strip, (s, e) in orig.items():
         if strip in exclude or strip.channel not in channels or s < frame:
             continue
         cs, ce = changes.get(strip, (s, e))
         changes[strip] = (cs + delta, ce + delta)
+        moved.append(strip)
+    # A moved clip's linked clips (its sound on a track without ripple) go along.
+    for strip in moved:
+        for other in clips.linked(strip, orig):
+            if other in changes or other in exclude or _locked(scene, other):
+                continue
+            s, e = orig[other]
+            changes[other] = (s + delta, e + delta)
 
 
 def _neighbours(orig, strip):
@@ -56,24 +75,34 @@ def _neighbours(orig, strip):
     return prev_end, next_start
 
 
-def plan_trim(scene, orig, strip, side, frame):
-    """Drag one edge ('LEFT' / 'RIGHT') of strip to frame."""
+def plan_trim(scene, orig, strip, side, frame, content=None):
+    """Drag one edge ('LEFT' / 'RIGHT') of strip to frame. A ripple trim of
+    the start keeps the clip in place and slides what it shows: its entry is
+    (start, end, slide), resolve() turns slide into a content position.
+    content (content_snapshot) lets a video / sound clip's start go back only
+    as far as its media does."""
     if _locked(scene, strip):
         return {}
     s, e = orig[strip]
     changes = {}
+    # Linked clips with the same span (a video and its sound) trim with it.
+    partners = [o for o in clips.linked(strip, orig) if orig[o] == (s, e) and not _locked(scene, o)]
+    exclude = {strip, *partners}
     if _ripples(scene, strip):
         if side == 'RIGHT':
             new_end = max(frame, s + MIN_LENGTH)
             changes[strip] = (s, new_end)
-            _shift_after(scene, orig, e, new_end - e, changes, exclude={strip})
+            _shift_after(scene, orig, e, new_end - e, changes, exclude=exclude)
         else:
             # Ripple trim of the start: the clip keeps its place, its length
             # changes by the drag, and everything after closes up / makes room.
             new_length = max(e - frame, MIN_LENGTH)
+            if content is not None and strip.type in {'MOVIE', 'SOUND'}:
+                new_length = min(new_length, e - content[strip])   # (no media before its start)
             delta = new_length - (e - s)
-            changes[strip] = (s, s + new_length)
-            _shift_after(scene, orig, e, delta, changes, exclude={strip})
+            # The cut-off start of the media is gone: what showed at e - new_length now shows at s.
+            changes[strip] = (s, s + new_length, -((e - new_length) - s))
+            _shift_after(scene, orig, e, delta, changes, exclude=exclude)
     else:
         prev_end, next_start = _neighbours(orig, strip)
         if side == 'RIGHT':
@@ -86,19 +115,22 @@ def plan_trim(scene, orig, strip, side, frame):
             if prev_end is not None:
                 new_start = max(new_start, prev_end)
             changes[strip] = (new_start, e)
+    for other in partners:
+        changes[other] = changes[strip]
     return changes
 
 
 def trim(scene, strip, side, frame, orig=None):
     orig = orig or snapshot(scene)
-    clips.apply(scene, plan_trim(scene, orig, strip, side, frame))
+    content = content_snapshot(scene)
+    clips.apply(scene, resolve(plan_trim(scene, orig, strip, side, frame, content), content))
     events.clips_changed(scene)
 
 
 def delete(scene, strips):
     """Delete clips; ripple tracks close the gap."""
     sed = clips.editor(scene)
-    strips = [s for s in strips if not _locked(scene, s)]
+    strips = [s for s in clips.with_linked(strips, clips.top_clips(scene)) if not _locked(scene, s)]
     for strip in sorted(strips, key=clips.start, reverse=True):
         s, e = clips.start(strip), clips.end(strip)
         ripples = _ripples(scene, strip)
@@ -142,15 +174,36 @@ def make_room(scene, channel, frame, length):
 
 
 def split(scene, strips, frame):
-    """Cut each clip covering frame in two. Returns the new right halves."""
-    new = []
-    for strip in strips:
+    """Cut each clip covering frame in two (linked clips too). Returns the
+    new right halves."""
+    before = set(clips.top_clips(scene))
+    pairs = []
+    for strip in clips.with_linked(strips, before):
         if _locked(scene, strip) or not (clips.start(strip) < frame < clips.end(strip)):
-            continue
+            continue                     # (Blender may have cut it already: connected to one cut)
         right = strip.split(frame=frame, split_method='SOFT')
         if right:
-            events.emit("clip_split", scene, original=strip, new=right)
-            new.append(right)
+            pairs.append((strip, right))
+    # Blender cuts a clip's connected clips with it: those right halves too.
+    rights = {r for _o, r in pairs}
+    for new in clips.top_clips(scene):
+        if new in before or new in rights:
+            continue
+        original = next((o for o in before if o.channel == new.channel and clips.end(o) == frame), None)
+        if original is not None:
+            pairs.append((original, new))
+    relink = {}            # the right halves of linked clips are linked to each other
+    new = []
+    for original, right in pairs:
+        if right.get(clips.LINK):
+            relink.setdefault(right[clips.LINK], []).append(right)
+        events.emit("clip_split", scene, original=original, new=right)
+        new.append(right)
+    for group in relink.values():
+        if len(group) > 1:
+            clips.link(group)
+        else:
+            clips.unlink(group[0])
     if new:
         events.clips_changed(scene)
     return new
