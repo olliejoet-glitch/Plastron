@@ -8,6 +8,12 @@ clips go on the track under the drop; their sound goes on its own track.
 # A video's own sound goes on this audio track (made if missing).
 VIDEO_SOUND_TRACK = "Video Sound"
 
+# Footage and panels never share a track: footage meant for a track with
+# panels on it (e.g. dropped on "Panels") goes on this video track instead
+# (made if missing, on top).
+VIDEO_TRACK = "Video"
+VIDEO_TRACK_RIPPLE = True     # (like Panels: putting a clip in pushes later ones along)
+
 # A still picture dropped on the timeline lasts this long.
 STILL_SECONDS = 5.0
 

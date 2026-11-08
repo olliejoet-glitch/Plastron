@@ -56,9 +56,10 @@ def steps():
     panels_track = tracks.track_of_clip(sc, h.module("features.storyboard.panels").all_panels(sc)[0])
     sc.frame_current = 60
     made = media.place(sc, movie, track=panels_track)
-    h.check("a video goes on the video track at the playhead", not isinstance(made, str)
-            and made[0].type == 'MOVIE' and clips.start(made[0]) == 60
-            and made[0].channel == tracks.channel_of(sc, panels_track), made)
+    vt = media.footage_track(sc)
+    h.check("a video meant for the Panels track goes on the Video track instead (they never share)",
+            not isinstance(made, str) and made[0].type == 'MOVIE' and clips.start(made[0]) == 60
+            and made[0].channel == tracks.channel_of(sc, vt) and tracks.name(sc, vt) == cfg.VIDEO_TRACK, made)
     video, sound = made[0], made[1] if len(made) > 1 else None
     vs = media.sound_track(sc)
     h.check("...its sound on the Video Sound track, the same length",
@@ -75,7 +76,7 @@ def steps():
     h.check("clips made by other code aren't taken for drops", "raw" in clips.editor(sc).strips_all)
     clips.editor(sc).strips.remove(raw)
 
-    made = media.place(sc, still, frame=300, track=panels_track)
+    made = media.place(sc, still, frame=300, track=vt)
     fps = sc.render.fps / sc.render.fps_base
     h.check("a picture lasts STILL_SECONDS", not isinstance(made, str)
             and clips.length(made[0]) == round(cfg.STILL_SECONDS * fps), made)
@@ -127,15 +128,31 @@ def steps():
     h.check("a video is linked to its sound (Blender's connected strips too)",
             clips.linked(video) == [sound] and [c.name for c in video.connections] == [sound.name],
             (clips.linked(video), [c.name for c in video.connections]))
-    made = media.place(sc, still, frame=clips.start(video), track=panels_track)
+    made = media.place(sc, still, frame=clips.start(video), track=vt)
     h.check("a clip put in front on a ripple track pushes the video AND its sound along",
             clips.start(video) == clips.end(made[0]) and clips.start(sound) == clips.start(video)
             and clips.end(sound) == clips.end(video), (clips.start(video), clips.start(sound)))
 
+    # Clips can't be moved where they don't belong: they go back.
+    events = h.module("timeline.events")
+    for target, why in ((tracks.channel_of(sc, h.module("timeline.tracks").video_tracks(sc)[0]), "a sound onto a video track"),
+                        (len(tracks.all_tracks(sc)) + 3, "a sound into a channel that isn't a track")):
+        before = (sound.channel, clips.start(sound))
+        sound.channel = target
+        events.clips_changed(sc)
+        yield 0.2
+        h.check(f"moving {why}: it goes back", (sound.channel, clips.start(sound)) == before,
+                ((sound.channel, clips.start(sound)), before))
+    before = video.channel
+    video.channel = tracks.channel_of(sc, panels_track)
+    events.clips_changed(sc)
+    yield 0.2
+    h.check("moving a video onto the Panels track: it goes back", video.channel == before, video.channel)
+
     def head(s):
         return s.left_handle - s.content_start
 
-    tracks.set_active(sc, panels_track)
+    tracks.set_active(sc, vt)
     for s in clips.all_clips(sc):
         s.select = False
     start, length, h0 = clips.start(video), clips.length(video), head(video)
@@ -179,6 +196,14 @@ def steps():
     yield 0.3
     h.check("clicking the video selects its sound too", video.select and sound.select,
             (video.select, sound.select))
+    # A real drag of the video up into empty channels (Blender's own move): back it goes.
+    before = (video.channel, sound.channel, clips.start(video))
+    _x, y2 = treg.view2d.view_to_region(0, video.channel + 2.5, clip=False)
+    yield from h.drag((treg.x + x, treg.y + y), (treg.x + x + 30, treg.y + y2), steps=10)
+    yield 0.6
+    h.check("dragging a video into a channel that isn't a track: it (and its sound) go back, at the new time",
+            (video.channel, sound.channel) == before[:2] and clips.start(sound) == clips.start(video),
+            ((video.channel, sound.channel, clips.start(video), clips.start(sound)), before))
 
     right = ripple.split(sc, [video], clips.start(video) + 10)
     h.check("splitting the video cuts its sound too; both halves stay media",

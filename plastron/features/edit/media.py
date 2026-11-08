@@ -57,16 +57,50 @@ def sound_track(scene):
     return tracks.add(scene, 'AUDIO', track_name=cfg.VIDEO_SOUND_TRACK)
 
 
+def is_footage(strip):
+    from ..storyboard.panels import is_panel
+    return strip.type in {'MOVIE', 'IMAGE'} and not is_panel(strip)
+
+
+def _holds(scene, track, test, besides=None):
+    return any(test(s) and s != besides for s in clips.on_channel(scene, tracks.channel_of(scene, track)))
+
+
+def footage_rule(scene, strip, track):
+    """placement rule: footage and panels never share a track."""
+    from ..storyboard.panels import is_panel
+    if is_panel(strip):
+        return not _holds(scene, track, is_footage, strip)
+    if is_footage(strip):
+        return not _holds(scene, track, is_panel, strip)
+    return True
+
+
+def footage_track(scene):
+    """A video track for footage: the Video track (made if missing)."""
+    from ..storyboard.panels import is_panel
+    for track in tracks.video_tracks(scene):
+        if tracks.name(scene, track) == cfg.VIDEO_TRACK and not _holds(scene, track, is_panel):
+            return track
+    return tracks.add(scene, 'VIDEO', track_name=cfg.VIDEO_TRACK, ripple=cfg.VIDEO_TRACK_RIPPLE)
+
+
 def _pick_track(scene, track, kind):
     """The track a clip of this kind goes on: the one given if it fits, else
-    the active track if it fits, else the top one of that kind."""
+    the active track if it fits, else the first of that kind (footage: never
+    a track with panels on it, else the Video track)."""
+    from ..storyboard.panels import is_panel
     want = 'AUDIO' if kind == 'SOUND' else 'VIDEO'
+
+    def fits(t):
+        return t is not None and t.kind == want and (want == 'AUDIO' or not _holds(scene, t, is_panel))
+
     for t in (track, tracks.active(scene)):
-        if t is not None and t.kind == want:
+        if fits(t):
             return t
-    same = [t for t in tracks.all_tracks(scene) if t.kind == want]
     if want == 'VIDEO':
-        return same[-1] if same else None       # (video_tracks: bottom first)
+        return footage_track(scene)
+    same = [t for t in tracks.all_tracks(scene) if t.kind == want]
     return same[0] if same else None
 
 
@@ -199,6 +233,8 @@ def take_drops(scene, **_info):
 
 
 def register():
+    from ...timeline import placement
+    placement.RULES.append(footage_rule)
     events.listen("clips_changed", take_drops)
     events.listen("clip_split", _on_split)
     from ...core import handlers
@@ -206,4 +242,6 @@ def register():
 
 
 def unregister():
-    pass
+    from ...timeline import placement
+    if footage_rule in placement.RULES:
+        placement.RULES.remove(footage_rule)

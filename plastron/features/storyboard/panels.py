@@ -76,6 +76,8 @@ def new_at_playhead(scene):
     if tracks.is_locked(scene, track):
         return "That track is locked"
     channel = tracks.channel_of(scene, track)
+    if any(s.type in {'MOVIE', 'IMAGE'} and not is_panel(s) for s in clips.on_channel(scene, channel)):
+        return "That track holds video: click a panels track first"     # (they never share)
     length = max(1, round(timeline_cfg.NEW_PANEL_SECONDS * scene.render.fps / scene.render.fps_base))
     room = ripple.make_room(scene, channel, scene.frame_current, length)
     if room is None:
