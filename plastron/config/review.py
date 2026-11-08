@@ -23,3 +23,17 @@ GUIDES = [
 SAFE_AREAS = [("Action safe", 0.93), ("Title safe", 0.90)]
 GUIDE_COLOR = "#ffffff88"
 SHORT_COLOR = "#de7520cc"
+
+# Speed playback (timeline header): play the animatic faster with the voice
+# at its normal pitch (the sound is time-stretched, the picture plays at
+# fps x speed; everything is put back when playback stops).
+SPEEDS = (1.0, 1.5, 2.0)
+
+# Temp sounds (timeline header: Sounds): placeholder effects from a folder
+# in Plastron's settings ("plastron_sounds/", subfolders = tags). Added at the
+# playhead on this track, coloured and named so they're easy to find and
+# replace later.
+TEMP_SOUND_TRACK = "Temp Sounds"
+TEMP_SOUND_PREFIX = "TEMP "
+TEMP_SOUND_COLOR = 'COLOR_07'
+SOUND_TYPES = (".wav", ".mp3", ".ogg", ".flac", ".aif", ".aiff", ".m4a")

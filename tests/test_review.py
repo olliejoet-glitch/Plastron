@@ -53,5 +53,65 @@ def steps():
         setattr(wm, guides._prop_name(gid), False)
     h.check("...and off again", not guides.shown())
 
+    # --- Temp sounds: a bin (folder; subfolders are tags), dropped at the playhead.
+    import wave
+    import numpy as np
+    sounds = h.module("features.review.sounds")
+    tag_dir = os.path.join(sounds.folder(), "doors")
+    os.makedirs(tag_dir, exist_ok=True)
+    wav = os.path.join(tag_dir, "creak.wav")
+    tone = (np.sin(2 * np.pi * 330 * np.arange(48000) / 48000) * 12000).astype(np.int16)
+    with wave.open(wav, "wb") as w:
+        w.setnchannels(1)
+        w.setsampwidth(2)
+        w.setframerate(48000)
+        w.writeframes(tone.tobytes())
+    found = sounds.matching("door")
+    h.check("the bin finds sounds by tag", [n for n, _t, _p in found] == ["creak"], found)
+    sc.frame_current = 10
+    s1 = sounds.drop(sc, wav)
+    s2 = sounds.drop(sc, wav)
+    clips = h.module("timeline.clips")
+    tracks = h.module("timeline.tracks")
+    track = sounds.temp_track(sc)
+    h.check("dropped at the playhead on a Temp Sounds track, pink and named TEMP",
+            clips.start(s1) == 10 and s1.channel == tracks.channel_of(sc, track)
+            and s1.name.startswith("TEMP ") and s1.color_tag == cfg.TEMP_SOUND_COLOR and sounds.is_temp(s1))
+    h.check("a second drop goes after the first", clips.start(s2) == clips.end(s1) and s2.channel == s1.channel,
+            (clips.start(s2), clips.end(s1)))
+    with h.override('SEQUENCE_EDITOR'):
+        bpy.ops.plastron.sounds_select_temp()
+    h.check("Select Temp Sounds finds them", s1.select and s2.select)
+
+    # --- Speed playback: the sound sped up with its pitch kept; the picture faster.
+    speed = h.module("features.review.speed")
+    with h.override('SEQUENCE_EDITOR'):
+        path = speed.mixdown(bpy.context)
+    snd = speed.stretched(path, 2.0, 0.0)
+    out = os.path.join(bpy.app.tempdir, "speed_test.wav")
+    import aud
+    snd.write(out, 48000, aud.CHANNELS_MONO, aud.FORMAT_S16, aud.CONTAINER_WAV)
+    with wave.open(out) as w:
+        data = np.frombuffer(w.readframes(w.getnframes()), np.int16).astype(np.float32)
+        rate = w.getframerate()
+    fps = sc.render.fps / sc.render.fps_base
+    mix_seconds = (sc.frame_end - sc.frame_start + 1) / fps
+    piece = data[int(10 / fps / 2 * rate) + 200:int(10 / fps / 2 * rate) + 200 + 8192]
+    peak = np.argmax(np.abs(np.fft.rfft(piece))) * rate / len(piece)
+    h.check("2x: half as long, same pitch", abs(len(data) / rate - mix_seconds / 2) < 0.3 and abs(peak - 330) < 15,
+            (len(data) / rate, mix_seconds / 2, peak))
+    base = sc.render.fps_base
+    sc.frame_current = 1
+    with h.override('SEQUENCE_EDITOR'):
+        bpy.ops.plastron.play_speed(speed=2.0)
+    yield 0.4
+    h.check("playing at 2x: picture twice as fast, the project's own sound muted",
+            abs(sc.render.fps_base - base / 2) < 1e-6 and not sc.use_audio)
+    with h.override('SEQUENCE_EDITOR'):
+        bpy.ops.plastron.play_speed(speed=2.0)
+    yield 0.4
+    h.check("...and stopping puts it all back", abs(sc.render.fps_base - base) < 1e-6 and sc.use_audio)
+    h.screenshot("timeline_header")
+
 
 h.run(steps())
