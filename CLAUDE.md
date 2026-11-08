@@ -59,8 +59,10 @@ theme, and keymap, with Photoshop-style drawing shortcuts.
   "Edit" mode (workspace) on the same timeline: media bin (file browser),
   video preview, footage placed on tracks (video + its sound, linked),
   Blender drops re-placed, Q / W / Up / Down / J / K / L
-  (`features/edit`, `timeline/edit_keys.py`). Next: wait for Ollie (ideas:
-  clip inspector / opacity / speed, transitions, audio mode).
+  (`features/edit`, `timeline/edit_keys.py`). Then: clips stay on tracks
+  they belong on (`timeline/placement.py`), Clip panel (opacity, blend,
+  flips, speed, volume), move / size / turn a clip by hand in the preview.
+  Next: wait for Ollie (ideas: fades / transitions, audio mode).
 - **DONE: drawing switched from grease pencil to RASTER** (Ollie: wants to
   select/move pixels, lay down blobs of colour, erase precisely). Brush engine
   = **Blender's own Texture Paint** (fast, Ollie likes the feel, can add his own
@@ -189,8 +191,9 @@ Plastron/
 │  │                         tracks (model over channels), clips (overlap-safe moves),
 │  │                         ripple (pure planners), snapping, mix, track_headers,
 │  │                         header, ops, view (framing), edit_tools (Move / Slice),
-│  │                         edit_keys (Q / W, Up / Down, J / K / L), events (features
-│  │                         listen; timeline knows no features)
+│  │                         edit_keys (Q / W, Up / Down, J / K / L), placement (which
+│  │                         clips may go on which track), events (features listen;
+│  │                         timeline knows no features)
 │  ├─ layers/                Photoshop-style layer stacks on materials (from CaraPainter):
 │  │                         props, blend_lib, layer_trees, compiler (node trees),
 │  │                         flatten (same maths in numpy), stack (edits), paint_target
@@ -227,7 +230,8 @@ Plastron/
 │  │                         speed (2x etc. playback), sounds (temp sounds bin), board
 │  │  └─ export/             animatic (MP4), sheet (hand-written PDF), shotlist (CSV)
 │  │  └─ edit/               Edit mode: media (placing footage / sound / pictures on
-│  │                         tracks; Blender's drops re-placed), bin (media bin, preview size)
+│  │                         tracks; Blender's drops re-placed), bin (media bin, preview size),
+│  │                         clip_panel (Clip panel), frame_box (move / size / turn in the preview)
 │  ├─ presets/               ★ preset files, one folder per kind (brushes/, motion/); README
 │  │                         lists the fields. Store code: core/presets.py
 │  └─ assets/                icon_256.png, plastron.ico
@@ -334,6 +338,18 @@ Plastron/
   finds those new right halves itself).
 - Sequencer movie_strip_add's move_strips (default on) moves the clip to the
   mouse: from Python pass move_strips=False.
+- Clip speed: Blender's retiming_segment_speed_set (speed in %, needs a
+  timeline area in context). Moving retiming keys by hand crashed Blender
+  on trimmed / split clips (they get extra keys at their handles).
+- PropertyGroup.path_from_id() doesn't work for a strip's PointerProperty
+  group: a get / set needing the strip goes on the WindowManager (active
+  strip) instead.
+- Simulated drags in the sequencer preview don't start Blender's preview
+  tools (Move / Transform gizmo) here, though clicks select; Plastron's own
+  box (features/edit/frame_box) is used and tested instead. The preview's
+  view is in project pixels, (0, 0) at the frame's middle.
+- Window.modal_operators lists running modal operators (placement waits
+  while a TRANSFORM_OT_* drag runs).
 - Strip.split copies Plastron's PointerProperties (voice takes, panel data).
 - A Plastron action that passes clicks on (PASSES_ON in config/keymap.py)
   doesn't count as a clash, so Blender's own item on that key stays on
@@ -827,6 +843,24 @@ Plastron/
   end of the media got cut). Plans carry (start, end, slide); clips.apply
   takes (start, end, content_start). A video / sound can't go back before
   its media's start.
+- Clips stay where they belong (Ollie: video dropped / dragged into the
+  Panels track, sounds into empty channels): sound only on audio tracks,
+  everything else only on video tracks, nothing on a channel that isn't a
+  track, and footage never shares a track with panels (timeline/placement.py
+  + Edit's footage_rule). After Blender's own drag-move ends, a clip that
+  moved somewhere it can't go goes back to its last track (at its new time
+  if free there, else where it was), with its linked clips. Footage meant
+  for a panels track goes on a "Video" track (made if missing, on top,
+  ripple on); New Panel refuses a track holding footage.
+- Clip panel (Edit mode, the preview's sidebar, tab "Clip"): name, opacity,
+  blend mode, flip ↔ / ↕, Reset Position (middle, fitting the frame, not
+  turned), speed 0.5× / 1× / 2× + field (Blender's retiming; the clip keeps
+  its start, its linked sound changes too and keeps its pitch, ripple tracks
+  close up / make room, else a slower clip stops at the next), volume for
+  sounds. Moving / sizing / turning (Ollie: tactile): a box around the
+  selected clip in the preview: drag inside = move, a corner = size (keeps
+  its shape), just outside = turn (Shift: 15° steps); Esc / right-click puts
+  it back (FRAME_BOX in config/edit.py). Clicks elsewhere pass on (select).
 - Editing keys: Q / W trim the clip under the playhead (selected, else the
   active track's) from its start / to its end at the playhead; Up / Down
   jump to the previous / next cut (any track; also over the canvas); J / K /
