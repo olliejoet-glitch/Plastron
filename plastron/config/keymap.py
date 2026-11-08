@@ -145,8 +145,9 @@ SHORTCUTS = [
 
 # Plastron actions that act and then pass the click on, so Blender's own
 # item on the same key keeps working (e.g. the script click still places
-# the text cursor).
-PASSES_ON = {"plastron.view_focus", "plastron.camera_pad", "plastron.drag_scroll", "plastron.script_click", "plastron.transcript_click", "plastron.transcript_hover"}
+# the text cursor). board_click only runs while the Board view is on (its
+# poll), so the timeline's own clicks work normally otherwise.
+PASSES_ON = {"plastron.board_click", "plastron.view_focus", "plastron.camera_pad", "plastron.drag_scroll", "plastron.script_click", "plastron.transcript_click", "plastron.transcript_hover"}
 
 # Blender items switched off even though BLENDER_KEEP keeps their keymap.
 BLENDER_DROP = {
