@@ -13,6 +13,7 @@ FEATURES = [
     "motion",
     "scene3d",
     "review",
+    "export",
 ]
 
 _loaded = []
