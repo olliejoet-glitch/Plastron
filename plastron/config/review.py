@@ -37,3 +37,17 @@ TEMP_SOUND_TRACK = "Temp Sounds"
 TEMP_SOUND_PREFIX = "TEMP "
 TEMP_SOUND_COLOR = 'COLOR_07'
 SOUND_TYPES = (".wav", ".mp3", ".ogg", ".flac", ".aif", ".aiff", ".m4a")
+
+# Board view (timeline header: Board): the panels as a grid of cards; drag a
+# card to reorder (the panels close up in the new order), click one to go to
+# it, double-click to go back to the timeline there.
+BOARD = {
+    "card_w": 190,          # card width in pixels (100 % UI scale); height follows 16:9
+    "gap": 14,
+    "caption": 34,          # room under each picture for the name / length / note
+    "back": "#09201cff",    # board background (covers the timeline)
+    "card": "#14302eff",
+    "drop": "#de7520ff",    # where a dragged card will land
+    "text": "#d6e2e0ff",
+    "text_dim": "#83a4a0ff",
+}

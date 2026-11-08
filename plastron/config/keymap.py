@@ -137,6 +137,9 @@ SHORTCUTS = [
     ("timeline",     "I",                "plastron.loop_set",            "Loop range start",       {"side": 'IN'}),
     ("timeline",     "O",                "plastron.loop_set",            "Loop range end",         {"side": 'OUT'}),
     ("track_headers", "LMB",             "plastron.track_header_click",  "Ripple / solo / volume; pick active track"),
+    # (last: of two actions on one key the later is tried first; it only
+    # works while the board is showing)
+    ("timeline",     "LMB",              "plastron.board_click",         "Board: drag a card to reorder, click to go to it"),
 ]
 
 

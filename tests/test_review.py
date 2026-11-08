@@ -113,5 +113,44 @@ def steps():
     h.check("...and stopping puts it all back", abs(sc.render.fps_base - base) < 1e-6 and sc.use_audio)
     h.screenshot("timeline_header")
 
+    # --- Board view: the panels as cards; drag to reorder.
+    board = h.module("features.review.board")
+    panels = h.module("features.storyboard.panels")
+    tracks = h.module("timeline.tracks")
+    first = panels.all_panels(sc)[0]
+    ch = first.channel
+    p2 = panels.create(sc, ch, clips.end(first), 24)
+    p3 = panels.create(sc, ch, clips.end(p2), 36)
+    names = [s.name for s in board.board_panels(sc)]
+    wm.plastron_board = True
+    yield 0.3
+    tl = h.area('SEQUENCE_EDITOR')
+    reg = h.region(tl)
+    rects = board.layout(reg, 3)
+    c0 = ((rects[0][0] + rects[0][2]) / 2 + reg.x, (rects[0][1] + rects[0][3]) / 2 + reg.y)
+    after = (rects[2][2] + reg.x + 4, (rects[2][1] + rects[2][3]) / 2 + reg.y)
+    h.move(*c0)
+    yield 0.2
+    h.redraw()
+    yield 0.2
+    h.screenshot("board")
+    yield from h.drag(c0, after)
+    yield 0.4
+    now = [s.name for s in board.board_panels(sc)]
+    h.check("dragging the first card to the end reorders the panels",
+            now == names[1:] + names[:1], (names, now))
+    strips = board.board_panels(sc)
+    h.check("...one after another, lengths kept",
+            all(clips.end(a) == clips.start(b) for a, b in zip(strips, strips[1:]))
+            and clips.length(strips[0]) == 24 and clips.length(strips[1]) == 36, [(clips.start(s), clips.length(s)) for s in strips])
+    h.move(*c0)
+    yield
+    h._event('LEFTMOUSE', 'PRESS')
+    h._event('LEFTMOUSE', 'RELEASE')
+    yield 0.2
+    h.check("clicking a card puts the playhead on that panel", sc.frame_current == clips.start(strips[0]))
+    wm.plastron_board = False
+    yield 0.2
+
 
 h.run(steps())
