@@ -55,7 +55,12 @@ theme, and keymap, with Photoshop-style drawing shortcuts.
   (animatic MP4, panel sheet PDF, shot list CSV) (`features/review`,
   `features/export`). Not yet: the animatic shows each panel's start state
   (no camera moves / 3D camera); drag-and-drop import is Blender's own.
-- **Next**: wait for Ollie to ask.
+- **Edit mode, first milestone done** (Ollie chose it after stage 7): an
+  "Edit" mode (workspace) on the same timeline: media bin (file browser),
+  video preview, footage placed on tracks (video + its sound, linked),
+  Blender drops re-placed, Q / W / Up / Down / J / K / L
+  (`features/edit`, `timeline/edit_keys.py`). Next: wait for Ollie (ideas:
+  clip inspector / opacity / speed, transitions, audio mode).
 - **DONE: drawing switched from grease pencil to RASTER** (Ollie: wants to
   select/move pixels, lay down blobs of colour, erase precisely). Brush engine
   = **Blender's own Texture Paint** (fast, Ollie likes the feel, can add his own
@@ -159,6 +164,7 @@ Plastron/
 │  │  ├─ scene3d.py          the 3D scene: its camera lens, the view's start angle, card colour
 │  │  ├─ review.py           shot statuses, guides, speeds, temp sounds, board look, compare
 │  │  ├─ export.py           animatic size / codec, panel sheet page + grid
+│  │  ├─ edit.py             Edit mode: Video Sound track, still length, preview size / proxies, bin folder
 │  │  ├─ theme.py            palette + where each colour is used; canvas overlay colours
 │  │  ├─ hidden_ui.py        Blender panels/shelves to hide, headers to replace
 │  │  ├─ preferences.py      Blender preferences set at every start
@@ -182,8 +188,9 @@ Plastron/
 │  ├─ timeline/              the one shared timeline (see its __init__ for the module list)
 │  │                         tracks (model over channels), clips (overlap-safe moves),
 │  │                         ripple (pure planners), snapping, mix, track_headers,
-│  │                         header, ops, view (framing), events (features listen;
-│  │                         timeline knows no features)
+│  │                         header, ops, view (framing), edit_tools (Move / Slice),
+│  │                         edit_keys (Q / W, Up / Down, J / K / L), events (features
+│  │                         listen; timeline knows no features)
 │  ├─ layers/                Photoshop-style layer stacks on materials (from CaraPainter):
 │  │                         props, blend_lib, layer_trees, compiler (node trees),
 │  │                         flatten (same maths in numpy), stack (edits), paint_target
@@ -219,6 +226,8 @@ Plastron/
 │  │  └─ review/             notes (Panel panel: status, note), versions, guides,
 │  │                         speed (2x etc. playback), sounds (temp sounds bin), board
 │  │  └─ export/             animatic (MP4), sheet (hand-written PDF), shotlist (CSV)
+│  │  └─ edit/               Edit mode: media (placing footage / sound / pictures on
+│  │                         tracks; Blender's drops re-placed), bin (media bin, preview size)
 │  ├─ presets/               ★ preset files, one folder per kind (brushes/, motion/); README
 │  │                         lists the fields. Store code: core/presets.py
 │  └─ assets/                icon_256.png, plastron.ico
@@ -311,6 +320,20 @@ Plastron/
 - A new sound strip overlapping another is bumped: make it on a spare
   channel, trim it, then set its channel (review/sounds.drop).
 - aud has no audio device under Xvfb: test audio by writing files.
+- A Sequencer area's view_type (timeline / PREVIEW), like an editor type,
+  needs a UI refresh before its other settings (core/layout.set_view_types).
+  Setting proxy_render_size while the scene has no sequence editor crashes.
+  In PREVIEW view the picture is the 'PREVIEW' region (WINDOW draw handlers
+  don't draw there); core/views.is_timeline / is_preview tell them apart.
+- Blender 5.2's preview keymap is "Preview" (not "SequencerPreview").
+- Blender's sequencer drop puts a video's sound on the channel under the
+  mouse and the picture on the channel above.
+- wm.operators lists operators run from the UI only (not from Python): Edit
+  mode spots a drop by the last one being an add-strip operator.
+- Blender's strip.split cuts the strip's connected strips too (ripple.split
+  finds those new right halves itself).
+- Sequencer movie_strip_add's move_strips (default on) moves the clip to the
+  mouse: from Python pass move_strips=False.
 - Strip.split copies Plastron's PointerProperties (voice takes, panel data).
 - A Plastron action that passes clicks on (PASSES_ON in config/keymap.py)
   doesn't count as a clash, so Blender's own item on that key stays on
@@ -413,7 +436,7 @@ Plastron/
   when the drag starts on a button; it passes on elsewhere, so the canvas /
   timeline pans still work.
 - Top bar: Plastron icon, File (New, Open, Open Recent, Save, Save As, Recover,
-  Quit), undo/redo, mode switcher. Project name on the right.
+  Quit), undo/redo, mode switcher (Storyboard | Edit). Project name on the right.
 - Canvas colour: Ollie found white too bright. Default is soft paper
   `#d2cec6`; the Canvas panel (tools area) has swatches (CANVAS_PRESETS in
   config/theme.py) and a picker; the choice is remembered in
@@ -785,5 +808,29 @@ Plastron/
   settings put back), Export Panel Sheet (PDF written by hand, A4 landscape,
   3×2 grid, number / name / status / length / note / script under each),
   Export Shot List (CSV). config/export.py.
+- Edit mode (Ollie: "seperate workspaces for storyboard, video, sound
+  design"; chose Edit first): layout media bin 24 % | preview 76 % over
+  the timeline 42 %. The media bin is Blender's file browser (thumbnails,
+  video / sound / picture filter, starts in the project folder else
+  ~/Videos), with an "Add to Timeline" header button (selected files at the
+  playhead, one after another). Footage goes on the track under a drop
+  (else the active video track); a video's sound goes on a "Video Sound"
+  audio track (made if missing); room is made like New Panel (ripple tracks
+  move along; others: the clip fits the gap). A video and its sound are
+  linked (strip["plastron_link"] + Blender's connected strips): they select,
+  move, trim, cut, delete and ripple together. Pictures last 5 s. The
+  preview plays at 50 % proxies (made by Blender next to the footage in
+  BL_proxy; Blender skips them when decoding is fast). Footage keeps
+  Blender's own clip colours (tags are the shot statuses).
+- Ripple trim of a clip's start (edge drag with ripple, or Q) keeps the
+  clip in place and slides its media: the cut-off start is gone (was: the
+  end of the media got cut). Plans carry (start, end, slide); clips.apply
+  takes (start, end, content_start). A video / sound can't go back before
+  its media's start.
+- Editing keys: Q / W trim the clip under the playhead (selected, else the
+  active track's) from its start / to its end at the playhead; Up / Down
+  jump to the previous / next cut (any track; also over the canvas); J / K /
+  L play backwards / stop / play (timeline and preview; L over the canvas
+  stays lasso).
 - Value swatches (value groups sampled from an image) are **deferred** to the
   later "value group editor" feature. Don't build them in storyboard mode.
