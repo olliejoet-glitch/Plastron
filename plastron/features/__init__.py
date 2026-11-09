@@ -16,6 +16,7 @@ FEATURES = [
     "export",
     "edit",
     "audio",
+    "grade",
 ]
 
 _loaded = []

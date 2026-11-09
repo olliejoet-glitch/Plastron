@@ -1,0 +1,1 @@
+{"name": "Night", "order": 4, "lift": [0.92, 0.95, 1.05], "gamma": [0.8, 0.85, 1.0], "gain": [0.7, 0.78, 0.95], "contrast": 10, "saturation": 0.7}

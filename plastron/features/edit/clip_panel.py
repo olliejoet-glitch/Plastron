@@ -92,6 +92,8 @@ class PLASTRON_PT_clip(bpy.types.Panel):
 
     @classmethod
     def poll(cls, context):
+        if context.workspace is not None and context.workspace.name == "Grade":
+            return False                       # (Grade mode: the Grade panel has this tab)
         return active_clip(context) is not None
 
     def draw(self, context):

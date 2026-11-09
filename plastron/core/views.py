@@ -29,5 +29,6 @@ def is_timeline(space):
 
 
 def is_preview(space):
+    """A video preview showing the picture (not a scope)."""
     return space is not None and getattr(space, "type", "") == 'SEQUENCE_EDITOR' and \
-        getattr(space, "view_type", '') == 'PREVIEW'
+        getattr(space, "view_type", '') == 'PREVIEW' and getattr(space, "display_mode", 'IMAGE') == 'IMAGE'

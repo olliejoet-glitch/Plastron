@@ -70,6 +70,9 @@ theme, and keymap, with Photoshop-style drawing shortcuts.
   breath remover, creature voices, music fitting. Next: wait for Ollie
   (from the brief: captions .srt, colour grading, value group editor,
   Shorts reframing, export presets, video templates...).
+- **Ollie's next list** (in order): clip previews + colours and 4K export
+  (done), colour grading (Grade mode, done), value group editor, Shorts
+  reframing, caption export (.srt).
 - **DONE: drawing switched from grease pencil to RASTER** (Ollie: wants to
   select/move pixels, lay down blobs of colour, erase precisely). Brush engine
   = **Blender's own Texture Paint** (fast, Ollie likes the feel, can add his own
@@ -176,6 +179,7 @@ Plastron/
 │  │  ├─ export.py           animatic size / codec, panel sheet page + grid
 │  │  ├─ edit.py             Edit mode: Video Sound track, still length, preview size / proxies, bin folder
 │  │  ├─ audio.py            Audio mode: loudness targets, ducking, beats
+│  │  ├─ grade.py            Grade mode: Grade track, the modifiers a graded clip gets, scopes
 │  │  ├─ theme.py            palette + where each colour is used; canvas overlay colours
 │  │  ├─ hidden_ui.py        Blender panels/shelves to hide, headers to replace
 │  │  ├─ preferences.py      Blender preferences set at every start
@@ -247,7 +251,9 @@ Plastron/
 │  │                         (Normalise), duck (auto-ducking), beats (markers), breaths
 │  │                         (breath remover), creature (voice stacks), fit (music fitting),
 │  │                         panel (Sound panel)
-│  ├─ presets/               ★ preset files, one folder per kind (brushes/, motion/, windows/, export/); README
+│  │  └─ grade/              Grade mode: grade (a clip's grade = Blender colour modifiers, looks,
+│  │                         copy / paste, Grade Everything), panel (Grade panel)
+│  ├─ presets/               ★ preset files, one folder per kind (brushes/, motion/, windows/, export/, grades/); README
 │  │                         lists the fields. Store code: core/presets.py
 │  └─ assets/                icon_256.png, plastron.ico
 ├─ tools/
@@ -366,6 +372,10 @@ Plastron/
 - Reading sound as numbers: aud.Sound(path).rechannel(1).resample(rate,
   False).data() -> numpy (n, 1). bpy Sounds have no aud factory in 5.2; a
   packed sound is written to a temp file first (features/audio/analysis).
+- region.active_panel_category is read-only from Python at runtime (a
+  sidebar's tab can't be chosen): share a tab and hide panels by poll.
+- A sequencer preview's display_mode WAVEFORM / VECTOR_SCOPE shows a scope;
+  core/views.is_preview means the picture (display_mode IMAGE) only.
 - The sequencer preview's sidebar has a C-defined Metadata panel that
   can't be hidden (shows when no Plastron panel does).
 - A scene strip shows another scene's timeline with scene_input
@@ -477,7 +487,7 @@ Plastron/
   when the drag starts on a button; it passes on elsewhere, so the canvas /
   timeline pans still work.
 - Top bar: Plastron icon, File (New, Open, Open Recent, Save, Save As, Recover,
-  Quit), undo/redo, mode switcher (Storyboard | Edit | Audio). Project name on the right.
+  Quit), undo/redo, mode switcher (Storyboard | Edit | Grade | Audio). Project name on the right.
 - Canvas colour: Ollie found white too bright. Default is soft paper
   `#d2cec6`; the Canvas panel (tools area) has swatches (CANVAS_PRESETS in
   config/theme.py) and a picker; the choice is remembered in
@@ -930,6 +940,18 @@ Plastron/
   right half the fade out. A true crossfade (both pictures at once) needs
   overlapping clips, which tracks don't allow: not done. Fade keys also
   show in the Storyboard keyframe view (Dope Sheet).
+- Grade mode (Ollie: "colour grading"): the picture 74 % (sidebar: Grade
+  panel) | waveform over vectorscope 26 % (previews in scope display, no
+  headers), over the timeline 36 %. A clip's grade (features/grade): the
+  first "Grade This Clip" adds Blender modifiers Plastron Balance (Color
+  Balance, lift / gamma / gain = Shadows / Midtones / Highlights wheels),
+  Plastron Bright (brightness / contrast), Plastron White (white balance),
+  plus the clip's saturation (and tint for looks). Looks (presets/grades/:
+  Neutral, Warm, Cool, Night, Bleach Bypass, Vintage) start from neutral;
+  Copy / Paste Grade; Reset. Grade Everything: an Adjustment clip on a
+  "Grade" video track (made if missing) over the whole project, kept as long
+  as the project, graded like any clip. The Grade panel shares the sidebar's
+  "Clip" tab (under the Clip panel in Edit mode; alone in Grade mode).
 - Audio mode (Ollie: "next phase"): layout picture 34 % (no sidebar) over
   the timeline 66 % with its sidebar showing the Sound tab: Mix (each audio
   track: volume, Solo, Duck) and Sound Tools. Loudness: BS.1770 LUFS

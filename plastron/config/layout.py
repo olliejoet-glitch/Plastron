@@ -32,6 +32,18 @@ MODES = {
         ]},
         {"size": 0.42, "area": "timeline"},
     ]},
+    # Colour grading: the picture big (Grade panel at its side), the scopes
+    # beside it, the timeline below.
+    "Grade": {"rows": [
+        {"size": 0.64, "columns": [
+            {"size": 0.74, "area": "preview"},
+            {"size": 0.26, "rows": [
+                {"size": 0.5, "area": "scope_waveform"},
+                {"size": 0.5, "area": "scope_vector"},
+            ]},
+        ]},
+        {"size": 0.36, "area": "timeline"},
+    ]},
     # Sound design on the same timeline: the picture small on top, a big
     # timeline with the Sound panel (mix, loudness, ducking, beats) at its side.
     "Audio": {"rows": [
@@ -160,6 +172,11 @@ AREAS = {
 # its picture without a sidebar (Blender's own Metadata tab can't be hidden).
 AREAS["timeline_sound"] = dict(AREAS["timeline"], sidebar=True)
 AREAS["preview_plain"] = dict(AREAS["preview"], sidebar=False)
+# Grade mode's scopes: the picture's brightness (waveform) and colours (vectorscope).
+AREAS["scope_waveform"] = dict(AREAS["preview_plain"], header=False,
+                               settings=dict(AREAS["preview"]["settings"], display_mode='WAVEFORM'))
+AREAS["scope_vector"] = dict(AREAS["preview_plain"], header=False,
+                             settings=dict(AREAS["preview"]["settings"], display_mode='VECTOR_SCOPE'))
 
 # Whole-window options.
 WINDOW = {

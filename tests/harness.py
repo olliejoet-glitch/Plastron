@@ -48,13 +48,16 @@ def area(kind):
     def scene_view(a):
         return a.type == 'VIEW_3D' and not a.spaces.active.show_region_tool_header
     def preview(a):
-        return a.type == 'SEQUENCE_EDITOR' and a.spaces.active.view_type == 'PREVIEW'
+        return a.type == 'SEQUENCE_EDITOR' and a.spaces.active.view_type == 'PREVIEW' \
+            and a.spaces.active.display_mode == 'IMAGE'
     if kind == 'SCENE_3D':
         return next((a for a in window().screen.areas if scene_view(a)), None)
     if kind == 'PREVIEW':        # Edit mode's video preview ('SEQUENCE_EDITOR' = the timeline)
         return next((a for a in window().screen.areas if preview(a)), None)
+    def any_preview(a):          # (pictures and scopes)
+        return a.type == 'SEQUENCE_EDITOR' and a.spaces.active.view_type == 'PREVIEW'
     return next((a for a in window().screen.areas if a.type == kind and not scene_view(a)
-                 and not preview(a)), None)
+                 and not any_preview(a)), None)
 
 
 def flat_canvas():
