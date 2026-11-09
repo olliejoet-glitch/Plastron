@@ -84,12 +84,21 @@ def steps():
         video.export(bpy.context, uhd, video.preset_named("YouTube 4K"), frames=(1, 3))
     h.check("Export Video (YouTube 4K): a 3840×2160 video", probe(uhd) == (3840, 2160), probe(uhd))
     png = os.path.join(out, "frame.png")
+    sc.frame_current = clips.start(first) + 1
     with h.override('SEQUENCE_EDITOR'):
         video.export_frame(bpy.context, png)
     img = bpy.data.images.load(png, check_existing=False)
     h.check("Export Frame: the picture at the playhead as a 3840×2160 PNG", tuple(img.size) == (3840, 2160),
             tuple(img.size))
+    px = np.empty(3840 * 2160 * 4, np.float32)
+    img.pixels.foreach_get(px)
+    px = px.reshape(2160, 3840, 4)
     bpy.data.images.remove(img)
+    at = lambda fx, fy: px[int(fy * 2160), int(fx * 3840), :3].mean()    # noqa: E731
+    # The block painted at a third to a half of the painting = 29-50 % of the frame.
+    h.check("...the panel at its right size and place in the 4K frame (painted block where it was drawn)",
+            at(0.4, 0.4) < 0.25 and at(0.75, 0.75) > 0.5 and at(0.15, 0.15) > 0.5,
+            (at(0.4, 0.4), at(0.75, 0.75), at(0.15, 0.15)))
     h.check("...render settings put back again",
             (sc.render.resolution_x, sc.render.filepath, sc.render.image_settings.file_format) == before)
     src = os.path.join(out, "in4k.mp4")

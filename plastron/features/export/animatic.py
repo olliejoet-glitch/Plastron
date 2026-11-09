@@ -19,6 +19,20 @@ from bpy_extras.io_utils import ExportHelper
 from ...config import export as cfg
 
 
+def _png_width(path):
+    """A PNG's width from its header (Blender's orig_width keeps whatever
+    picture the clip showed last)."""
+    try:
+        with open(path, "rb") as f:
+            head = f.read(24)
+        if head[:8] == b"\x89PNG\r\n\x1a\n":
+            return int.from_bytes(head[16:20], "big")
+    except OSError:
+        pass
+    from ...config import project_defaults
+    return project_defaults.PANEL_IMAGE_SIZE[0]
+
+
 def _panel_frames(scene, folder, size):
     """Each panel re-made at size into folder; returns {strip: (old dir, old file)}."""
     from ...layers.flatten import flatten
@@ -36,10 +50,25 @@ def _panel_frames(scene, folder, size):
         rgba[..., 3] = 1.0
         name = f"animatic_{strip.plastron_panel.uid}.png"
         panel_cache._write(os.path.join(folder, name), np.ascontiguousarray(rgba))
-        swapped[strip.name] = (strip.directory, strip.elements[0].filename)
+        t = strip.transform
+        old_w = _png_width(bpy.path.abspath(os.path.join(strip.directory, strip.elements[0].filename)))
+        swapped[strip.name] = (strip.directory, strip.elements[0].filename, t.scale_x, t.scale_y)
         strip.directory = folder + os.sep
         strip.elements[0].filename = name
+        # The clip was sized for its small cached picture: the same size in the frame.
+        k = old_w / rgba.shape[1]
+        t.scale_x, t.scale_y = t.scale_x * k, t.scale_y * k
     return swapped
+
+
+def _put_back(scene, swapped):
+    sed = scene.sequence_editor
+    for name, (directory, filename, sx, sy) in swapped.items():
+        strip = sed.strips_all.get(name)
+        if strip is not None:
+            strip.directory = directory
+            strip.elements[0].filename = filename
+            strip.transform.scale_x, strip.transform.scale_y = sx, sy
 
 
 def _settings(scene):
@@ -71,16 +100,20 @@ def _restore(scene, saved):
 QUALITY = {"HIGH": 'HIGH', "MEDIUM": 'MEDIUM', "LOW": 'LOW', "LOSSLESS": 'LOSSLESS', "PERC_LOSSLESS": 'PERC_LOSSLESS'}
 
 
-def export(context, path, size=None, frames=None, codec=None, quality=None, audio=None, audio_bitrate=None):
+def export(context, path, size=None, frames=None, codec=None, quality=None, audio=None, audio_bitrate=None,
+           scene=None, panel_scene=None, panel_size=None):
     """Render the timeline to path. size: (w, h); frames: (start, end) or
     None; codec / quality / audio / audio_bitrate: export preset values
-    (defaults: the animatic's, config/export.py)."""
-    scene = context.scene
+    (defaults: the animatic's, config/export.py). scene: the scene rendered
+    (default: the current one); its panels (or panel_scene's: e.g. the
+    timeline a Shorts scene shows) are re-made at panel_size (default: size)."""
+    scene = scene or context.scene
     size = size or cfg.ANIMATIC_SIZE
     saved = _settings(scene)
     range_saved = (scene.frame_start, scene.frame_end)
     folder = tempfile.mkdtemp(prefix="plastron_animatic_")
-    swapped = _panel_frames(scene, folder, size)
+    panel_scene = panel_scene or scene
+    swapped = _panel_frames(panel_scene, folder, panel_size or size)
     r = scene.render
     try:
         r.resolution_x, r.resolution_y = size
@@ -99,15 +132,10 @@ def export(context, path, size=None, frames=None, codec=None, quality=None, audi
         r.filepath = path
         if frames:
             scene.frame_start, scene.frame_end = frames
-        bpy.ops.render.render(animation=True)
+        bpy.ops.render.render(animation=True, scene=scene.name)
     finally:
         scene.frame_start, scene.frame_end = range_saved
-        sed = scene.sequence_editor
-        for name, (directory, filename) in swapped.items():
-            strip = sed.strips_all.get(name)
-            if strip is not None:
-                strip.directory = directory
-                strip.elements[0].filename = filename
+        _put_back(panel_scene, swapped)
         _restore(scene, saved)
         shutil.rmtree(folder, ignore_errors=True)
     return path
@@ -131,12 +159,7 @@ def still(context, path, size):
         r.filepath = path
         bpy.ops.render.render(write_still=True)
     finally:
-        sed = scene.sequence_editor
-        for name, (directory, filename) in swapped.items():
-            strip = sed.strips_all.get(name)
-            if strip is not None:
-                strip.directory = directory
-                strip.elements[0].filename = filename
+        _put_back(scene, swapped)
         _restore(scene, saved)
         shutil.rmtree(folder, ignore_errors=True)
     return path
