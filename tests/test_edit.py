@@ -299,6 +299,41 @@ def steps():
             (t.offset_x, t.offset_y, t.rotation) == (0, 0, 0) and abs(t.scale_x - sx0) < 1e-4
             and abs(t.scale_y - sx0) < 1e-4, (t.offset_x, t.scale_x, sx0))
 
+    # Colour coding: the selected clip and its linked sound take the colour.
+    tagged = next(s_ for s_ in clips.top_clips(sc) if s_.type == 'MOVIE' and clips.linked(s_))
+    for s_ in clips.all_clips(sc):
+        s_.select = s_ == tagged
+    with h.override('SEQUENCE_EDITOR'):
+        bpy.ops.plastron.clip_color(tag='COLOR_03')
+    h.check("colour-coding a clip colours it and its linked sound",
+            tagged.color_tag == 'COLOR_03' and all(o.color_tag == 'COLOR_03' for o in clips.linked(tagged)))
+    tl_space = h.area('SEQUENCE_EDITOR').spaces.active
+    h.check("clips show pictures all along them, and their colours",
+            tl_space.timeline_overlay.thumbnail_display_style == 'CONTINUOUS'
+            and tl_space.timeline_overlay.show_strip_tag_color)
+
+    # Zooming the timeline keeps what's under the pen where it is (Ollie).
+    tl = h.area('SEQUENCE_EDITOR')
+    treg = h.region(tl)
+    with h.override('SEQUENCE_EDITOR'):
+        bpy.ops.sequencer.view_all()
+    h.redraw()
+    yield 0.3
+    px, py = treg.x + int(treg.width * 0.85), treg.y + int(treg.height * 0.3)
+    under = treg.view2d.region_to_view(px - treg.x, py - treg.y)
+    h.move(px, py)
+    yield 0.2
+    for key in ('WHEELUPMOUSE', 'WHEELUPMOUSE', 'EQUAL'):
+        if key == 'EQUAL':
+            h.key('EQUAL', ctrl=True)
+        else:
+            h._event(key, 'PRESS')
+        yield 0.2
+    after = treg.view2d.region_to_view(px - treg.x, py - treg.y)
+    span = treg.view2d.region_to_view(treg.width, 0)[0] - treg.view2d.region_to_view(0, 0)[0]
+    h.check("zooming in on the timeline keeps the frame and track under the pen",
+            abs(after[0] - under[0]) < span * 0.05 and abs(after[1] - under[1]) < 1.0, (under, after, span))
+
     with h.override('PREVIEW'):
         bpy.ops.sequencer.view_all_preview()
     sc.frame_current = 70

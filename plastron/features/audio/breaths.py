@@ -14,41 +14,70 @@ from . import analysis
 KEY = "plastron_breaths"          # on a clip: [(start, end)] seconds in its recording
 
 
-def find(x, rate):
-    """[(start, end)] seconds of the breaths in mono samples."""
-    hop = int(0.02 * rate)
-    m = len(x) // hop
-    if m < 5:
-        return []
-    frames = x[:m * hop].reshape(m, hop)
-    db = 20 * np.log10(np.maximum(np.sqrt(np.mean(frames ** 2, axis=1)), 1e-6))
-    power = np.abs(np.fft.rfft(frames * np.hanning(hop), axis=1)) ** 2 + 1e-12
-    flat = np.exp(np.mean(np.log(power), axis=1)) / np.mean(power, axis=1)
-    loud = np.percentile(db, 95)
-    floor = np.percentile(db, 10)
-    speech = db > loud - cfg.BREATH_BELOW_SPEECH_DB
-    cand = (~speech) & (db > floor + cfg.BREATH_ABOVE_FLOOR_DB) & (flat > cfg.BREATH_FLATNESS)
+def _runs(mask, step, lo, hi, offset=0.0):
+    """[(start, end)] seconds of the True runs lo..hi long."""
     out = []
-    i = 0
-    lo, hi = cfg.BREATH_SECONDS
+    i, m = 0, len(mask)
     while i < m:
-        if cand[i]:
+        if mask[i]:
             j = i
-            while j < m and cand[j]:
+            while j < m and mask[j]:
                 j += 1
-            dur = (j - i) * 0.02
-            if lo <= dur <= hi:
-                out.append((i * 0.02, j * 0.02))
+            if lo <= (j - i) * step <= hi:
+                out.append((offset + i * step, offset + j * step))
             i = j
         else:
             i += 1
     return out
 
 
+def find(x, rate, words=None):
+    """[(start, end)] seconds of the breaths in mono samples. With the
+    transcript's words ([(word, start, end)]): sound in the gaps between
+    words that's over the silence and under the speech. Without: quiet,
+    noise-like stretches."""
+    step = 0.02
+    hop = int(step * rate)
+    m = len(x) // hop
+    if m < 5:
+        return []
+    frames = x[:m * hop].reshape(m, hop)
+    db = 20 * np.log10(np.maximum(np.sqrt(np.mean(frames ** 2, axis=1)), 1e-6))
+    loud = np.percentile(db, 95)
+    floor = np.percentile(db, 10)
+    breathy = (db < loud - cfg.BREATH_BELOW_SPEECH_DB) & (db > floor + cfg.BREATH_ABOVE_FLOOR_DB)
+    lo, hi = cfg.BREATH_SECONDS
+    if words:
+        gaps = np.zeros(m, bool)
+        times = sorted((float(a), float(b)) for _w, a, b in words)
+        edges = [(0.0, times[0][0])] + [(times[k][1], times[k + 1][0]) for k in range(len(times) - 1)] \
+            + [(times[-1][1], m * step)]
+        for a, b in edges:
+            if b - a >= lo:
+                gaps[int(a / step) + 1:int(b / step) - 1] = True      # (a little in from the words)
+        return _runs(breathy & gaps, step, lo, hi)
+    power = np.abs(np.fft.rfft(frames * np.hanning(hop), axis=1)) ** 2 + 1e-12
+    flat = np.exp(np.mean(np.log(power), axis=1)) / np.mean(power, axis=1)
+    return _runs(breathy & (flat > cfg.BREATH_FLATNESS), step, lo, hi)
+
+
+def _words(strip):
+    """The clip's transcript words (voice clips), else None."""
+    import json
+    voice = getattr(strip, "plastron_voice", None)
+    if voice is None or not len(voice.takes):
+        return None
+    take = voice.takes[voice.active] if 0 <= voice.active < len(voice.takes) else None
+    try:
+        return json.loads(take.words_json) if take and take.words_json else None
+    except ValueError:
+        return None
+
+
 def _clip_breaths(scene, strip):
     """Breaths of the whole recording behind a clip (seconds)."""
     data = analysis.read(analysis.sound_path(strip.sound), cfg.ANALYSIS_RATE)
-    return find(data, cfg.ANALYSIS_RATE)
+    return find(data, cfg.ANALYSIS_RATE, _words(strip))
 
 
 def points(scene, strip):
@@ -110,7 +139,8 @@ class PLASTRON_OT_breaths_remove(bpy.types.Operator):
             self.report({'INFO'}, "Select a voice clip first")
             return {'CANCELLED'}
         n = remove(context.scene, chosen)
-        self.report({'INFO'}, f"{n} breath{'s' if n != 1 else ''} dipped")
+        self.report({'INFO'}, f"{n} breath{'s' if n != 1 else ''} dipped" if n else
+                    "No breaths found in the selected clips")
         return {'FINISHED'}
 
 

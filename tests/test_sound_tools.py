@@ -92,6 +92,36 @@ def steps():
     yield 0.2
     h.check("Keep Breaths: back to flat", abs(vol_at(sc, voice, f(1.9)) - 1) < 0.02, vol_at(sc, voice, f(1.9)))
 
+    # Realer: speech as harmonics + a little noise, a softer, less hiss-like
+    # breath (low-passed noise ~22 dB under the speech), as a packed voice take
+    # with a transcript (words), and without one.
+    t = np.arange(int(5 * RATE)) / RATE
+    speech = sum(np.sin(2 * np.pi * f0 * k * t) / k for f0 in (130,) for k in range(1, 8)).astype(np.float32)
+    real = (rng.randn(len(t)) * 0.0008).astype(np.float32)
+    words = []
+    for a, b in ((0.4, 1.4), (2.4, 3.4)):
+        seg = slice(int(a * RATE), int(b * RATE))
+        env = np.hanning(seg.stop - seg.start).astype(np.float32)
+        real[seg] += 0.12 * env * speech[seg] + (rng.randn(seg.stop - seg.start) * 0.01 * env).astype(np.float32)
+        words += [["word", a + 0.05, (a + b) / 2], ["word", (a + b) / 2, b - 0.05]]
+    noise = rng.randn(int(0.45 * RATE)).astype(np.float32)
+    soft = np.convolve(noise, np.ones(12) / 12, mode="same").astype(np.float32) * 0.012
+    real[int(1.7 * RATE):int(1.7 * RATE) + len(soft)] += soft * np.hanning(len(soft)).astype(np.float32) ** 0.3
+    rate = cfg.ANALYSIS_RATE
+    real_path = write_wav(os.path.join(folder, "real.wav"), real)
+    data = analysis.read(real_path, rate)
+    with_words = breaths.find(data, rate, words)
+    without = breaths.find(data, rate)
+    h.check("a softer, realer breath is found with the transcript's words",
+            len(with_words) == 1 and 1.6 < with_words[0][0] < 1.85 and 2.0 < with_words[0][1] < 2.3, with_words)
+    h.check("...and without them", len(without) >= 1 and any(1.6 < a < 1.9 for a, _b in without)
+            and not any(0.6 < a < 1.2 or 2.6 < a < 3.2 for a, _b in without), without)
+    snd = bpy.data.sounds.load(real_path)
+    snd.pack()
+    path = analysis.sound_path(snd)
+    h.check("a packed take is read (written out with its own file kind)",
+            path.endswith(".wav") and len(analysis.read(path, rate)) == len(data), path)
+
     # --- Creature voice: the voice baked with pitched layers (same length).
     hum = clips.editor(sc).strips.new_sound("hum", write_wav(os.path.join(folder, "hum.wav"), tone(2, 0.3, 440)),
                                             tracks.channel_of(sc, track_named(sc, "Voice")), 200)

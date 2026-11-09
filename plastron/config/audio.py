@@ -28,10 +28,10 @@ ANALYSIS_RATE = 16000
 # Breath remover: breaths in voice clips (short, quiet, noise-like) dip by
 # BREATH_DB. Found in 20 ms steps.
 BREATH_DB = -18.0
-BREATH_SECONDS = (0.12, 0.9)      # how long a breath can be
-BREATH_BELOW_SPEECH_DB = 18.0     # at least this much quieter than the voice's loud parts
-BREATH_ABOVE_FLOOR_DB = 8.0       # ...and this much louder than the silence
-BREATH_FLATNESS = 0.25            # how noise-like (0 = a pure tone, 1 = white noise)
+BREATH_SECONDS = (0.1, 1.0)       # how long a breath can be
+BREATH_BELOW_SPEECH_DB = 12.0     # at least this much quieter than the voice's loud parts
+BREATH_ABOVE_FLOOR_DB = 6.0       # ...and this much louder than the silence
+BREATH_FLATNESS = 0.12            # how noise-like (0 = a pure tone, 1 = white noise; no transcript only)
 BREATH_RAMP = 0.03                # seconds to dip in / out
 
 # Creature voices: the voice baked into a stack of pitched copies (same

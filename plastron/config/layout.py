@@ -149,7 +149,8 @@ AREAS = {
             "show_markers": True,
             "timeline_overlay.show_strip_source": False,   # no file paths on clips
             "timeline_overlay.show_strip_duration": False,
-            "timeline_overlay.thumbnail_display_style": 'STRIP_ENDS',  # panels show their images
+            "timeline_overlay.thumbnail_display_style": 'CONTINUOUS',  # pictures along every clip (rows ~40 px+)
+            "timeline_overlay.show_strip_tag_color": True,             # clip colours (Colour button in the header)
             "timeline_overlay.waveform_display_type": 'ALL_WAVEFORMS',  # voice clips show their sound
         },
     },

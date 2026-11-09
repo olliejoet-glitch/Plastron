@@ -525,10 +525,17 @@ Plastron/
   (default 25 %) in the Canvas panel; both remembered (user_settings). Shows
   the panels just before and after the one being drawn on (same track),
   faintly (object alpha), just behind it. No colour tint.
-- Timeline thumbnails: Blender's "strip ends" thumbnails show each panel's
-  cached image. They only appear on tall rows, so projects open with track
-  rows ROW_HEIGHT_PX (64) high, bottom track at the bottom
-  (timeline/view.py).
+- Timeline thumbnails (Ollie: "small previews of what each clip is
+  showing"): Blender's CONTINUOUS thumbnails (pictures along every clip:
+  panels' cached images, footage frames). They only appear on rows about
+  40 px or taller, so projects open with track rows ROW_HEIGHT_PX (64)
+  high, bottom track at the bottom (timeline/view.py); Ctrl+Alt+drag makes
+  rows taller. Clip colours (timeline/colors.py): the header's colour
+  button (when clips are selected) and the Clip panel's swatches set
+  Blender's colour tags on the selected clips + their linked clips (panels'
+  colours also follow their shot status).
+- Zoom to the pen (Ollie: zooming in jumped to the middle of the stack):
+  preferences inputs.use_zoom_to_mouse on (wheel, Ctrl+= / -, drags).
 - Stage-2 (grease pencil) projects: panels get an empty painting on load;
   their old drawings aren't converted.
 - Canvas: one "Canvas" sheet (a flat mesh, camera frame + bleed, always
@@ -936,9 +943,13 @@ Plastron/
   older unnamed "plastron_gain" counts as duck), multiplied with the fades
   and the base value into one set of keyframes.
 - Breath remover (Sound Tools > Breaths, selected clips): 20 ms steps;
-  a breath = 0.12-0.9 s that's 18+ dB under the voice's loud parts (95th
-  percentile), 8+ dB over the silence (10th), noise-like (spectral
-  flatness > 0.25); dipped BREATH_DB (-18 dB) with 30 ms ramps. Stored as
+  a breath = 0.1-1 s that's 12+ dB under the voice's loud parts (95th
+  percentile) and 6+ dB over the silence (10th); with a transcript (voice
+  takes' words) it must sit in a gap between words, without one it must be
+  noise-like (spectral flatness > 0.12). (Ollie: "doesn't seem to be
+  working": was 18 / 8 dB, flatness 0.25 and no use of the transcript; and
+  packed takes were read as ".bin".) Dipped BREATH_DB (-18 dB), 30 ms ramps;
+  "No breaths found" when none. Stored as
   times in the recording (strip["plastron_breaths"]), so moves / trims /
   splits keep them right; Keep Breaths clears.
 - Creature voices (Sound Tools > Creature Voice menu; CREATURES in

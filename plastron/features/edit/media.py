@@ -151,7 +151,11 @@ def place(scene, path, frame=None, track=None):
     if kind == 'MOVIE':
         main = sed.strips.new_movie(name, path, spare, frame, fit_method='FIT')
         try:
-            made.append(sed.strips.new_sound(name, path, spare + 1, frame))
+            sound = sed.strips.new_sound(name, path, spare + 1, frame)
+            if clips.length(sound) < 2:                  # (a video without sound: an empty clip)
+                sed.strips.remove(sound)
+            else:
+                made.append(sound)
         except (RuntimeError, TypeError):
             pass                                     # (no sound in it)
     elif kind == 'SOUND':

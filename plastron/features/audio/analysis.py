@@ -18,7 +18,8 @@ _CACHE_MAX = 6
 def sound_path(sound):
     """A file aud can read for a Blender sound (packed sounds: written once to temp)."""
     if sound.packed_file is not None:
-        path = os.path.join(bpy.app.tempdir, f"plastron_sound_{abs(hash(sound.name))}_{sound.packed_file.size}.bin")
+        ext = os.path.splitext(sound.filepath)[1] or ".wav"        # (the reader goes by the file's kind)
+        path = os.path.join(bpy.app.tempdir, f"plastron_sound_{abs(hash(sound.name))}_{sound.packed_file.size}{ext}")
         if not os.path.exists(path):
             with open(path, "wb") as f:
                 f.write(sound.packed_file.data)

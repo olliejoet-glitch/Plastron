@@ -11,6 +11,7 @@ PREFERENCES = {
     "view.show_tooltips_python": False,
     "filepaths.use_load_ui": False,        # opening a project never changes Plastron's layout
     "inputs.use_mouse_emulate_3_button": False,  # Plastron binds Alt+Shift / Ctrl+Alt drags itself
+    "inputs.use_zoom_to_mouse": True,      # zooming keeps what's under the pen there (Ollie)
     "edit.undo_steps": 64,
     "use_preferences_save": False,
 }
