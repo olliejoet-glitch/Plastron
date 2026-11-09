@@ -41,3 +41,15 @@ Info window frames (Edit mode: Window in the preview header). Not JSON: a
 picture (PNG) per style, its middle see-through: clips put inside a window
 fill that opening (Plastron finds it from the middle out). Your own go in
 Blender's config folder, `plastron_windows/` (Window > Your Window Styles...).
+
+## export/
+
+Export Video presets (File > Export Video).
+
+| field          | meaning                                                     |
+|----------------|-------------------------------------------------------------|
+| width, height  | the video's size in pixels (4K = 3840 × 2160)               |
+| codec          | Blender's FFmpeg video codec (H264, ...)                    |
+| quality        | HIGH, MEDIUM, LOW, PERC_LOSSLESS, LOSSLESS                  |
+| audio          | audio codec (AAC, ...)                                      |
+| audio_bitrate  | kbit/s                                                      |

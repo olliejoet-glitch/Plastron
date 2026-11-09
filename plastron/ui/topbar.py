@@ -42,6 +42,8 @@ class PLASTRON_MT_file(bpy.types.Menu):
         layout.operator("plastron.script_import", text="Import Script...", icon='TEXT')
         layout.operator("plastron.script_panels", text="Panels from Script", icon='SEQ_STRIP_DUPLICATE')
         layout.separator()
+        layout.operator_menu_enum("plastron.export_video", "preset", text="Export Video", icon='RENDER_ANIMATION')
+        layout.operator("plastron.export_frame", text="Export Frame (PNG)...", icon='RENDER_STILL')
         layout.operator("plastron.export_animatic", text="Export Animatic...", icon='FILE_MOVIE')
         layout.operator("plastron.export_panel_sheet", text="Export Panel Sheet (PDF)...", icon='DOCUMENTS')
         layout.operator("plastron.export_shot_list", text="Export Shot List...", icon='TEXT')

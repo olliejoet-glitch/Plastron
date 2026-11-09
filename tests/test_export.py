@@ -65,5 +65,42 @@ def steps():
             (sc.render.resolution_x, sc.render.filepath, sc.render.image_settings.file_format) == before
             and first.elements[0].filename.startswith("panel_"))
 
+    # --- 4K: Export Video (YouTube 4K preset), Export Frame, a 4K video brought in.
+    import json
+    import subprocess
+    video = h.module("features.export.video")
+    names = [p["name"] for p in video.preset_list()]
+    h.check("export presets: YouTube 4K first, then 1080p and a quick animatic",
+            names[:3] == ["YouTube 4K", "YouTube 1080p", "Animatic (quick)"], names)
+
+    def probe(path):
+        out = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries",
+                              "stream=width,height", "-of", "json", path], capture_output=True, text=True).stdout
+        st = json.loads(out or "{}").get("streams", [{}])[0]
+        return st.get("width"), st.get("height")
+
+    uhd = os.path.join(out, "uhd.mp4")
+    with h.override('SEQUENCE_EDITOR'):
+        video.export(bpy.context, uhd, video.preset_named("YouTube 4K"), frames=(1, 3))
+    h.check("Export Video (YouTube 4K): a 3840×2160 video", probe(uhd) == (3840, 2160), probe(uhd))
+    png = os.path.join(out, "frame.png")
+    with h.override('SEQUENCE_EDITOR'):
+        video.export_frame(bpy.context, png)
+    img = bpy.data.images.load(png, check_existing=False)
+    h.check("Export Frame: the picture at the playhead as a 3840×2160 PNG", tuple(img.size) == (3840, 2160),
+            tuple(img.size))
+    bpy.data.images.remove(img)
+    h.check("...render settings put back again",
+            (sc.render.resolution_x, sc.render.filepath, sc.render.image_settings.file_format) == before)
+    src = os.path.join(out, "in4k.mp4")
+    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-f", "lavfi", "-i",
+                    "testsrc=size=3840x2160:rate=24:duration=1", "-c:v", "libx264", "-pix_fmt", "yuv420p", src],
+                   check=True)
+    made = h.module("features.edit.media").place(sc, src, frame=100)
+    clip = made[0]
+    h.check("a 4K video brought in fills the frame at its full size",
+            (clip.elements[0].orig_width, clip.elements[0].orig_height) == (3840, 2160)
+            and abs(clip.transform.scale_x - 1.0) < 1e-6, (clip.elements[0].orig_width, clip.transform.scale_x))
+
 
 h.run(steps())

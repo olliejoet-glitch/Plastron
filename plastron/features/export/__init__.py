@@ -3,11 +3,12 @@
     animatic   the animatic as a video (panels, voice, music)
     sheet      every panel as a printable PDF grid, notes underneath
     shotlist   the panels' notes as a shot list (CSV)
+    video      Export Video with presets (YouTube 4K...), Export Frame (PNG)
 """
 
-from . import animatic, sheet, shotlist
+from . import animatic, sheet, shotlist, video
 
-_MODULES = (animatic, sheet, shotlist)
+_MODULES = (animatic, sheet, shotlist, video)
 
 
 def register():

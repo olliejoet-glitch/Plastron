@@ -237,7 +237,8 @@ Plastron/
 │  │  └─ scene3d/            the 3D (multiplane) view: track cards, keyed camera, pen-follows modes
 │  │  └─ review/             notes (Panel panel: status, note), versions, guides,
 │  │                         speed (2x etc. playback), sounds (temp sounds bin), board
-│  │  └─ export/             animatic (MP4), sheet (hand-written PDF), shotlist (CSV)
+│  │  └─ export/             animatic (MP4), sheet (hand-written PDF), shotlist (CSV),
+│  │                         video (Export Video with presets: YouTube 4K..., Export Frame PNG)
 │  │  └─ edit/               Edit mode: media (placing footage / sound / pictures on
 │  │                         tracks; Blender's drops re-placed), bin (media bin, preview size),
 │  │                         clip_panel (Clip panel), frame_box (move / size / turn in the preview),
@@ -246,7 +247,7 @@ Plastron/
 │  │                         (Normalise), duck (auto-ducking), beats (markers), breaths
 │  │                         (breath remover), creature (voice stacks), fit (music fitting),
 │  │                         panel (Sound panel)
-│  ├─ presets/               ★ preset files, one folder per kind (brushes/, motion/, windows/); README
+│  ├─ presets/               ★ preset files, one folder per kind (brushes/, motion/, windows/, export/); README
 │  │                         lists the fields. Store code: core/presets.py
 │  └─ assets/                icon_256.png, plastron.ico
 ├─ tools/
@@ -855,6 +856,14 @@ Plastron/
   settings put back), Export Panel Sheet (PDF written by hand, A4 landscape,
   3×2 grid, number / name / status / length / note / script under each),
   Export Shot List (CSV). config/export.py.
+- 4K (Ollie: "import and export at 4K"): File > Export Video (preset
+  menu: YouTube 4K 3840×2160 H.264 HIGH + AAC 320 first, YouTube 1080p,
+  Animatic (quick); presets/export/*.json, saved ones in the config folder)
+  renders the whole timeline at the preset's size: panels re-flattened at
+  that size, footage at full size (the preview's 50 % proxies aren't used
+  in renders), render settings put back. File > Export Frame (PNG): the
+  picture at the playhead at the project's size (3840×2160). Footage of
+  any size comes in fitting the frame (a 4K video at scale 1).
 - Edit mode (Ollie: "seperate workspaces for storyboard, video, sound
   design"; chose Edit first): layout media bin 24 % | preview 76 % over
   the timeline 42 %. The media bin is Blender's file browser (thumbnails,
