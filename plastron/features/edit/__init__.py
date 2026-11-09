@@ -6,11 +6,12 @@
     clip_panel  the Clip panel (preview sidebar)
     frame_box   move / size / turn the selected clip by hand in the preview
     windows     info windows: a clip with its own timeline inside a UI frame
+    shorts      Shorts reframing (a 9:16 box per shot; the Shorts export)
 """
 
-from . import bin, clip_panel, frame_box, media, windows
+from . import bin, clip_panel, frame_box, media, shorts, windows
 
-_MODULES = (media, bin, clip_panel, frame_box, windows)
+_MODULES = (media, bin, clip_panel, frame_box, windows, shorts)
 
 
 def register():

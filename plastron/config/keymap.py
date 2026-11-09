@@ -153,6 +153,7 @@ SHORTCUTS = [
     ("timeline",     "L",                "plastron.shuttle",             "Play"),
     ("preview",      "LMB",              "plastron.preview_transform",   "Drag the selected clip: inside moves, a corner sizes, outside turns"),
     ("preview",      "Shift+LMB",        "plastron.preview_transform",   "...turning in 15° steps"),
+    ("preview",      "LMB",              "plastron.shorts_drag",         "Shorts on: drag the 9:16 box left / right for this shot"),
     ("timeline",     "Tab",              "plastron.window_toggle",       "Edit inside the selected info window / back out"),
     ("preview",      "Tab",              "plastron.window_toggle",       "Edit inside the selected info window / back out"),
     ("preview",      "J",                "plastron.shuttle",             "Play backwards", {"direction": -1}),
@@ -172,7 +173,7 @@ SHORTCUTS = [
 # item on the same key keeps working (e.g. the script click still places
 # the text cursor). board_click only runs while the Board view is on (its
 # poll), so the timeline's own clicks work normally otherwise.
-PASSES_ON = {"plastron.board_click", "plastron.preview_transform", "plastron.fade_drag", "plastron.view_focus", "plastron.camera_pad", "plastron.drag_scroll", "plastron.script_click", "plastron.transcript_click", "plastron.transcript_hover"}
+PASSES_ON = {"plastron.board_click", "plastron.shorts_drag", "plastron.preview_transform", "plastron.fade_drag", "plastron.view_focus", "plastron.camera_pad", "plastron.drag_scroll", "plastron.script_click", "plastron.transcript_click", "plastron.transcript_hover"}
 
 # Blender items switched off even though BLENDER_KEEP keeps their keymap.
 BLENDER_DROP = {

@@ -25,10 +25,15 @@ def preset_named(name):
 
 
 def export(context, path, preset, frames=None):
-    """Render the timeline to path with preset (a dict)."""
-    return animatic.export(context, path, size=(preset["width"], preset["height"]), frames=frames,
-                           codec=preset.get("codec", "H264"), quality=preset.get("quality", "HIGH"),
-                           audio=preset.get("audio", "AAC"), audio_bitrate=preset.get("audio_bitrate", 320))
+    """Render the timeline to path with preset (a dict). A Shorts preset
+    renders the vertical version (each shot slid to its Shorts box)."""
+    size = (preset["width"], preset["height"])
+    kw = dict(codec=preset.get("codec", "H264"), quality=preset.get("quality", "HIGH"),
+              audio=preset.get("audio", "AAC"), audio_bitrate=preset.get("audio_bitrate", 320))
+    if preset.get("shorts"):
+        from ..edit import shorts
+        return shorts.render(context, path, size, frames=frames, **kw)
+    return animatic.export(context, path, size=size, frames=frames, **kw)
 
 
 def export_frame(context, path, size=None):

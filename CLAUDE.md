@@ -72,7 +72,7 @@ theme, and keymap, with Photoshop-style drawing shortcuts.
   Shorts reframing, export presets, video templates...).
 - **Ollie's next list** (in order): clip previews + colours and 4K export
   (done), colour grading (Grade mode, done), value group editor (done),
-  Shorts reframing, caption export (.srt).
+  Shorts reframing (done), caption export (.srt).
 - **DONE: drawing switched from grease pencil to RASTER** (Ollie: wants to
   select/move pixels, lay down blobs of colour, erase precisely). Brush engine
   = **Blender's own Texture Paint** (fast, Ollie likes the feel, can add his own
@@ -247,7 +247,8 @@ Plastron/
 │  │  └─ edit/               Edit mode: media (placing footage / sound / pictures on
 │  │                         tracks; Blender's drops re-placed), bin (media bin, preview size),
 │  │                         clip_panel (Clip panel), frame_box (move / size / turn in the preview),
-│  │                         windows (info windows: a clip with its own timeline in a UI frame)
+│  │                         windows (info windows: a clip with its own timeline in a UI frame),
+│  │                         shorts (Shorts reframing: 9:16 box per shot, the Shorts render)
 │  │  └─ audio/              Audio mode: analysis (numpy: LUFS, envelope, beats), loudness
 │  │                         (Normalise), duck (auto-ducking), beats (markers), breaths
 │  │                         (breath remover), creature (voice stacks), fit (music fitting),
@@ -874,6 +875,21 @@ Plastron/
   settings put back), Export Panel Sheet (PDF written by hand, A4 landscape,
   3×2 grid, number / name / status / length / note / script under each),
   Export Shot List (CSV). config/export.py.
+- Exports re-make panels at the export size: the clip's scale is divided by
+  the size change (the cached PNG's width read from its header: Blender's
+  orig_width keeps the last picture shown), then put back. (Was missing:
+  panels came out 8x too big at 4K, 4x in the animatic.)
+- Shorts reframing (Ollie's list): Shorts toggle in the video preview's
+  header shows a 9:16 box (full height, 1215 px wide at 4K) over the
+  picture, outside dimmed (SHORTS_* in config/edit.py), for the shot at the
+  playhead (the top video track's picture clip there; adjustment clips
+  aside). Drag in the preview = slide it left / right: strip["plastron_short_x"]
+  (-1 ... 1 of the travel), kept on split. The YouTube Shorts export preset
+  (1080×1920, "shorts": true) renders the edit itself at that size with every
+  picture clip scaled to fill the height and offset_x keyed (constant) at the
+  cuts to each shot's box, then removes the keys and puts the transforms back.
+  (A separate vertical scene with a scene clip was tried: Blender didn't play
+  its keys and rendered scene clips black in animations.)
 - 4K (Ollie: "import and export at 4K"): File > Export Video (preset
   menu: YouTube 4K 3840×2160 H.264 HIGH + AAC 320 first, YouTube 1080p,
   Animatic (quick); presets/export/*.json, saved ones in the config folder)

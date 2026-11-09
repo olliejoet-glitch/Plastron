@@ -46,3 +46,8 @@ WINDOW_SECONDS = 5.0           # a new window lasts this long (then: as long as 
 WINDOW_SCALE = 0.5             # its size in the picture (1 = the frame's width)
 WINDOW_USER_FOLDER = "plastron_windows"
 WINDOW_CLEAR_ALPHA = 0.5       # how see-through counts as the opening
+
+# Shorts reframing (preview header: Shorts): a 9:16 box per shot, dragged
+# left / right in the preview; the YouTube Shorts export follows it.
+SHORTS_ASPECT = (9, 16)
+SHORTS_DIM = (0.0, 0.0, 0.0, 0.55)   # outside the box
