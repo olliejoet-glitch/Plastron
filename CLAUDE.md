@@ -71,8 +71,8 @@ theme, and keymap, with Photoshop-style drawing shortcuts.
   (from the brief: captions .srt, colour grading, value group editor,
   Shorts reframing, export presets, video templates...).
 - **Ollie's next list** (in order): clip previews + colours and 4K export
-  (done), colour grading (Grade mode, done), value group editor, Shorts
-  reframing, caption export (.srt).
+  (done), colour grading (Grade mode, done), value group editor (done),
+  Shorts reframing, caption export (.srt).
 - **DONE: drawing switched from grease pencil to RASTER** (Ollie: wants to
   select/move pixels, lay down blobs of colour, erase precisely). Brush engine
   = **Blender's own Texture Paint** (fast, Ollie likes the feel, can add his own
@@ -180,6 +180,7 @@ Plastron/
 │  │  ├─ edit.py             Edit mode: Video Sound track, still length, preview size / proxies, bin folder
 │  │  ├─ audio.py            Audio mode: loudness targets, ducking, beats
 │  │  ├─ grade.py            Grade mode: Grade track, the modifiers a graded clip gets, scopes
+│  │  ├─ values.py           value groups: default greys, Values track, sampling size
 │  │  ├─ theme.py            palette + where each colour is used; canvas overlay colours
 │  │  ├─ hidden_ui.py        Blender panels/shelves to hide, headers to replace
 │  │  ├─ preferences.py      Blender preferences set at every start
@@ -253,6 +254,8 @@ Plastron/
 │  │                         panel (Sound panel)
 │  │  └─ grade/              Grade mode: grade (a clip's grade = Blender colour modifiers, looks,
 │  │                         copy / paste, Grade Everything), panel (Grade panel)
+│  │  └─ values/             value group editor: groups (the four greys, sampling), view
+│  │                         (Values view: compositor on canvas + preview), ui (swatches)
 │  ├─ presets/               ★ preset files, one folder per kind (brushes/, motion/, windows/, export/, grades/); README
 │  │                         lists the fields. Store code: core/presets.py
 │  └─ assets/                icon_256.png, plastron.ico
@@ -372,6 +375,11 @@ Plastron/
 - Reading sound as numbers: aud.Sound(path).rechannel(1).resample(rate,
   False).data() -> numpy (n, 1). bpy Sounds have no aud factory in 5.2; a
   packed sound is written to a temp file first (features/audio/analysis).
+- Blender 5 compositing: scene.compositing_node_group (a
+  CompositorNodeTree with an Image output socket; Render Layers = the
+  viewport picture in the viewport compositor); colour ramps are
+  ShaderNodeValToRGB there; strips take a 'COMPOSITOR' modifier with a node
+  group (Image in / out). Byte images' .pixels are the stored (sRGB) values.
 - region.active_panel_category is read-only from Python at runtime (a
   sidebar's tab can't be chosen): share a tab and hide panels by poll.
 - A sequencer preview's display_mode WAVEFORM / VECTOR_SCOPE shows a scope;
@@ -1000,5 +1008,18 @@ Plastron/
   jump to the previous / next cut (any track; also over the canvas); J / K /
   L play backwards / stop / play (timeline and preview; L over the canvas
   stays lasso).
-- Value swatches (value groups sampled from an image) are **deferred** to the
-  later "value group editor" feature. Don't build them in storyboard mode.
+- Value group editor (Ollie's list; the brief's "four preset greys
+  matching the user's four value groups", deferred until now): four greys
+  remembered in user_settings "value_groups" (default 12 / 38 / 64 / 90 %,
+  as shown on screen). Canvas options bar: after the colour, four swatches
+  (click to change) + numbers 1-4 (paint with that grey); Values panel
+  (tools area, closed at first): swatches, From This Panel (its cached
+  picture), From a Picture..., Reset, Values View. Sampling: brightness
+  (Rec. 709 of the sRGB values) split into four by 1-D k-means. Values
+  View (options bar right end, Values panel, video preview header): the
+  picture reduced to the groups: a compositor node group (brightness ->
+  constant colour ramp of the four greys, thresholds midway) shown live on
+  the canvas (scene.compositing_node_group + the canvas's
+  shading.use_compositor 'ALWAYS') and in the preview by a locked "Values
+  View" adjustment clip on a "Values" track over the whole project (a
+  Compositor strip modifier). Off: all removed, so exports never see it.

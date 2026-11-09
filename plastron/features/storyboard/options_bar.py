@@ -8,6 +8,9 @@ from ...config.tools import BRUSH_SHELF
 from ...core import hidden_ui
 from .tools import CONTEXT_MODE, active_tool_id, tool_table
 
+AFTER_COLOR = []      # features: draw(layout, context) right after the colour (e.g. value swatches)
+RIGHT = []            # ...with the drawing aids at the right end
+
 
 def _owner(ups, brush, unified_flag):
     return ups if getattr(ups, unified_flag, False) else brush
@@ -31,6 +34,8 @@ def draw(self, context):
     if hasattr(wm, "plastron_camera_view") and not getattr(wm, "plastron_canvas_3d", False):
         layout.prop(wm, "plastron_camera_view", text="Camera View", toggle=True, icon='VIEW_CAMERA')
     layout.popover("PLASTRON_PT_guides", text="Guides", icon='GRID')
+    for func in RIGHT:
+        func(layout, context)
     layout.prop(wm, "plastron_clean_view", text="Clean View", toggle=True,
                 icon='HIDE_ON' if wm.plastron_clean_view else 'HIDE_OFF')
 
@@ -58,6 +63,8 @@ def _brush_options(layout, context):
     row.operator("plastron.brushes_import", text="", icon='IMPORT')
     if current != "ERASER" and brush.image_brush_type in {'DRAW', 'FILL'}:
         layout.prop(_owner(ups, brush, "use_unified_color"), "color", text="")
+        for func in AFTER_COLOR:
+            func(layout, context)
     if current == "FILL":
         return
     row = layout.row(align=True)
