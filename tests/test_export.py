@@ -65,6 +65,35 @@ def steps():
             (sc.render.resolution_x, sc.render.filepath, sc.render.image_settings.file_format) == before
             and first.elements[0].filename.startswith("panel_"))
 
+    # --- Captions (.srt) from a voice clip's transcript (on the timeline, trims, "um"s left out).
+    takes = h.module("features.voice.takes")
+    tracks = h.module("timeline.tracks")
+    captions = h.module("features.export.captions")
+    import wave
+    wav = os.path.join(out, "talk.wav")
+    with wave.open(wav, "wb") as w:
+        w.setnchannels(1)
+        w.setsampwidth(2)
+        w.setframerate(48000)
+        w.writeframes(b"\0\0" * 48000 * 8)
+    voice_track = next(t for t in tracks.all_tracks(sc) if tracks.name(sc, t) == "Voice")
+    vc = takes.new_clip(sc, voice_track, 25, wav, 8.0)
+    fps = sc.render.fps / sc.render.fps_base
+    takes.set_words(takes.active_take(vc), [
+        ("Once", 0.2, 0.5), ("upon", 0.5, 0.8), ("a", 0.8, 0.9), ("time.", 0.9, 1.3),
+        ("Um,", 1.4, 1.6), ("there", 2.5, 2.8), ("was", 2.8, 3.0), ("a", 3.0, 3.1),
+        ("creature", 3.1, 3.6), ("living", 3.6, 3.9), ("in", 3.9, 4.0), ("the", 4.0, 4.1), ("forest", 4.1, 4.6),
+        ("cut", 7.5, 7.8)])
+    vc.right_handle = 25 + int(7.0 * fps)                     # ("cut" trimmed off)
+    srt = os.path.join(out, "captions.srt")
+    n = captions.export(sc, srt)
+    text = open(srt, encoding="utf-8").read()
+    start0 = (25 - sc.frame_start) / fps
+    h.check("captions: lines from the transcript at their timeline times, 'um' and trimmed words left out",
+            n == 2 and "Once upon a time." in text and "there was a creature living in the forest" in text
+            and "Um" not in text and "cut" not in text
+            and captions.stamp(start0 + 0.2) in text.splitlines()[1], text)
+
     # --- 4K: Export Video (YouTube 4K preset), Export Frame, a 4K video brought in.
     import json
     import subprocess

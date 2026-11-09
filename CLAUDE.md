@@ -72,7 +72,7 @@ theme, and keymap, with Photoshop-style drawing shortcuts.
   Shorts reframing, export presets, video templates...).
 - **Ollie's next list** (in order): clip previews + colours and 4K export
   (done), colour grading (Grade mode, done), value group editor (done),
-  Shorts reframing (done), caption export (.srt).
+  Shorts reframing (done), caption export (.srt, done). Next: wait for Ollie.
 - **DONE: drawing switched from grease pencil to RASTER** (Ollie: wants to
   select/move pixels, lay down blobs of colour, erase precisely). Brush engine
   = **Blender's own Texture Paint** (fast, Ollie likes the feel, can add his own
@@ -243,7 +243,8 @@ Plastron/
 │  │  └─ review/             notes (Panel panel: status, note), versions, guides,
 │  │                         speed (2x etc. playback), sounds (temp sounds bin), board
 │  │  └─ export/             animatic (MP4), sheet (hand-written PDF), shotlist (CSV),
-│  │                         video (Export Video with presets: YouTube 4K..., Export Frame PNG)
+│  │                         video (Export Video with presets: YouTube 4K..., Export Frame PNG),
+│  │                         captions (Export Captions .srt from voice transcripts)
 │  │  └─ edit/               Edit mode: media (placing footage / sound / pictures on
 │  │                         tracks; Blender's drops re-placed), bin (media bin, preview size),
 │  │                         clip_panel (Clip panel), frame_box (move / size / turn in the preview),
@@ -879,6 +880,11 @@ Plastron/
   the size change (the cached PNG's width read from its header: Blender's
   orig_width keeps the last picture shown), then put back. (Was missing:
   panels came out 8x too big at 4K, 4x in the animatic.)
+- Captions (File > Export Captions (.srt)): every unmuted voice clip's
+  active take's words, at their timeline times (words trimmed off left
+  out), fluffs left out (CAPTION_FLUFFS), grouped into lines of at most 42
+  characters / 5 s, a new line after . ! ? or a 0.6 s pause, each up at
+  least 0.8 s (if there's room); times from the project's start.
 - Shorts reframing (Ollie's list): Shorts toggle in the video preview's
   header shows a 9:16 box (full height, 1215 px wide at 4K) over the
   picture, outside dimmed (SHORTS_* in config/edit.py), for the shot at the
