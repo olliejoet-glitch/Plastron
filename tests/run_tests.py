@@ -45,7 +45,7 @@ def run_file(path):
         env={"PLASTRON_TEST_RESULT": result, "PLASTRON_TEST_OUTPUT": blender_env.OUTPUT,
              # no installs, no microphone, no speech model in tests: stand-ins
              "PLASTRON_NO_INSTALL": "1", "PLASTRON_FAKE_MIC": "1", "PLASTRON_FAKE_TRANSCRIBE": "1"},
-        timeout=300)   # (the 3D scene view renders too: test_layers needs > 180 s here)
+        timeout=int(os.environ.get("PLASTRON_TEST_TIMEOUT", 300)))   # (test_layers needs > 180 s here)
     with open(os.path.join(blender_env.OUTPUT, name + ".log"), "w") as f:
         f.write(out)
     checks = json.load(open(result)) if os.path.exists(result) else []
