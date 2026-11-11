@@ -225,7 +225,7 @@ Plastron/
 │  │                         stabiliser (Off / Slight / Max), script_panels
 │  │                         (panels from the script's lines + script bar),
 │  │                         stroke_guard (is a brush stroke running?)
-│  │  └─ voice/              recorder (mic), takes (voice clips + takes), record
+│  │  └─ voice/              recorder (mic), mic (choosing the input), takes (voice clips + takes), record
 │  │                         (Ctrl+R, switch takes), transcribe (+ _worker: own
 │  │                         process), transcript_layout (pure) + transcript_bar,
 │  │                         script_link (script <-> transcript)
@@ -658,6 +658,22 @@ Plastron/
   each Plastron window gets AppUserModelID "Plastron.App", the Plastron icon
   and a relaunch command (launch.ps1), so it has its own taskbar button and
   pinning it pins the launcher. Untestable here (Linux).
+- Microphone (Ollie: "can I select audio input manually?"): the ▾ next to
+  Record lists the computer's inputs (sounddevice, those with input
+  channels; "System default" first); the choice is remembered by name in
+  user_settings "mic_device" (numbers change when things are plugged in);
+  missing at record time: the default is used, with a note. While
+  recording a level meter (dB: -60 empty .. 0 full, red near clipping)
+  sits next to Stop. The recorder counts blocks the audio system dropped
+  (input overflow) and warns after the take.
+- Long takes (tested: 15 minutes in real time, tests/test_long_recording.py,
+  run with PLASTRON_LONG_MINUTES=15 PLASTRON_TEST_TIMEOUT=2400): recording
+  keeps going while the playhead loops over a shorter project; ~140 MB more
+  memory over 15 min, no dropped blocks, the take packed (~87 MB) and
+  transcribed. Fixed for long takes: loudness is measured in 30 s chunks
+  (was the whole take in one FFT: 41 s and ~1 GB for 15 min; now a few s),
+  big one-off reads aren't cached, and a transcription job may run 4x the
+  take's length + 10 min (at least 30 min) before it counts as stuck.
 - Voice recording (stage 4): Ctrl+R records onto the active audio track
   (else the top one) from the playhead while the timeline plays; Ctrl+R or
   Space stops. Over an existing voice clip it records a new take of it from

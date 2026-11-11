@@ -27,21 +27,25 @@ def sound_path(sound):
     return bpy.path.abspath(sound.filepath)
 
 
-def read(path, rate):
+def read(path, rate, keep=True):
+    """Mono samples at rate. keep: cache them (False for one-off big reads)."""
     key = (path, rate)
-    if key not in _cache:
+    if key in _cache:
+        return _cache[key]
+    snd = aud.Sound(path).rechannel(1).resample(rate, False)
+    data = np.ascontiguousarray(snd.data()[:, 0], dtype=np.float32)
+    if keep:
         if len(_cache) >= _CACHE_MAX:
             _cache.pop(next(iter(_cache)))
-        snd = aud.Sound(path).rechannel(1).resample(rate, False)
-        _cache[key] = np.ascontiguousarray(snd.data()[:, 0], dtype=np.float32)
-    return _cache[key]
+        _cache[key] = data
+    return data
 
 
-def clip_samples(scene, strip, rate):
+def clip_samples(scene, strip, rate, keep=True):
     """The part of a sound clip that plays (mono, at rate)."""
     if strip.type != 'SOUND' or strip.sound is None:
         return np.zeros(0, np.float32)
-    data = read(sound_path(strip.sound), rate)
+    data = read(sound_path(strip.sound), rate, keep)
     fps = scene.render.fps / scene.render.fps_base
     a = int(max(0.0, (clips.start(strip) - strip.content_start) / fps) * rate)
     b = a + int(clips.length(strip) / fps * rate)
@@ -63,16 +67,26 @@ def _k_weighting(n, rate):
     return np.abs(shelf * high)
 
 
-def loudness(x, rate):
-    """Integrated loudness (LUFS) of mono samples; None if silent."""
+def loudness(x, rate, chunk_seconds=30.0):
+    """Integrated loudness (LUFS) of mono samples; None if silent. Filtered
+    in chunks (a long take never needs the whole thing in the FFT at once)."""
     if len(x) < int(0.4 * rate):
         return None
-    spec = np.fft.rfft(x.astype(np.float64))
-    y = np.fft.irfft(spec * _k_weighting(len(x), rate), len(x))
-    block, step = int(0.4 * rate), int(0.1 * rate)
-    sq = np.concatenate(([0.0], np.cumsum(y * y)))
-    starts = np.arange(0, len(y) - block + 1, step)
-    z = (sq[starts + block] - sq[starts]) / block
+    seg = int(0.1 * rate)                                    # 100 ms steps
+    chunk = max(seg, int(chunk_seconds * rate) // seg * seg)
+    pad = rate // 2                                          # (the filter's start-up at the chunk edges)
+    n = len(x) // seg * seg
+    sums = []
+    for start in range(0, n, chunk):
+        a, b = max(0, start - pad), min(len(x), start + chunk + pad)
+        piece = x[a:b].astype(np.float64)
+        y = np.fft.irfft(np.fft.rfft(piece) * _k_weighting(len(piece), rate), len(piece))
+        keep = y[start - a:start - a + min(chunk, n - start)]
+        sums.append((keep.reshape(-1, seg) ** 2).sum(axis=1))
+    s = np.concatenate(sums)
+    if len(s) < 4:
+        return None
+    z = (s[:-3] + s[1:-2] + s[2:-1] + s[3:]) / (4 * seg)     # 400 ms blocks, 75 % overlap
     lk = -0.691 + 10 * np.log10(np.maximum(z, 1e-12))
     z = z[lk > -70.0]                                        # absolute gate
     if len(z) == 0:

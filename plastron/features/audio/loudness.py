@@ -23,7 +23,7 @@ def kind_of(scene, strip):
 
 def measure(scene, strip):
     """The clip's loudness (LUFS) as it plays at volume 1, or None."""
-    return analysis.loudness(analysis.clip_samples(scene, strip, RATE), RATE)
+    return analysis.loudness(analysis.clip_samples(scene, strip, RATE, keep=False), RATE)
 
 
 def normalise(scene, strips):

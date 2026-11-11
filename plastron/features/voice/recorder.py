@@ -21,10 +21,13 @@ class _Chunks:
     def __init__(self):
         self.chunks, self.lock = [], threading.Lock()
         self.dropped = 0
+        self.level = 0.0                 # the last block's peak, 0-1 (the level meter)
 
     def _add(self, block, status=None):
+        peak = float(np.abs(block).max()) / 32768.0 if len(block) else 0.0
         with self.lock:
             self.chunks.append(block)
+            self.level = peak
             if status:
                 self.dropped += 1
 
@@ -99,8 +102,9 @@ def ready():
     return deps.available("sounddevice")
 
 
-def start():
-    return _FakeMic() if fake() else _SoundDevice()
+def start(device=None):
+    """Start recording from device (a name; None = the system default)."""
+    return _FakeMic(device) if fake() else _SoundDevice(device)
 
 
 def write_wav(path, samples):

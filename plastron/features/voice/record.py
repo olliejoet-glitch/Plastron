@@ -16,10 +16,11 @@ import bpy
 from ...config import voice as cfg
 from ...core import deps
 from ...timeline import clips, tracks
+from . import mic as mic_choice
 from . import recorder, takes, transcribe
 
 _rec = {"mic": None, "scene": None, "track": None, "frame": 0, "retake": None,
-        "started": 0.0, "muted": None}
+        "started": 0.0, "muted": None, "note": None, "dropped": 0}
 
 
 def recording():
@@ -28,6 +29,11 @@ def recording():
 
 def elapsed():
     return time.monotonic() - _rec["started"] if recording() else 0.0
+
+
+def level():
+    """The microphone's level now (0-1), for the meter."""
+    return _rec["mic"].level if recording() else 0.0
 
 
 def _window_override():
@@ -62,12 +68,13 @@ def start(context):
         if not retake.mute:
             retake.mute = True
             _rec["muted"] = retake.name
+    device, note = mic_choice.device_for_recording()
     try:
-        mic = recorder.start()
+        mic = recorder.start(device)
     except Exception as err:               # no microphone, device busy...
         _unmute(scene)
         return f"Couldn't open the microphone: {err}"
-    _rec.update(mic=mic, scene=scene.name, track=track.uid, frame=frame,
+    _rec.update(mic=mic, scene=scene.name, track=track.uid, frame=frame, note=note, dropped=0,
                 retake=retake.name if retake else None, started=time.monotonic())
     if not context.screen.is_animation_playing:
         bpy.ops.screen.animation_play()
@@ -91,6 +98,7 @@ def stop(context=None):
         return None
     samples = mic.stop()
     _rec["mic"] = None
+    _rec["dropped"] = mic.dropped
     with _window_override():
         if bpy.context.screen.is_animation_playing:
             bpy.ops.screen.animation_cancel(restore_frame=False)
@@ -149,11 +157,16 @@ class PLASTRON_OT_voice_record(bpy.types.Operator):
             result = stop(context)
             if isinstance(result, str):
                 self.report({'WARNING'}, result)
+            elif _rec["dropped"]:
+                self.report({'WARNING'}, f"The microphone dropped {_rec['dropped']} bits of sound "
+                                         "(the computer was busy): listen back to this take")
             return {'FINISHED'}
         problem = start(context)
         if problem:
             self.report({'WARNING'}, problem)
             return {'CANCELLED'}
+        if _rec["note"]:
+            self.report({'WARNING'}, _rec["note"])
         return {'FINISHED'}
 
 

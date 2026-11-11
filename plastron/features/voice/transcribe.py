@@ -19,7 +19,7 @@ WORKER = os.path.join(os.path.dirname(os.path.abspath(__file__)), "transcribe_wo
 
 _queue = []                    # [(take uid, wav path)]
 _job = {"proc": None, "uid": None, "wav": None, "out": None, "started": 0.0, "log": None}
-TIMEOUT = 30 * 60              # seconds: a job running longer than this is stuck
+TIMEOUT = 30 * 60              # seconds: a job running longer than this is stuck (long takes: more)
 _listeners = []                # func() after a transcript arrives
 _last_error = [""]
 
@@ -91,6 +91,19 @@ def _set(uid, **values):
                         setattr(take, key, value)
 
 
+def time_limit(wav):
+    """How long a job may run before it counts as stuck: TIMEOUT, or for a
+    long take 4x its length + 10 min (slow computers transcribe at about
+    real time)."""
+    try:
+        import wave
+        with wave.open(wav) as w:
+            seconds = w.getnframes() / w.getframerate()
+    except (OSError, EOFError, wave.Error):
+        seconds = 0.0
+    return max(TIMEOUT, seconds * 4 + 600)
+
+
 def _start(uid, wav):
     out = wav + ".json"
     env = dict(os.environ)
@@ -112,7 +125,7 @@ def _start(uid, wav):
     flags = 0x08000000 if sys.platform == "win32" else 0      # no console window
     _job.update(proc=subprocess.Popen(args, env=env, creationflags=flags, stdout=log,
                                       stderr=subprocess.STDOUT),
-                uid=uid, wav=wav, out=out, started=time.monotonic(), log=log)
+                uid=uid, wav=wav, out=out, started=time.monotonic(), log=log, limit=time_limit(wav))
     _set(uid, status='RUNNING')
 
 
@@ -161,7 +174,7 @@ def _step():
     proc = _job["proc"]
     if proc is not None:
         if proc.poll() is None:
-            if time.monotonic() - _job["started"] > TIMEOUT:
+            if time.monotonic() - _job["started"] > _job.get("limit", TIMEOUT):
                 proc.kill()
                 proc.wait()
             else:

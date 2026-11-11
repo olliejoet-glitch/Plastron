@@ -54,6 +54,7 @@ def steps():
     h.move(*h.center(h.region(tl)))
     yield 0.2
     h.key('R', ctrl=True)
+    rec_t0 = time.monotonic()
     yield 1.0
     h.check("recording started, the timeline playing", record.recording()
             and bpy.context.screen.is_animation_playing)
@@ -81,9 +82,11 @@ def steps():
             (start_mem, peak))
     t = time.monotonic()
     h.key('R', ctrl=True)
+    recorded = time.monotonic() - rec_t0          # (as long as it really ran: the loop overshoots a little)
     yield 2.0
     stop_s = time.monotonic() - t
     strip = bpy.context.scene.sequence_editor.active_strip
+    seconds = recorded
     want = int(seconds * fps)
     h.check(f"the take lands on the Voice track at the start, {MINUTES:g} minutes long",
             strip is not None and takes.is_voice(strip) and strip.channel == tracks.channel_of(sc, voice)

@@ -278,5 +278,45 @@ def steps():
     h.check("Transcribe Again re-reads a take from the project",
             [w for w, _s, _e in takes.words(takes.active_take(pieces[0]))] == ["redone", "words"])
 
+    # --- Choosing the microphone (the ▾ next to Record), remembered; the level meter.
+    mic = h.module("features.voice.mic")
+    user_settings = h.module("core.user_settings")
+    os.environ["PLASTRON_FAKE_MIC_DEVICES"] = "USB Mic;Built-in Microphone"
+    h.check("the computer's microphones are listed", [n for n, _d in mic.inputs()] == ["USB Mic", "Built-in Microphone"],
+            mic.inputs())
+    with h.override('SEQUENCE_EDITOR'):
+        bpy.ops.plastron.mic_choose(name="Built-in Microphone")
+    h.check("choosing one is remembered", user_settings.get(mic.KEY) == "Built-in Microphone")
+    sc = scene()
+    sc.frame_current = clips.end(max(clips.all_clips(sc), key=clips.end)) + 10
+    h.move(tl.x + tl.width // 2, tl.y + 20)
+    yield 0.2
+    h.key('R', ctrl=True)
+    yield 0.6
+    h.check("recording uses the chosen microphone", record.recording()
+            and record._rec["mic"].device == "Built-in Microphone", record._rec["mic"] and record._rec["mic"].device)
+    h.check("...and the level meter moves", record.level() > 0.02, record.level())
+    h.redraw()
+    yield 0.2
+    h.screenshot("recording_level")
+    record._rec["mic"].dropped = 2                      # (as if the computer had been too busy)
+    h.key('R', ctrl=True)
+    yield 0.3
+    h.check("dropped sound is counted (Plastron warns about it)", record._rec["dropped"] == 2)
+    with h.override('SEQUENCE_EDITOR'):
+        bpy.ops.plastron.mic_choose(name="Unplugged Mic")
+    sc = scene()
+    sc.frame_current = clips.end(max(clips.all_clips(sc), key=clips.end)) + 10
+    h.key('R', ctrl=True)
+    yield 0.4
+    h.check("a chosen microphone that isn't there: the default is used, with a note",
+            record.recording() and record._rec["mic"].device is None and "isn't connected" in (record._rec["note"] or ""),
+            record._rec["note"])
+    h.key('R', ctrl=True)
+    yield 0.3
+    with h.override('SEQUENCE_EDITOR'):
+        bpy.ops.plastron.mic_choose(name="")
+    h.check("System default again", user_settings.get(mic.KEY) is None)
+
 
 h.run(steps())
