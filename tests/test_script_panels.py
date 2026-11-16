@@ -166,6 +166,28 @@ def steps():
         yield 0.05
     follow._stretch = real
     h.check("...doing nothing while it stays on the same line", not calls, len(calls))
+
+    # A voice clip under the lane whose recording only matches the first line
+    # (the script was rewritten since): past that line, the lane's lines show.
+    import wave
+    wav = os.path.join(bpy.app.tempdir, "voice_probe.wav")
+    with wave.open(wav, "wb") as w:
+        w.setnchannels(1), w.setsampwidth(2), w.setframerate(48000)
+        w.writeframes(b"\0\0" * 48000 * 30)
+    voice_ch = next(tracks.channel(i) for i, t in enumerate(tracks.all_tracks(sc)) if t.kind == 'AUDIO')
+    blocks = lane.blocks(sc)
+    snd = sc.sequence_editor.strips.new_sound("probe", wav, voice_ch, clips.start(blocks[0]))
+    takes_mod = follow.takes
+    real_voice, real_match = takes_mod.is_voice, follow.script_link.match
+    takes_mod.is_voice = lambda s: s == snd
+    follow.script_link.match = lambda scene, text: ({blocks[0][lane.INDEX]: clips.start(blocks[0]) + 2}, [])
+    follow.invalidate(sc)
+    got = [follow.line_at(sc, clips.start(b) + 3) for b in blocks[1:4]]
+    takes_mod.is_voice, follow.script_link.match = real_voice, real_match
+    sc.sequence_editor.strips.remove(snd)
+    follow.invalidate(sc)
+    h.check("over a voice clip the heard line gives way when the Script lane reaches a later line",
+            got == [b[lane.INDEX] for b in blocks[1:4]], (got, [b[lane.INDEX] for b in blocks[1:4]]))
     h.redraw()
     yield 0.3
     h.screenshot("script_lane")

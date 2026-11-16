@@ -194,6 +194,7 @@ Plastron/
 │  │  ├─ presets.py          shared presets store: kinds, built-in + saved JSON, menu
 │  │  ├─ deps.py             extra pip packages, installed once in the background
 │  │  ├─ windows_taskbar.py  Windows: Plastron's own taskbar group, icon, relaunch (ctypes)
+│  │  ├─ layout_memory.py    Ollie's own layout kept (measured to a tree, rebuilt at start)
 │  │  ├─ user_settings.py    in-app choices Ollie makes that must persist (JSON in
 │  │  │                      portable config; Blender prefs aren't saved)
 │  │  ├─ hidden_ui.py        hides panels (never-poll) and swaps header draws
@@ -776,8 +777,10 @@ Plastron/
   underlined orange.
 - Script follows the playhead (Ollie): the line at the playhead gets a blue
   band in the script and is scrolled into view (SCRIPT_FOLLOW in
-  config/voice.py). Over a voice clip: the line last heard; elsewhere: the
-  panel's script line. A table of stretches (frame range -> line) is
+  config/voice.py). Over a voice clip: the line last heard, until the Script
+  lane reaches a later line (Ollie: scrubbing didn't move the script where
+  the recording no longer matched a rewritten script); elsewhere: the
+  lane's line (no lane: the panel's script line). A table of stretches (frame range -> line) is
   rebuilt on clips_changed / when the script or transcripts change; the
   frame hook (_script_frame) only checks "still in the same stretch?".
   Scrolling is measured on screen (region_location_from_cursor): with word
@@ -791,6 +794,18 @@ Plastron/
   shows timecode, Blender's channel headers until stage 2's track headers.
 - Blender preferences aren't saved; `config/preferences.py` is applied at each
   start (no splash, opening projects keeps Plastron's layout, 64 undo steps).
+- Layout kept (Ollie: "whatever layout I've made saved as the default"):
+  core/layout_memory measures each mode's screen into a rows / columns tree
+  like config/layout.py's MODES (areas named by what they are: canvas,
+  script, timeline...; another editor = "editor:<TYPE>") on every save and
+  every 10 s, kept in user_settings "layouts" (only modes that differ from
+  config's; a maximised mode keeps its last). At start (first load) each
+  kept mode is REBUILT by splitting like the startup builder (Blender's
+  area_move / area_swap can't run from Python while the pointer is over an
+  area), Texture Paint left first (closing the canvas mid-paint crashed),
+  then every on_load runs again. File > Reset Layout = config's again.
+  Timeline framing now also makes rows SHORTER when they're too tall for
+  the tracks (a new timeline area had 64 px rows that hid the top track).
 - Theme: dark teal, orange (selection/active) and blue (playhead/secondary),
   sampled from Ollie's Blender theme.
 - Camera moves (stage 6): the scene camera never moves (no keyframes, no

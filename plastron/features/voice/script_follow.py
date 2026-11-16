@@ -3,9 +3,9 @@ correct lines in the script to be highlighted").
 
 The line at the playhead is highlighted in the script panel (a band behind
 it) and scrolled into view. Which line: where a recorded voice clip is
-playing, the line last heard (script_link's match); elsewhere the script
-line of the panel under the playhead (panels made from the script remember
-theirs).
+playing, the line last heard (script_link's match), until the Script lane
+reaches a later line; elsewhere the Script lane's line (or, without a lane,
+the script line of the panel under the playhead).
 
 Cost: the lines are worked out once into a table of stretches (frame from,
 frame to, line), redone on edits (clips_changed) or when the script /
@@ -55,14 +55,23 @@ def _stretches(scene, text):
             if track.kind == 'AUDIO':
                 spans += [(clips.start(s), clips.end(s)) for s in clips.on_channel(scene, tracks.channel(i))
                           if takes.is_voice(s)]
+        lane_rows = sorted(out)
         for a, b in spans:
             inside = [(f, li) for f, li in starts if a <= f < b]
             before = [li for f, li in starts if f < a]
-            first = [(a, before[-1])] if before and (not inside or inside[0][0] > a) else []
+            first = [(a, before[-1])] if before and not lane_rows and (not inside or inside[0][0] > a) else []
             seq = first + inside
             for k, (f, li) in enumerate(seq):
                 end = seq[k + 1][0] if k + 1 < len(seq) else b
-                out.append((max(a, int(f)), end, li))
+                # A heard line holds until the next heard one, but not past
+                # where the Script lane has a LATER line (Ollie: scrubbing
+                # stuck on one line where the recording no longer matches
+                # the script).
+                later = next((x0 for x0, _x1, l2 in lane_rows if l2 > li and x0 > f), None)
+                if later is not None:
+                    end = min(end, later)
+                if end > max(a, int(f)):
+                    out.append((max(a, int(f)), end, li))
     if not out:
         return []
     # Voice stretches (added last) cover panel ones: paint them in order.
@@ -189,8 +198,7 @@ def draw():
     if script_link._cache["key"] != _table["key"]:     # script or transcripts changed
         _table["dirty"] = True
         _now["hi"] = -1
-    line = line_at(scene)
-    _now["line"] = line
+    line = line_at(scene)                 # (not kept in _now: the frame hook scrolls on a change)
     if line is None or not 0 <= line < len(text.lines):
         return
     body = text.lines[line].body
