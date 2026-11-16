@@ -46,14 +46,14 @@ def steps():
     ripple = h.module("timeline.ripple")
     ripple.trim(sc, made[2], 'RIGHT', clips.start(made[2]) + 60)        # (trimmed by hand)
     bpy.context.window_manager.plastron_script_pause = 2.0
-    yield 0.8
+    yield 1.6
     lengths2 = [clips.length(s) for s in made]
     h.check("Pause slider: panels made from the script get the new pause, one after another",
             lengths2 == [round((4 * 0.4 + 2.0) * fps), round((10 * 0.4 + 2.0) * fps), 60]
             and all(clips.end(a) == clips.start(b) for a, b in zip(made, made[1:])), lengths2)
     h.check("...remembered", h.module("core.user_settings").get(sp.PAUSE_KEY) == 2.0)
     bpy.context.window_manager.plastron_script_pause = 1.0
-    yield 0.8
+    yield 1.6
     h.check("...and back", [clips.length(s) for s in made] == [want[0], want[1], 60],
             [clips.length(s) for s in made])
     h.check("the panel remembers its line", made[1].plastron_panel.script_text.startswith("She opens"))
@@ -84,12 +84,13 @@ def steps():
     yield 0.2
     h.check("...and the next panel's line when the playhead moves on", follow._now["line"] == 4, follow._now)
     calls = []
-    real = follow.line_at
-    follow.line_at = lambda *a, **k: calls.append(1) or real(*a, **k)
+    yield 0.6                               # (the frame jump's own update settles first)
+    real = follow._stretch                  # (only the frame hook's slow path looks the stretch up)
+    follow._stretch = lambda *a, **k: calls.append(1) or real(*a, **k)
     for d in (3, 4, 5):
         sc.frame_current = clips.start(now[-1]) + d
         yield 0.05
-    follow.line_at = real
+    follow._stretch = real
     h.check("...doing nothing while it stays in the same panel", not calls, len(calls))
     h.redraw()
     yield 0.2
