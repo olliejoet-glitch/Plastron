@@ -609,6 +609,13 @@ Plastron/
   the nearest cut). Esc / right-click or Alt+click without moving removes
   them. Blender's own Alt+LMB items in "Sequencer" are dropped (BLENDER_DROP
   takes "action|Key" to drop one key only).
+- Moving tracks (Ollie): drag a track's header up / down
+  (timeline/track_drag.py, keymap "LMB drag" = CLICK_DRAG, so clicks still
+  reach Blender's name / mute / lock and R / S / volume). An orange line
+  shows where it lands; video stays among video, audio among audio.
+  tracks.move swaps channels' clips (via spare channels) and settings and
+  moves the track data; event "tracks_moved" {old: new}: scene3d re-points
+  its card keys (data paths name the track's index). One undo step.
 - Track headers: name / mute / lock are Blender's channel buttons; Plastron
   draws R (ripple, all tracks), S (solo) and a volume bar (0-200 %, audio
   tracks only). Clicking a track's row or name makes it the active track.

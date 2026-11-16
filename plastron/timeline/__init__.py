@@ -14,6 +14,7 @@
     placement.py      which clips may go on which track (kept after Blender's drags)
     ripple_move.py    ripple for whole-clip drags (gap closes, drop inserts at a cut)
     duplicate.py      Alt+drag a clip: drag a copy
+    track_drag.py     drag a track's header to move the track
     fades.py          fade in / out per clip (corner handles; Ctrl+D dip at a cut)
     colors.py         clip colours (header colour button, Clip panel swatches)
     events.py         events features listen to
@@ -23,9 +24,9 @@ import bpy
 
 from ..config import project_defaults
 from ..core import handlers
-from . import clips, colors, duplicate, edit_keys, edit_tools, events, fades, header, mix, ops, placement, sections, snapping, track_headers, tracks
+from . import clips, colors, duplicate, edit_keys, edit_tools, events, fades, header, mix, ops, placement, sections, snapping, track_drag, track_headers, tracks
 
-_MODULES = (tracks, mix, header, sections, track_headers, ops, edit_tools, edit_keys, placement, fades, colors, duplicate)
+_MODULES = (tracks, mix, header, sections, track_headers, ops, edit_tools, edit_keys, placement, fades, colors, duplicate, track_drag)
 _pending = set()   # scene names waiting for a debounced clips_changed
 
 

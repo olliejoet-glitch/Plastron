@@ -20,6 +20,7 @@ then move the camera to add parallax; the camera move keyframes itself).
 """
 
 import math
+import re
 
 import bpy
 from mathutils import Euler, Vector
@@ -310,6 +311,23 @@ def cards_animated(scene):
     return _animated["yes"]
 
 
+_TRACK_PATH = re.compile(r"plastron_timeline\.tracks\[(\d+)\]")
+
+
+def _on_tracks_moved(scene, moved=None, **_info):
+    """A dragged track's card keys follow it (their paths name the track's place)."""
+    ad = scene.animation_data
+    action = ad.action if ad else None
+    if action is None or not moved:
+        return
+    for fc in _all_fcurves(action):
+        m = _TRACK_PATH.search(fc.data_path)
+        if m and int(m.group(1)) in moved:
+            new = moved[int(m.group(1))]
+            fc.data_path = fc.data_path[:m.start(1)] + str(new) + fc.data_path[m.end(1):]
+    _forget_animated()
+
+
 def _forget_animated(*_args):
     _animated["scene"] = None
 
@@ -544,6 +562,7 @@ def register():
     handlers.on_load(_on_load)
     from ...timeline import events
     events.listen("project_created", ensure)
+    events.listen("tracks_moved", _on_tracks_moved)
 
 
 def unregister():

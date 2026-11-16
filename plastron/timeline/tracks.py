@@ -141,6 +141,51 @@ def ripple_channels(scene):
 
 # --- Changes ------------------------------------------------------------------
 
+def move(scene, index, to):
+    """Move the track at index to position to (its clips, name, mute, lock
+    and Plastron settings go with it). Video tracks stay above audio ones:
+    to is kept inside the track's own section. Returns the new index."""
+    tl = data(scene)
+    kind = tl.tracks[index].kind
+    same = [i for i, t in enumerate(tl.tracks) if t.kind == kind]
+    to = max(min(same), min(max(same), to))
+    if to == index:
+        return index
+    lo, hi = min(index, to), max(index, to)
+    order = list(range(len(tl.tracks)))
+    order.insert(to, order.pop(index))            # new position p holds old track order[p]
+    sed = clips.editor(scene)
+    span = range(lo, hi + 1)
+    settings = {i: (sed.channels[channel(i)].name, sed.channels[channel(i)].lock,
+                    sed.channels[channel(i)].mute) for i in span}
+    held = {i: clips.on_channel(scene, channel(i)) for i in span}
+    spare = max([st.channel for st in sed.strips_all] + [len(tl.tracks)]) + 1
+    for i in span:
+        sed.channels[channel(i)].lock = False
+    for k, i in enumerate(span):                  # out of the way first...
+        for strip in held[i]:
+            strip.channel = spare + k
+    for i in span:
+        sed.channels[channel(i)].name = f"__plastron_tmp_{i}"
+    for p in span:                                # ...then each into its new place
+        old = order[p]
+        for strip in held[old]:
+            strip.channel = channel(p)
+        nm, lock, mute = settings[old]
+        target = sed.channels[channel(p)]
+        target.name, target.mute = nm, mute
+    for p in span:
+        sed.channels[channel(p)].lock = settings[order[p]][1]
+    active_uid = tl.tracks[tl.active_track].uid if 0 <= tl.active_track < len(tl.tracks) else None
+    tl.tracks.move(index, to)
+    if active_uid is not None:
+        tl.active_track = next(i for i, t in enumerate(tl.tracks) if t.uid == active_uid)
+    events.emit("tracks_moved", scene, moved={order[p]: p for p in span})   # old index -> new
+    events.tracks_changed(scene)
+    events.clips_changed(scene)
+    return to
+
+
 def _shift_channels_up(scene, from_channel):
     """Move every channel >= from_channel (clips and settings) up by one."""
     sed = clips.editor(scene)

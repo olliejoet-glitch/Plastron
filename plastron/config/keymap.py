@@ -9,7 +9,9 @@ Key format: modifiers joined with "+", then the key, e.g. "Ctrl+Shift+Z".
   Keys:      A-Z, 0-9, F1-F12, Space, Esc, Enter, Tab, Delete, Backspace,
              "=", "-", "[", "]", Left, Right, Up, Down, Home, End
   Mouse:     LMB, MMB, RMB, WheelUp, WheelDown, MouseMove (hover)
-             (a mouse button entry starts a drag: it runs until release)
+             (a mouse button entry starts a drag: it runs until release;
+             "LMB drag" fires only once the pen moves while held, so a plain
+             click still goes to Blender's buttons)
 
 Lines whose action isn't built yet are skipped quietly, so later-stage
 shortcuts can be listed here already.
@@ -165,6 +167,7 @@ SHORTCUTS = [
     ("timeline",     "I",                "plastron.loop_set",            "Loop range start",       {"side": 'IN'}),
     ("timeline",     "O",                "plastron.loop_set",            "Loop range end",         {"side": 'OUT'}),
     ("track_headers", "LMB",             "plastron.track_header_click",  "Ripple / solo / volume; pick active track"),
+    ("track_headers", "LMB drag",        "plastron.track_drag",          "Drag a track's header up / down to move the track"),
     # (last: of two actions on one key the later is tried first; it only
     # works while the board is showing)
     ("timeline",     "LMB",              "plastron.board_click",         "Board: drag a card to reorder, click to go to it"),

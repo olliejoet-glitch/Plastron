@@ -29,8 +29,14 @@ _stripped = set()  # names of user keymaps we changed
 pending = []     # shortcut entries whose action isn't built yet
 
 
+def key_value(text):
+    """'PRESS', or 'CLICK_DRAG' for "LMB drag" (fires once the pen moves while held)."""
+    return 'CLICK_DRAG' if text.endswith(" drag") else 'PRESS'
+
+
 def parse_key(text):
     """"Ctrl+Shift+Z" -> ('Z', {"ctrl": True, "shift": True})."""
+    text = text[:-len(" drag")] if text.endswith(" drag") else text
     *mods, key = text.split("+")
     flags = {}
     for mod in mods:
@@ -98,12 +104,12 @@ def _add_plastron_keys(kc):
         if key_type == 'MOUSEMOVE':      # hover: any movement, any modifiers
             kmi = km.keymap_items.new(entry["action"], key_type, 'ANY', any=True)
         else:
-            kmi = km.keymap_items.new(entry["action"], key_type, 'PRESS', **flags)
+            kmi = km.keymap_items.new(entry["action"], key_type, key_value(entry["key"]), **flags)
         kmi.repeat = entry["key"] in cfg.REPEAT
         for prop, value in entry["settings"].items():
             setattr(kmi.properties, prop, value)
         _added.append((km, kmi))
-        if entry["action"] not in cfg.PASSES_ON:
+        if entry["action"] not in cfg.PASSES_ON and kmi.value == 'PRESS':
             taken.add(_signature(km_name, kmi))
     return taken
 

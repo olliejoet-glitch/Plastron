@@ -6,6 +6,7 @@
 Events:
     clips_changed        clips were added, removed, moved or resized
     tracks_changed       tracks were added / reordered
+    tracks_moved         info: moved {old index: new index} (a track was dragged)
     mix_changed          a volume or solo changed (audio mix must be rewritten)
     active_track_changed
     clip_split           info: original, new (the right half)
