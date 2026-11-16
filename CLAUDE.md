@@ -331,6 +331,8 @@ Plastron/
 - Material Preview under Xvfb (llvmpipe) is slow to compile shaders, so
   debounced updates arrive late in tests; it has also crashed once on exit
   (Mesa, after all checks passed). Re-run before suspecting the code.
+  If it crashes on exit EVERY time (even on an older commit that passed),
+  Mesa's shader cache has gone bad: rm -rf ~/.cache/mesa_shader_cache.
 - Python workspace tools for the timeline: `bl_space_type='SEQUENCE_EDITOR'`,
   `bl_context_mode='SEQUENCER'`; their keymap is named "Sequence Editor Tool:
   Sequencer, <label>" (must be in BLENDER_KEEP).
