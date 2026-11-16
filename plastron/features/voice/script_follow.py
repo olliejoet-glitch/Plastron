@@ -177,6 +177,8 @@ def draw():
     text = space.text if space else None
     if text is None or text.name != defaults.SCRIPT_TEXT_NAME or scene is None:
         return
+    if script_link.scrolling(context):            # (half a line off while Blender smooth-scrolls)
+        return
     script_link.match(scene, text)                    # (keeps its cache up to date)
     if script_link._cache["key"] != _table["key"]:     # script or transcripts changed
         _table["dirty"] = True

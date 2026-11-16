@@ -1,5 +1,6 @@
 """Scroll the tools area and the script with the pen (Alt+Shift+drag, the
-same drag that pans the canvas and timeline): a pen has no wheel, and
+same drag that pans the canvas and timeline; Ctrl+Alt+drag too, Ollie's
+other drag): a pen has no wheel, and
 Blender's own panel scrolling wants a middle mouse button."""
 
 import bpy

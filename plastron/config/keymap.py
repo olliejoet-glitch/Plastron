@@ -115,6 +115,7 @@ SHORTCUTS = [
 
     # --- Tools area / script: scroll with the pen (no wheel on a pen) -------
     ("areas",        "Alt+Shift+LMB",    "plastron.drag_scroll",         "Scroll the tools area / script (drag)"),
+    ("areas",        "Ctrl+Alt+LMB",     "plastron.drag_scroll",         "Scroll the tools area / script (drag)"),
 
     # --- Voice -------------------------------------------------------------
     ("playback",     "Ctrl+R",           "plastron.voice_record",        "Record voice at the playhead (again: stop)"),

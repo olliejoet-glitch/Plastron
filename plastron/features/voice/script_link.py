@@ -118,11 +118,24 @@ class PLASTRON_OT_script_click(bpy.types.Operator):
         return {'PASS_THROUGH'}
 
 
+SMOOTH_SCROLLS = {"TEXT_OT_scroll_bar", "TEXT_OT_scroll"}
+
+
+def scrolling(context):
+    """Is Blender's scrollbar / smooth scroll being dragged? It scrolls by part
+    of a line then, which Python can't read: marks drawn over the text would
+    sit half a line off, so they're left out until it's let go."""
+    window = context.window
+    return window is not None and any(op.bl_idname in SMOOTH_SCROLLS for op in window.modal_operators)
+
+
 def draw():
     context = bpy.context
     space, region = context.space_data, context.region
     text = space.text if space else None
     if text is None or text.name != defaults.SCRIPT_TEXT_NAME or context.scene is None:
+        return
+    if scrolling(context):
         return
     _lines, unspoken = match(context.scene, text)
     if not unspoken:

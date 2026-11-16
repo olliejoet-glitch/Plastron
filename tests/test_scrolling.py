@@ -77,5 +77,29 @@ def steps():
     yield 1.0
     h.check("...and a hand scroll stays put while paused", st.top == top, (top, st.top))
 
+    # Ctrl+Alt+drag scrolls the script too (Ollie's other drag).
+    st.top = 0
+    yield 0.2
+    yield from h.drag((tx, rt.y + 100), (tx, rt.y + 300), ctrl=True, alt=True)
+    yield 0.3
+    h.check("Ctrl+Alt+drag scrolls the script", st.top > 0, st.top)
+    # While Blender smooth-scrolls (scrollbar / middle-drag) the marks drawn
+    # over the text are left out (they'd sit half a line off), then come back.
+    link = h.module("features.voice.script_link")
+    h.move(tx, rt.y + 200)
+    yield 0.2
+    h._event('MIDDLEMOUSE', 'PRESS')
+    yield
+    h.move(tx, rt.y + 230)
+    yield 0.1
+    with h.override('TEXT_EDITOR'):
+        during = link.scrolling(bpy.context)
+    h._event('MIDDLEMOUSE', 'RELEASE')
+    yield 0.3
+    with h.override('TEXT_EDITOR'):
+        after = link.scrolling(bpy.context)
+    h.check("smooth scrolling is spotted while it runs (marks hidden), and ends", during and not after,
+            (during, after, [o.bl_idname for o in bpy.context.window.modal_operators]))
+
 
 h.run(steps())

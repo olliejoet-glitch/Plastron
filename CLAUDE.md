@@ -496,6 +496,10 @@ Plastron/
   always jump 40 px). It's in the "Screen Editing" keymap so it works even
   when the drag starts on a button; it passes on elsewhere, so the canvas /
   timeline pans still work.
+  Ctrl+Alt+drag scrolls them too (Ollie: "like any other window"; it
+  still zooms the canvas / timeline). While Blender's scrollbar / middle-drag
+  smooth-scrolls the script (part-line offsets Python can't read), the
+  unheard-word underlines and the follow band are left out (script_link.scrolling).
 - Top bar: Plastron icon, File (New, Open, Open Recent, Save, Save As, Recover,
   Quit), undo/redo, mode switcher (Storyboard | Edit | Grade | Audio). Project name on the right.
 - Canvas colour: Ollie found white too bright. Default is soft paper
