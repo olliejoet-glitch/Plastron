@@ -18,13 +18,19 @@ events = h.module("timeline.events")
 
 def plan_checks():
     old = {"A": (4, 1, 49), "B": (4, 49, 97), "C": (4, 97, 145), "V": (2, 1, 300)}
-    out = rm.plan(old, {"B": (4, 49 + 77)}, {}, {4, 2}, set(), {})
+    out = rm.plan(old, {"B": (4, 49 + 77)}, {}, {4, 2}, set(), {}, all_tracks=False)
     h.check("plan: B dropped over C's second half -> after C, the gap closed (A C B)",
             out == {"B": (4, 97, 145), "C": (4, 49, 97)}, out)
-    out = rm.plan(old, {"C": (4, -13)}, {}, {4, 2}, set(), {})
+    old_v = dict(old, W=(2, 97, 145), M=(1, 97, 145))       # a voice clip under C (ripple), music (no ripple)
+    out = rm.plan(old_v, {"B": (4, 49 + 77)}, {}, {4, 2}, set(), {}, all_tracks=True)
+    h.check("plan: like resizing, other ripple tracks move along (the voice under C stays under C; no ripple: stays)",
+            out == {"B": (4, 97, 145), "C": (4, 49, 97), "W": (2, 49, 97)}, out)
+    out = rm.plan(old_v, {"B": (4, 49 + 77)}, {}, {4, 2}, {2}, {}, all_tracks=True)
+    h.check("plan: ...a locked track never moves", "W" not in out, out)
+    out = rm.plan(old, {"C": (4, -13)}, {}, {4, 2}, set(), {}, all_tracks=False)
     h.check("plan: C's middle dropped over A's first half -> before A (C A B)",
             out == {"C": (4, 1, 49), "A": (4, 49, 97), "B": (4, 97, 145)}, out)
-    out = rm.plan(old, {"A": (4, 200)}, {}, {4}, set(), {})
+    out = rm.plan(old, {"A": (4, 200)}, {}, {4}, set(), {}, all_tracks=False)
     h.check("plan: dropped into empty space: it keeps its distance from the clip before it; the gap closes",
             out == {"A": (4, 152, 200), "B": (4, 1, 49), "C": (4, 49, 97)}, out)
     old2 = {"A": (4, 1, 49), "M": (4, 49, 97), "Ms": (1, 49, 97), "C": (4, 97, 145), "Cs": (1, 97, 145)}
@@ -109,6 +115,20 @@ def steps():
     h.check("dragging one of two selected clips moves both (the third closes up, they go in after it)",
             names() == [order0[2], order0[0], order0[1]] and spans() == [(1, 49), (49, 97), (97, 145)],
             (names(), spans(), order0))
+
+    # Like resizing: a clip on another ripple track (here the Script lane)
+    # under the third panel moves along when the second is dragged past it.
+    lane = h.module("features.storyboard.script_lane")
+    p1, p2, p3 = (sc.sequence_editor.strips_all[n] for n in names())
+    block = lane.new_block(sc, clips.start(p3), clips.end(p3), 0, "A line under the third panel")
+    events.clips_changed(sc)
+    yield 0.3
+    yield from drag_clip(sc, p2, 66, reg, ch)
+    block = next(b for b in lane.blocks(sc))
+    p3 = sc.sequence_editor.strips_all[p3.name]
+    h.check("dragging a panel past the next: the line under that one (another ripple track) moves with it",
+            (clips.start(block), clips.end(block)) == (clips.start(p3), clips.end(p3)),
+            ((clips.start(block), clips.end(block)), (clips.start(p3), clips.end(p3))))
 
     track = tracks.video_tracks(sc)[-1]
     track.ripple = False

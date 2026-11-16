@@ -596,8 +596,10 @@ Plastron/
   nearest where its middle was dropped (before a clip if over its first
   half, else after); later clips move along; dropped into a gap it fits,
   it stays (keeping its distance from the clip before it). Linked sounds
-  follow. Only the tracks it leaves / lands on ripple (a panel move doesn't
-  shift the voice). Not shown live during the drag (Blender's preview is
+  follow. Like resizing (Ollie: "just like with resizing a clip"), the gap
+  closing and the room made happen on EVERY ripple track, not just the one
+  the clip leaves / lands on (RIPPLE_MOVE_ALL_TRACKS in config/timeline.py;
+  locked tracks never move). Not shown live during the drag (Blender's preview is
   its own shuffle). No extra undo step: one Ctrl+Z undoes the drag.
   (timeline/ripple_move.py, run from placement.check.)
 - Several clips at once (Ollie): Shift+click adds / removes a clip (the

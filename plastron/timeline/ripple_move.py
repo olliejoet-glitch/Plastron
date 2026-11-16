@@ -12,9 +12,10 @@ free space. Once a drag ends, on tracks with ripple on:
   fits, it just stays there.
 
 A video's sound (linked) goes with it, and so do the sounds of clips that
-move up or along. Only the tracks the clip leaves / lands on ripple (moving
-a panel doesn't shift the voice). Locked tracks never move. Tracks without
-ripple keep Blender's own behaviour.
+move up or along. Like resizing, every track with ripple on moves along
+(Ollie: "just like with resizing a clip"; RIPPLE_MOVE_ALL_TRACKS in
+config/timeline.py). Locked tracks never move. Tracks without ripple keep
+Blender's own behaviour.
 
 plan() is pure (numbers in, numbers out); apply_drag() reads the drag that
 just ended and applies the plan.
@@ -25,20 +26,25 @@ import bpy
 from . import clips, tracks
 
 
-def plan(old, mains, followers, ripple, locked, links, fresh=()):
+def plan(old, mains, followers, ripple, locked, links, fresh=(), all_tracks=None):
     """old: {key: (channel, start, end)} of every clip before the drag.
     mains: {key: (dest channel, intended start)} the dragged clips.
     followers: {key: (main key, channel)} clips riding with a main (its sound).
     ripple / locked: sets of channels. links: {key: [keys linked to it]}.
     fresh: new copies (Alt+drag): old = what they copy; they leave no gap.
     Returns {key: (channel, start, end)} for every clip that should change."""
+    if all_tracks is None:
+        from ..config import timeline as cfg
+        all_tracks = cfg.RIPPLE_MOVE_ALL_TRACKS
     moving = set(mains) | set(followers)
     pos = {k: list(v) for k, v in old.items()}
 
     def shift_stay(channel, from_frame, delta):
+        # Like resizing (Ollie): every ripple track moves, not just this one.
+        chans = (set(ripple) | {channel}) if (all_tracks and channel in ripple) else {channel}
         done = set()
         for k, (ch, s, e) in old.items():
-            if k in moving or ch != channel or ch in locked or pos[k][1] < from_frame:
+            if k in moving or ch not in chans or ch in locked or pos[k][1] < from_frame:
                 continue
             pos[k][1] += delta
             pos[k][2] += delta

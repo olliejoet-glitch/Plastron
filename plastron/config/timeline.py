@@ -26,6 +26,11 @@ EDGE_GRAB_PX = 8
 EDGE_GRAB_INSIDE_PX = 16      # ...and this far inside a clip (at most a third of it)
 SNAP_PX = 10
 
+# Dragging a whole clip on a ripple track: the gap it leaves closes and room
+# is made where it lands on EVERY ripple track (like resizing), or only on
+# the tracks it leaves / lands on (False).
+RIPPLE_MOVE_ALL_TRACKS = True
+
 # Track row height when a project opens (screen pixels at 100 % UI scale).
 # Tall enough for the timeline to show each panel's picture.
 ROW_HEIGHT_PX = 64
