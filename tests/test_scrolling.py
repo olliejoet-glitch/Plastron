@@ -101,5 +101,38 @@ def steps():
     h.check("smooth scrolling is spotted while it runs (marks hidden), and ends", during and not after,
             (during, after, [o.bl_idname for o in bpy.context.window.modal_operators]))
 
+    # A project reopened (Ollie's file: the script was drawn from Blender's old
+    # cached layout of the wrapped lines, so the band / scrolling were rows
+    # off): the layout is redone on load and before every follow scroll,
+    # without moving the text cursor or the selection.
+    path = os.path.join(bpy.app.tempdir, "scroll_reopen.blend")
+    st.text.cursor_set(5, character=3)
+    st.text.cursor_set(7, character=2, select=True)
+    bpy.ops.wm.save_as_mainfile(filepath=path)
+    yield 0.5
+    bpy.ops.wm.open_mainfile(filepath=path)
+    yield 2.0
+    sc = bpy.context.scene
+    area_t = h.area('TEXT_EDITOR')
+    st = area_t.spaces.active
+    rt = h.region(area_t)
+    txt = st.text
+    sel = (txt.current_line_index, txt.current_character, txt.select_end_line_index, txt.select_end_character)
+    called = []
+    real = follow.refresh_layout
+    follow.refresh_layout = lambda t: called.append(t.name) or real(t)
+    sc.frame_current = 1700
+    yield 0.5
+    follow.refresh_layout = real
+    line = follow._now["line"]
+    y = st.region_location_from_cursor(line, 0)[1] if line is not None else None
+    after = (txt.current_line_index, txt.current_character, txt.select_end_line_index, txt.select_end_character)
+    h.check("after reopening a project the script's layout is redone before it scrolls to the line",
+            called and y is not None and 0 < y <= rt.height, (called, line, y))
+    h.check("...the text cursor and selection stay where they were", sel == after, (sel, after))
+    h.redraw()
+    yield 0.5
+    h.screenshot("script_reopened")
+
 
 h.run(steps())

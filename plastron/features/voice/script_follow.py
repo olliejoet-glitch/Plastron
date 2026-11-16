@@ -141,9 +141,19 @@ def _row_height(space):
     return max(1, y1 - y0)
 
 
+def refresh_layout(text):
+    """Make Blender redo its cached layout of the script's wrapped lines.
+    (Ollie's "mismatch between script and timeline": after a project opened,
+    the script was drawn from the old layout while Blender's own positions,
+    the follow band and the scrolling used the right one.) Setting the cursor
+    where it already is (select=True keeps any selection) is enough."""
+    text.cursor_set(text.current_line_index, character=text.current_character, select=True)
+
+
 def scroll_to(area, line):
     """Bring the line into view (a third of the way down) if it's not."""
     space = area.spaces.active
+    refresh_layout(space.text)
     region = next((r for r in area.regions if r.type == 'WINDOW'), None)
     if region is None or not 0 <= line < len(space.text.lines):
         return
@@ -221,6 +231,9 @@ def draw():
 def _on_load(_scene):
     _table["dirty"] = True
     _now.update(hi=-1, scene=None, line=None)
+    text = bpy.data.texts.get(defaults.SCRIPT_TEXT_NAME)
+    if text is not None:
+        refresh_layout(text)
 
 
 def register():

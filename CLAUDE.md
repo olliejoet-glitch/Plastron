@@ -440,6 +440,12 @@ Plastron/
 - In a Properties editor, buttons take a click (even Alt+Shift+click) before
   the region's keymaps; "Screen Editing" keymap items run before buttons.
   Blender's text.scroll doesn't start from an Alt+Shift+LMB item.
+- The text editor caches its layout of wrapped lines and can draw the
+  script from a stale one (seen after a project opened: glyphs rows off
+  while region_location_from_cursor, the caret and space.top were right).
+  text.cursor_set(where it is, select=True) makes it redo the layout
+  without moving the cursor / selection (script_follow.refresh_layout, on
+  load and before every follow scroll).
 - Simulated events can't make a double-click (Blender times real clicks):
   test double-click actions through the function they call.
 - Blender's input_samples (the stabiliser's Steady) averages pen PRESSURE
