@@ -203,7 +203,7 @@ Plastron/
 │  │                         drag_scroll.py (pen scrolling of tools area / script)
 │  ├─ timeline/              the one shared timeline (see its __init__ for the module list)
 │  │                         tracks (model over channels), clips (overlap-safe moves),
-│  │                         ripple (pure planners), snapping, mix, track_headers,
+│  │                         ripple (pure planners), snapping, mix, track_headers, sections,
 │  │                         header, ops, view (framing), edit_tools (Move / Slice),
 │  │                         edit_keys (Q / W, Up / Down, J / K / L), placement (which
 │  │                         clips may go on which track), fades (fade in / out, dips),
@@ -579,6 +579,12 @@ Plastron/
   Premiere's ripple trim: the clip keeps its place, its length changes, later
   clips close up / make room. Without ripple: edges stop at neighbours, gaps
   stay.
+- Only tracks show (Ollie: no "Channel 5 / 6 / 7" rows): Blender's other
+  channels are covered over in the timeline (POST_VIEW: over its grid and
+  row bands, under the playhead) and the channel column. Video tracks on
+  top, audio below (tracks.add keeps that order), each section tinted, a
+  light line between them (timeline/sections.py, SECTIONS in
+  config/timeline.py).
 - Track headers: name / mute / lock are Blender's channel buttons; Plastron
   draws R (ripple, all tracks), S (solo) and a volume bar (0-200 %, audio
   tracks only). Clicking a track's row or name makes it the active track.

@@ -52,6 +52,20 @@ HEADER_VOLUME_PX = 54         # volume bar width
 HEADER_GAP_PX = 4
 HEADER_NATIVE_BUTTONS_PX = 44  # room Blender's mute + lock buttons take at the right
 
+# Video tracks on top, audio below (timeline/sections.py): each section's
+# rows and headers get a tint ((colour, strength)), a line runs between them,
+# and Blender's channels that aren't tracks are covered over (colours: the
+# timeline's own background / its channel column's).
+SECTIONS = {
+    "hide_empty_channels": True,
+    "video_tint":     ("#5d7a76", 0.10),
+    "audio_tint":     ("#2f6a8a", 0.16),
+    "line":           ("#c8d4d2", 0.85),
+    "line_px":        3,
+    "empty_timeline": "bg_dark",
+    "empty_headers":  "bg_dark",
+}
+
 # How strongly the active track (where New Panel / Record go) stands out.
 ACTIVE_HEADER_ALPHA = 0.30    # its header
 ACTIVE_ROW_ALPHA = 0.07       # its row across the timeline

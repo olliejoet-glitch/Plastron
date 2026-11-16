@@ -6,6 +6,7 @@
     snapping.py       playhead, clip edges, markers (beats)
     mix.py            audio mix (clip × track volume, solo), written on edit
     track_headers.py  ripple / solo / volume widgets in the channel column
+    sections.py       video above / audio below: tints, the line, empty channels hidden
     header.py         timeline header bar
     ops.py            operators
     edit_tools.py     Move / Slice tools (S / A)
@@ -20,9 +21,9 @@ import bpy
 
 from ..config import project_defaults
 from ..core import handlers
-from . import clips, colors, edit_keys, edit_tools, events, fades, header, mix, ops, placement, snapping, track_headers, tracks
+from . import clips, colors, edit_keys, edit_tools, events, fades, header, mix, ops, placement, sections, snapping, track_headers, tracks
 
-_MODULES = (tracks, mix, header, track_headers, ops, edit_tools, edit_keys, placement, fades, colors)
+_MODULES = (tracks, mix, header, sections, track_headers, ops, edit_tools, edit_keys, placement, fades, colors)
 _pending = set()   # scene names waiting for a debounced clips_changed
 
 
