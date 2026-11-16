@@ -30,6 +30,10 @@ SNAP_PX = 10
 # is made where it lands on EVERY ripple track (like resizing), or only on
 # the tracks it leaves / lands on (False).
 RIPPLE_MOVE_ALL_TRACKS = True
+# ...and on a track WITHOUT ripple, a clip dropped on others cuts into them
+# (Resolve's overwrite: covered clips go, overlapped ones are trimmed, one
+# it lands inside is split). False: Blender's own (it slides to free space).
+OVERWRITE_ON_DROP = True
 
 # Track row height when a project opens (screen pixels at 100 % UI scale).
 # Tall enough for the timeline to show each panel's picture.

@@ -42,6 +42,9 @@ def plan_checks():
     h.check("plan: no ripple on the track: nothing (Blender's own result stays)", out == {}, out)
 
 
+moved = [0]          # how far Blender's drag actually went (it snaps to edges on the way)
+
+
 def drag_clip(sc, strip, frames, reg, ch, keep_selection=False):
     if not keep_selection:                   # (as after a click on empty space)
         for s in clips.all_clips(sc):
@@ -51,6 +54,8 @@ def drag_clip(sc, strip, frames, reg, ch, keep_selection=False):
     x1, _ = v2d.view_to_region(clips.start(strip) + clips.length(strip) / 2 + frames, ch + 0.5, clip=False)
     yield from h.drag((reg.x + x0, reg.y + y0), (reg.x + x1, reg.y + y0), steps=12)
     yield 1.0
+    op = bpy.context.window_manager.operators[-1]
+    moved[0] = round(op.properties.value[0]) if op.bl_idname == "TRANSFORM_OT_seq_slide" else 0
 
 
 def steps():
@@ -116,6 +121,15 @@ def steps():
             names() == [order0[2], order0[0], order0[1]] and spans() == [(1, 49), (49, 97), (97, 145)],
             (names(), spans(), order0))
 
+    # Dropped right on top of the next clip (Blender's own drop shuffles it
+    # back where it was: Ollie's "ripple dragging does nothing").
+    first_name, second_name = names()[0], names()[1]
+    first = sc.sequence_editor.strips_all[first_name]
+    yield from drag_clip(sc, first, 60, reg, ch)            # its middle past the next one's middle
+    h.check("dragging a panel onto the middle of the next one swaps them (even though Blender bounced it back)",
+            names()[:2] == [second_name, first_name] and spans() == [(1, 49), (49, 97), (97, 145)],
+            (names(), spans(), moved[0]))
+
     # Like resizing: a clip on another ripple track (here the Script lane)
     # under the third panel moves along when the second is dragged past it.
     lane = h.module("features.storyboard.script_lane")
@@ -134,8 +148,57 @@ def steps():
     track.ripple = False
     before = spans()
     yield from drag_clip(sc, sc.sequence_editor.strips_all[names()[1]], 200, reg, ch)   # the middle one
-    h.check("ripple off: Blender's own drag (the gap stays)", spans()[0] == before[0] and spans()[1] == before[2],
-            (spans(), before))
+    h.check("ripple off: dropped in empty space it stays there; the gap it left stays", spans()[0] == before[0]
+            and spans()[1] == before[2], (spans(), before))
+
+    # Resolve's overwrite, on a track without ripple (Background).
+    bg = tracks.video_tracks(sc)[0]
+    bch = tracks.channel_of(sc, bg)
+    bg.ripple = False
+    x = panels.create(sc, bch, 300, 48)
+    y = panels.create(sc, bch, 348, 48)
+    z = panels.create(sc, bch, 396, 48)
+    w = panels.create(sc, bch, 500, 100)
+    events.clips_changed(sc)
+    yield 0.3
+    with h.override('SEQUENCE_EDITOR'):
+        bpy.ops.sequencer.view_all()
+    h.redraw()
+    yield 0.4
+    on_bg = lambda: [(s_.name, clips.start(s_), clips.end(s_)) for s_ in sorted(clips.on_channel(bpy.context.scene, bch), key=clips.start)]  # noqa: E731
+    nx, ny, nz, nw = x.name, y.name, z.name, w.name
+    yield from drag_clip(sc, x, 72, reg, bch)                 # X onto the end of Y and the start of Z
+    xs = 300 + moved[0]
+    h.check("overwrite: a clip dropped across two others trims both back (no ripple)",
+            348 < xs < 396 and on_bg() == [(ny, 348, xs), (nx, xs, xs + 48), (nz, xs + 48, 444), (nw, 500, 600)],
+            (on_bg(), xs))
+    zl = 444 - (xs + 48)
+    z0 = xs + 48
+    yield from drag_clip(sc, sc.sequence_editor.strips_all[nz], 140, reg, bch)   # Z into W's middle
+    zs = z0 + moved[0]
+    got = on_bg()
+    h.check("...dropped inside a longer clip, it splits it around itself",
+            500 < zs and zs + zl < 600 and len(got) == 5 and got[2] == (nw, 500, zs) and got[3] == (nz, zs, zs + zl)
+            and got[4][1:] == (zs + zl, 600), (got, zs, zl))
+    q = panels.create(sc, bch, 700, 20)
+    nq = q.name
+    events.clips_changed(sc)
+    rm.clear(sc, bch, 690, 730)                              # (what a drop over it does)
+    yield 0.2
+    h.check("...and a clip it covers completely goes", nq not in [g[0] for g in on_bg()], on_bg())
+
+    # R: ripple on / off for the track of the clip you're on.
+    for s_ in clips.all_clips(sc):
+        s_.select = s_.name == ny
+    sc.sequence_editor.active_strip = sc.sequence_editor.strips_all[ny]
+    h.move(reg.x + reg.width // 2, reg.y + 10)
+    yield 0.1
+    h.key('R')
+    yield 0.2
+    on = tracks.video_tracks(sc)[0].ripple
+    h.key('R')
+    yield 0.2
+    h.check("R turns ripple on / off for the selected clip's track", on and not tracks.video_tracks(sc)[0].ripple)
 
 
 h.run(steps())

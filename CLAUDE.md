@@ -599,7 +599,17 @@ Plastron/
   follow. Like resizing (Ollie: "just like with resizing a clip"), the gap
   closing and the room made happen on EVERY ripple track, not just the one
   the clip leaves / lands on (RIPPLE_MOVE_ALL_TRACKS in config/timeline.py;
-  locked tracks never move). Not shown live during the drag (Blender's preview is
+  locked tracks never move). The dragged clips are the SELECTED ones
+  (Blender's drop over other clips shuffles them back where they were, so
+  a position check missed them: Ollie's "ripple drag does nothing").
+  On a track WITHOUT ripple, a dropped clip goes exactly where it was
+  dropped and cuts into what's there, like Resolve's overwrite
+  (ripple_move.clear: covered clips go, overlapped ones are trimmed (a
+  video / sound keeps its footage in place), one it lands inside is split
+  around it; OVERWRITE_ON_DROP in config/timeline.py).
+- R over the timeline: ripple on / off for the selected clip's track
+  (else the active track) (plastron.track_ripple_toggle; R over the canvas
+  stays the view rotate). Not shown live during the drag (Blender's preview is
   its own shuffle). No extra undo step: one Ctrl+Z undoes the drag.
   (timeline/ripple_move.py, run from placement.check.)
 - Several clips at once (Ollie): Shift+click adds / removes a clip (the

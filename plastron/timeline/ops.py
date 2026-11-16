@@ -206,6 +206,28 @@ class PLASTRON_OT_clip_click_select(bpy.types.Operator):
         return {'FINISHED'}
 
 
+class PLASTRON_OT_track_ripple_toggle(bpy.types.Operator):
+    """Ripple on / off for the track of the clip you're on (the selected clip, else the active track)"""
+    bl_idname = "plastron.track_ripple_toggle"
+    bl_label = "Toggle Ripple"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        scene = context.scene
+        strip = scene.sequence_editor.active_strip if scene.sequence_editor else None
+        if strip is None or not strip.select:
+            strip = next((s for s in clips.top_clips(scene) if s.select), None)
+        track = tracks.track_of_clip(scene, strip) if strip is not None else tracks.active(scene)
+        if track is None:
+            return {'CANCELLED'}
+        track.ripple = not track.ripple
+        self.report({'INFO'}, f"Ripple {'on' if track.ripple else 'off'}: {tracks.name(scene, track)}")
+        for area in context.screen.areas:
+            if area.type == 'SEQUENCE_EDITOR':
+                area.tag_redraw()
+        return {'FINISHED'}
+
+
 class PLASTRON_OT_clip_split(bpy.types.Operator):
     """Cut the selected clips (or the active track's clip) at the playhead"""
     bl_idname = "plastron.clip_split"
@@ -269,6 +291,7 @@ classes = (
     PLASTRON_OT_track_header_click,
     PLASTRON_OT_clip_trim,
     PLASTRON_OT_clip_click_select,
+    PLASTRON_OT_track_ripple_toggle,
     PLASTRON_OT_clip_split,
     PLASTRON_OT_clip_delete,
     PLASTRON_OT_loop_set,

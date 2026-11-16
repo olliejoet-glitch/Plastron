@@ -140,6 +140,7 @@ SHORTCUTS = [
     ("timeline",     "Ctrl+K",           "plastron.clip_split",          "Split at playhead"),
     ("canvas",       "Ctrl+K",           "plastron.clip_split",          "Split at playhead"),
     ("timeline",     "Delete",           "plastron.clip_delete",         "Delete clip"),
+    ("timeline",     "R",                "plastron.track_ripple_toggle", "Ripple on / off for the track of the clip you're on"),
     ("timeline",     "Backspace",        "plastron.clip_delete",         "Delete clip"),
     ("timeline",     "S",                "plastron.timeline_tool",       "Slice tool (click a clip to cut it)", {"tool": 'SLICE'}),
     ("canvas",       "S",                "plastron.timeline_tool",       "Slice tool (click a clip to cut it)", {"tool": 'SLICE'}),

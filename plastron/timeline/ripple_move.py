@@ -14,8 +14,9 @@ free space. Once a drag ends, on tracks with ripple on:
 A video's sound (linked) goes with it, and so do the sounds of clips that
 move up or along. Like resizing, every track with ripple on moves along
 (Ollie: "just like with resizing a clip"; RIPPLE_MOVE_ALL_TRACKS in
-config/timeline.py). Locked tracks never move. Tracks without ripple keep
-Blender's own behaviour.
+config/timeline.py). Locked tracks never move. On a track without ripple
+the clip goes exactly where it's dropped and cuts into what's there, like
+Resolve's overwrite (OVERWRITE_ON_DROP in config/timeline.py).
 
 plan() is pure (numbers in, numbers out); apply_drag() reads the drag that
 just ended and applies the plan.
@@ -23,7 +24,7 @@ just ended and applies the plan.
 
 import bpy
 
-from . import clips, tracks
+from . import clips, events, tracks
 
 
 def plan(old, mains, followers, ripple, locked, links, fresh=(), all_tracks=None):
@@ -149,8 +150,10 @@ def apply_drag(scene, last):
         return True
     old = {n: v for n, v in last.items() if n in strips}
     old.update({n: v for n, v in copies.items() if n in strips})
-    moved = [s for n, s in strips.items() if n in old
-             and (n in copies or old[n] != (s.channel, clips.start(s), clips.end(s)))
+    # The dragged clips: the selected ones (Blender's own drop may have
+    # shuffled them right back where they were when dropped on other clips,
+    # so "did it move" can't tell: Ollie's ripple drags "did nothing").
+    moved = [s for n, s in strips.items() if n in old and (n in copies or s.select)
              and clips.length(s) == old[n][2] - old[n][1]]
     if not moved or (dx == 0 and dy == 0):
         return False
@@ -173,18 +176,22 @@ def apply_drag(scene, last):
     links = {n: [o.name for o in clips.linked(s, list(strips.values()))] for n, s in strips.items()}
     fresh = set(copies) & set(old)
     out = plan(old, mains, followers, ripple, locked, links, fresh)
-    for n in fresh:                       # copies on a track without ripple: where they were dropped
-        if n in mains and n not in out:
-            dest, want = mains[n]
-            length = old[n][2] - old[n][1]
-            if strips[n].channel != dest and all(
-                    not (clips.start(o) < want + length and want < clips.end(o))
-                    for o in clips.on_channel(scene, dest) if o != strips[n]):
-                out[n] = (dest, want, want + length)
+    # Tracks without ripple: the clip goes exactly where it was dropped and
+    # cuts into what's there (Resolve's overwrite, Ollie).
+    from ..config import timeline as cfg
+    overwrite = []
+    for n, (dest, want) in mains.items():
+        if n in out or dest in ripple or dest in locked or not cfg.OVERWRITE_ON_DROP:
+            continue
+        length = old[n][2] - old[n][1]
+        out[n] = (dest, want, want + length)
+        overwrite.append(n)
     for n, (main, channel) in followers.items():
-        if n in fresh and main in out and n not in out:
+        if main in out and n not in out:
             d = out[main][1] - old[main][1]
             out[n] = (channel, old[n][1] + d, old[n][2] + d)
+            if main in overwrite and channel not in locked and channel not in ripple:
+                overwrite.append(n)
     if not out:
         return False
     # Moving clips off to spare channels first, then the others, then them in.
@@ -193,7 +200,36 @@ def apply_drag(scene, last):
     for i, n in enumerate(going):
         strips[n].channel = spare + i
     clips.apply(scene, {strips[n]: (s, e) for n, (_c, s, e) in out.items() if n not in going})
+    for n in overwrite:
+        clear(scene, *out[n], keep={strips[k] for k in going})
     clips.apply(scene, {strips[n]: (out[n][1], out[n][2]) for n in going})
     for n in going:
         strips[n].channel = out[n][0]
     return True
+
+
+def clear(scene, channel, start, end, keep=()):
+    """Make room on channel for start..end by cutting into what's there
+    (Resolve's overwrite): clips inside go, ones overlapping an end are
+    trimmed back, one around it all is split in two around the room."""
+    from . import ripple
+    for o in list(clips.on_channel(scene, channel)):
+        if o in keep:
+            continue
+        s, e = clips.start(o), clips.end(o)
+        if e <= start or s >= end:
+            continue
+        if s >= start and e <= end:
+            events.emit("clip_removing", scene, strip=o)
+            ripple.remove(scene, o)
+        elif s < start and e > end:
+            for right in ripple.split(scene, [o], end):
+                if right.channel == channel:
+                    clips.apply(scene, {o: (s, start)})
+        elif s < start:
+            clips.apply(scene, {o: (s, start)})
+        else:
+            if o.type in {'MOVIE', 'SOUND', 'SCENE'}:              # (its footage stays in place)
+                clips.apply(scene, {o: (end, e, o.content_start)})
+            else:                                                   # (a still / panel: just shorter)
+                clips.apply(scene, {o: (end, e)})
