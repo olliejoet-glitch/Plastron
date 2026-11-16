@@ -77,6 +77,9 @@ def check(scene, **_info):
         done.update(group)
         _put_back(scene, group, last)
         moved = True
+    if not moved and last:
+        from . import ripple_move               # (a whole-clip drag on a ripple track)
+        moved = ripple_move.apply_drag(scene, last)
     _last[scene.name] = {s.name: (s.channel, clips.start(s), clips.end(s)) for s in clips.top_clips(scene)
                          if allowed(scene, s, tracks.track_of_channel(scene, s.channel))}
     if moved:

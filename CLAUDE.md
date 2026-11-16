@@ -206,7 +206,7 @@ Plastron/
 │  │                         ripple (pure planners), snapping, mix, track_headers, sections,
 │  │                         header, ops, view (framing), edit_tools (Move / Slice),
 │  │                         edit_keys (Q / W, Up / Down, J / K / L), placement (which
-│  │                         clips may go on which track), fades (fade in / out, dips),
+│  │                         clips may go on which track), ripple_move (ripple for clip drags), fades (fade in / out, dips),
 │  │                         events (features listen; timeline knows no features)
 │  ├─ layers/                Photoshop-style layer stacks on materials (from CaraPainter):
 │  │                         props, blend_lib, layer_trees, compiler (node trees),
@@ -585,6 +585,16 @@ Plastron/
   top, audio below (tracks.add keeps that order), each section tinted, a
   light line between them (timeline/sections.py, SECTIONS in
   config/timeline.py).
+- Ripple for whole-clip drags (Ollie): after Blender's drag-move
+  (transform.seq_slide, read from wm.operators + its value) ends, on a
+  ripple track the gap the clip left closes and it goes in at the cut
+  nearest where its middle was dropped (before a clip if over its first
+  half, else after); later clips move along; dropped into a gap it fits,
+  it stays (keeping its distance from the clip before it). Linked sounds
+  follow. Only the tracks it leaves / lands on ripple (a panel move doesn't
+  shift the voice). Not shown live during the drag (Blender's preview is
+  its own shuffle). No extra undo step: one Ctrl+Z undoes the drag.
+  (timeline/ripple_move.py, run from placement.check.)
 - Track headers: name / mute / lock are Blender's channel buttons; Plastron
   draws R (ripple, all tracks), S (solo) and a volume bar (0-200 %, audio
   tracks only). Clicking a track's row or name makes it the active track.

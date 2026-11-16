@@ -12,6 +12,7 @@
     edit_tools.py     Move / Slice tools (S / A)
     edit_keys.py      Q / W trim to playhead, Up / Down jump to cuts, J / K / L
     placement.py      which clips may go on which track (kept after Blender's drags)
+    ripple_move.py    ripple for whole-clip drags (gap closes, drop inserts at a cut)
     fades.py          fade in / out per clip (corner handles; Ctrl+D dip at a cut)
     colors.py         clip colours (header colour button, Clip panel swatches)
     events.py         events features listen to
