@@ -35,10 +35,14 @@ WORD_COLORS = {
 
 # The microphone list (the ▾ next to Record). Windows lists every input once
 # per audio system (MME, DirectSound, WASAPI, WDM-KS); only the system the
-# default microphone uses is shown (on Windows: MME, which lists only plugged-in,
-# enabled inputs). Inputs whose name contains one of these are left out
-# (stand-ins, not microphones; lower case).
-MIC_HIDE = ("sound mapper", "primary sound capture", "stereo mix", "what u hear", "wave out mix")
+# default microphone uses is shown (on Windows: MME, which lists only
+# plugged-in, enabled inputs), with full names (MME cuts them at 31 letters).
+# Inputs whose name contains one of these are left out: stand-ins and the
+# virtual inputs that apps add (Voicemeeter, Steam, Oculus...), lower case.
+# Anything else can be hidden from the list itself (its x button).
+MIC_HIDE = ("sound mapper", "primary sound capture", "stereo mix", "what u hear", "wave out mix",
+            "voicemeeter", "vb-audio", "cable output", "steam streaming", "oculus virt",
+            "nvidia broadcast", "krisp", "virtual audio", "obs-", "discord")
 
 # The script follows the playhead: the line being played is highlighted (a
 # band behind it) and scrolled into view.

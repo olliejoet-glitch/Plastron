@@ -35,13 +35,27 @@ def steps():
     sp = h.module("features.storyboard.script_panels")
     want = [round(s * fps) for s in (4 * 0.4 + 1.0, 10 * 0.4 + 1.0, 2.0)]      # (the last: the shortest)
     h.check("each lasts a little longer than its line takes to read (a pause after it)",
-            lengths == want and cfg["pause_seconds"] == 1.0, (lengths, want))
+            lengths == want and sp.pause() == 1.0, (lengths, want))
     h.check("...a longer pause for each extra sentence in a line",
             abs(sp.seconds_for("Wait. Go now! Stop it.") - (5 * 0.4 + 1.0 + 2 * 0.5)) < 1e-6,
             sp.seconds_for("Wait. Go now! Stop it."))
     h.check("...one after another from the start",
             clips.start(made[0]) == sc.frame_start
             and all(clips.end(a) == clips.start(b) for a, b in zip(made, made[1:])))
+    # The Pause slider: remembered, and script panels follow (ones trimmed by hand stay).
+    ripple = h.module("timeline.ripple")
+    ripple.trim(sc, made[2], 'RIGHT', clips.start(made[2]) + 60)        # (trimmed by hand)
+    bpy.context.window_manager.plastron_script_pause = 2.0
+    yield 0.8
+    lengths2 = [clips.length(s) for s in made]
+    h.check("Pause slider: panels made from the script get the new pause, one after another",
+            lengths2 == [round((4 * 0.4 + 2.0) * fps), round((10 * 0.4 + 2.0) * fps), 60]
+            and all(clips.end(a) == clips.start(b) for a, b in zip(made, made[1:])), lengths2)
+    h.check("...remembered", h.module("core.user_settings").get(sp.PAUSE_KEY) == 2.0)
+    bpy.context.window_manager.plastron_script_pause = 1.0
+    yield 0.8
+    h.check("...and back", [clips.length(s) for s in made] == [want[0], want[1], 60],
+            [clips.length(s) for s in made])
     h.check("the panel remembers its line", made[1].plastron_panel.script_text.startswith("She opens"))
 
     with h.override('VIEW_3D'):

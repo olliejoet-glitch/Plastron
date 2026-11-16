@@ -11,8 +11,9 @@ NEW_PANEL_SECONDS = 2.0
 # long as it takes to read its line, between the min and max.
 SCRIPT_PANELS = {
     "seconds_per_word": 0.4,         # reading aloud
-    "pause_seconds": 1.0,            # + a pause after each line (between sentences)
-    "sentence_pause_seconds": 0.5,   # + this for each other sentence end (. ! ?) inside the line
+    "pause_seconds": 1.0,            # + a pause after each line (the script bar's Pause slider; remembered)
+    "pause_range": (0.0, 3.0),       # (the slider's range, seconds)
+    "sentence_pause_share": 0.5,     # + this share of it for each other sentence end (. ! ?) in the line
     "min_seconds": 2.0,
     "max_seconds": 10.0,
     "file_types": "*.txt;*.md;*.fountain",

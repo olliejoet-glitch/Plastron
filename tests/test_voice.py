@@ -293,13 +293,25 @@ def steps():
     win = [{"name": n, "hostapi": a, "max_input_channels": c} for n, a, c in (
         ("Microsoft Sound Mapper - Input", 0, 2), ("Headset Microphone (Arctis)", 0, 1),
         ("Microphone (Yeti Stereo Microph", 0, 2), ("Speakers (Realtek)", 0, 0), ("Stereo Mix (Realtek)", 0, 2),
+        ("Voicemeeter Out B1 (VB-Audio Vo", 0, 2), ("Microphone (Steam Streaming Mic", 0, 2),
+        ("Headset Microphone (Oculus Virt", 0, 1), ("Voicemeeter Out B1 (VB-Audio Voicemeeter VAIO)", 2, 2),
         ("Primary Sound Capture Driver", 1, 2), ("Headset Microphone (Arctis)", 1, 1),
         ("Headset Microphone (Arctis)", 2, 1), ("Microphone (Yeti Stereo Microphone)", 2, 2),
         ("Headset Microphone (Arctis Hands-Free)", 3, 1), ("Microphone Array (Realtek Mic input)", 3, 2))]
     picked = mic.pick(win, 1)
     h.check("Windows' many copies of each input come down to the real microphones (one audio system, "
             "no Sound Mapper / Stereo Mix)", [(n, d, i) for n, d, i in picked]
-            == [("Headset Microphone (Arctis)", True, 1), ("Microphone (Yeti Stereo Microph", False, 2)], picked)
+            == [("Headset Microphone (Arctis)", True, 1), ("Microphone (Yeti Stereo Microphone)", False, 2)], picked)
+    h.check("...virtual inputs (Voicemeeter, Steam, Oculus) left out, names in full; hidden ones too",
+            [n for n, _d, _i in mic.pick(win, 1, ["Headset Microphone (Arctis)"])]
+            == ["Microphone (Yeti Stereo Microphone)"])
+    with h.override('SEQUENCE_EDITOR'):
+        bpy.ops.plastron.mic_hide(name="USB Mic")
+    h.check("x hides an input from the list (remembered)", [n for n, _d in mic.inputs()] == ["Built-in Microphone"]
+            and user_settings.get(mic.HIDDEN_KEY) == ["USB Mic"], mic.inputs())
+    with h.override('SEQUENCE_EDITOR'):
+        bpy.ops.plastron.mic_hide(show=True)
+    h.check("...Show hidden brings them back", len(mic.inputs()) == 2, mic.inputs())
     with h.override('SEQUENCE_EDITOR'):
         bpy.ops.plastron.mic_choose(name="Built-in Microphone")
     h.check("choosing one is remembered", user_settings.get(mic.KEY) == "Built-in Microphone")

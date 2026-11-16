@@ -663,7 +663,11 @@ Plastron/
   channels; "System default" first). Only the default input's audio system
   is listed (Windows repeats each input per MME / DirectSound / WASAPI /
   WDM-KS; MME lists only plugged-in inputs and converts the rate), minus
-  stand-ins (Sound Mapper, Stereo Mix...: MIC_HIDE in config/voice.py);
+  stand-ins and apps' virtual inputs (Sound Mapper, Stereo Mix,
+  Voicemeeter, Steam Streaming, Oculus...: MIC_HIDE in config/voice.py);
+  names in full (MME cuts them at 31 letters: taken from another system's
+  copy); an x on each row hides it (user_settings "mic_hidden"; "Show n
+  hidden" brings them back);
   recording opens the device by number (names repeat across systems); the choice is remembered by name in
   user_settings "mic_device" (numbers change when things are plugged in);
   missing at record time: the default is used, with a note. While
@@ -779,8 +783,12 @@ Plastron/
   per non-blank line, on the active video track after its last clip (the
   blank starter panel is replaced), each about as long as its line takes
   to read aloud plus a pause (Ollie: pauses between sentences): 0.4 s a
-  word + 1 s after the line + 0.5 s per other sentence end in it, 2-10 s
-  (SCRIPT_PANELS in config/timeline.py).
+  word + a pause after the line (+ half of it per other sentence end in it),
+  2-10 s (SCRIPT_PANELS in config/timeline.py). The pause is the script
+  bar's Pause slider (0-3 s, default 1 s, remembered in user_settings
+  "script_pause"); moving it re-times script panels whose length is still
+  what the old pause gave (hand-trimmed ones stay), 0.35 s after the slider
+  stops, ripple following, one undo step.
   The panel remembers its line (plastron_panel.script_line / script_text);
   running it again only adds lines without a panel; Import starts the
   links afresh. Clicking a script line not recorded yet jumps to its panel.

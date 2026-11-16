@@ -8,7 +8,8 @@ replaced. Lines that already have a panel are left alone, so running it
 again after adding lines only adds the new ones. Each panel lasts a little
 longer than its line takes to read aloud: reading time + a pause after the
 line (+ a shorter one per other sentence in it) (SCRIPT_PANELS in
-config/timeline.py).
+config/timeline.py). The pause is the script bar's Pause slider
+(remembered); moving it re-times script panels not trimmed by hand.
 
 The script bar (on top of the script panel): Paste Script pastes what you
 copied into the script (replacing an empty one, else added at the end) and
@@ -27,7 +28,8 @@ import numpy as np
 from bpy_extras.io_utils import ImportHelper
 
 from ...config import project_defaults as defaults, timeline as timeline_cfg
-from ...timeline import clips, events, tracks
+from ...core import user_settings
+from ...timeline import clips, events, ripple, tracks
 from . import panels
 
 CFG = timeline_cfg.SCRIPT_PANELS
@@ -42,19 +44,77 @@ def script_lines(text):
     return [(i, line.body.strip()) for i, line in enumerate(text.lines) if line.body.strip()]
 
 
-def seconds_for(line):
+PAUSE_KEY = "script_pause"
+
+
+def pause():
+    """The pause after each line (s): the script bar's slider, remembered."""
+    return float(user_settings.get(PAUSE_KEY, CFG["pause_seconds"]))
+
+
+def seconds_for(line, pause_s=None):
     """How long a line's panel lasts: reading it aloud, then a pause (Ollie:
     pauses between sentences), plus a shorter pause per sentence inside it."""
+    pause_s = pause() if pause_s is None else pause_s
     words = len(line.split())
     ends = len(re.findall(r"[.!?]+(?=\s|$)", line.strip()))
     inner = max(0, ends - 1)
-    seconds = words * CFG["seconds_per_word"] + CFG["pause_seconds"] + inner * CFG["sentence_pause_seconds"]
+    seconds = words * CFG["seconds_per_word"] + pause_s * (1 + inner * CFG["sentence_pause_share"])
     return min(CFG["max_seconds"], max(CFG["min_seconds"], seconds))
 
 
-def frames_for(scene, line):
+def frames_for(scene, line, pause_s=None):
     fps = scene.render.fps / scene.render.fps_base
-    return max(1, round(seconds_for(line) * fps))
+    return max(1, round(seconds_for(line, pause_s) * fps))
+
+
+def retime(scene, old_pause, new_pause):
+    """Panels made from the script that still have the length the old pause
+    gave them get the new one (ones trimmed by hand stay). Ripple tracks
+    close up / make room. Returns how many changed."""
+    changed = 0
+    script = [s for s in panels.all_panels(scene) if s.plastron_panel.script_line >= 0
+              and s.plastron_panel.script_text]
+    for strip in sorted(script, key=clips.start, reverse=True):     # (from the end: starts stay put)
+        line = strip.plastron_panel.script_text
+        if clips.length(strip) != frames_for(scene, line, old_pause):
+            continue
+        want = frames_for(scene, line, new_pause)
+        if want != clips.length(strip):
+            ripple.trim(scene, strip, 'RIGHT', clips.start(strip) + want)
+            changed += 1
+    return changed
+
+
+_slider = {"applied": None}
+
+
+def _apply_pause():
+    scene = bpy.context.scene
+    new, old = pause(), _slider["applied"]
+    _slider["applied"] = None
+    if scene is None or old is None or abs(new - old) < 1e-6:
+        return None
+    if retime(scene, old, new):
+        win = bpy.context.window_manager.windows[0] if bpy.context.window_manager.windows else None
+        if win is not None:
+            with bpy.context.temp_override(window=win):
+                bpy.ops.ed.undo_push(message="Script Pause")
+    return None
+
+
+def _get_pause(_wm):
+    return pause()
+
+
+def _set_pause(_wm, value):
+    """Remembered at once; the panels follow a moment after the slider stops."""
+    if _slider["applied"] is None:
+        _slider["applied"] = pause()
+    user_settings.set(PAUSE_KEY, round(float(value), 2))
+    if bpy.app.timers.is_registered(_apply_pause):
+        bpy.app.timers.unregister(_apply_pause)
+    bpy.app.timers.register(_apply_pause, first_interval=0.35)
 
 
 def _untouched(strip):
@@ -193,6 +253,9 @@ def draw_bar(self, context):
     row = self.layout.row(align=True)
     row.operator("plastron.script_paste", text="Paste Script", icon='PASTEDOWN')
     row.operator("plastron.script_panels", text="Make Panels", icon='SEQ_STRIP_DUPLICATE')
+    pause_row = self.layout.row()
+    pause_row.ui_units_x = 6
+    pause_row.prop(context.window_manager, "plastron_script_pause", text="Pause", slider=True)
     self.layout.operator("plastron.script_import", text="", icon='FILEBROWSER')
 
 
@@ -202,10 +265,18 @@ classes = (PLASTRON_OT_script_panels, PLASTRON_OT_script_import, PLASTRON_OT_scr
 def register():
     for cls in classes:
         bpy.utils.register_class(cls)
+    lo, hi = CFG["pause_range"]
+    bpy.types.WindowManager.plastron_script_pause = bpy.props.FloatProperty(
+        name="Pause", description="The pause after each script line (your natural pauses between "
+        "sentences): panels made from the script are this much longer than their line takes to read",
+        min=lo, max=hi, step=10, precision=1, unit='TIME_ABSOLUTE', get=_get_pause, set=_set_pause)
     from ...core import hidden_ui
     hidden_ui.replace("TEXT_HT_header", "draw", draw_bar)
 
 
 def unregister():
+    if bpy.app.timers.is_registered(_apply_pause):
+        bpy.app.timers.unregister(_apply_pause)
+    del bpy.types.WindowManager.plastron_script_pause
     for cls in reversed(classes):
         bpy.utils.unregister_class(cls)
