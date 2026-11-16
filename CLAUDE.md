@@ -833,6 +833,10 @@ Plastron/
   The panel remembers its line (plastron_panel.script_line / script_text);
   running it again only adds lines without a panel; Import starts the
   links afresh. Clicking a script line not recorded yet jumps to its panel.
+  Retime (script bar, Ollie: after editing the script): every script panel
+  is matched to the script as it is now (difflib over their remembered
+  lines, so added / removed lines don't shift the rest) and gets that line's
+  length (+ pause), hand-trimmed or not; ripple follows.
   The script panel has a bar (replaces Blender's text header): Paste Script
   (Ollie: "just copy and paste a script in": the clipboard goes into the
   script, or after what's there, and the panels are made), Make Panels,
@@ -1057,6 +1061,11 @@ Plastron/
   right half the fade out. A true crossfade (both pictures at once) needs
   overlapping clips, which tracks don't allow: not done. Fade keys also
   show in the Storyboard keyframe view (Dope Sheet).
+  The canvas / 3D cards show a panel's opacity and fades too (Ollie: the
+  handles did nothing in Storyboard): sheet object alpha (every panel
+  material multiplies it) = fades.picture_alpha(clip, frame); canvas_sync
+  lists the sheets whose clip fades for the current stretch and its frame
+  hook sets only those (nothing when no clip fades).
 - Grade mode (Ollie: "colour grading"): the picture 74 % (sidebar: Grade
   panel) | waveform over vectorscope 26 % (previews in scope display, no
   headers), over the timeline 36 %. A clip's grade (features/grade): the

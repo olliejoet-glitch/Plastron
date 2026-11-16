@@ -93,6 +93,18 @@ def has_fades(strip):
     return strip.plastron.fade_in > 0 or strip.plastron.fade_out > 0 or bool(curves(strip))
 
 
+def picture_alpha(strip, frame):
+    """A picture clip's opacity at frame: its own opacity times its fade ramps."""
+    p = strip.plastron
+    a = p.opacity
+    start, end = clips.start(strip), clips.end(strip)
+    if p.fade_in > 0:
+        a *= max(0.0, min(1.0, (frame - start + 0.5) / p.fade_in))
+    if p.fade_out > 0:
+        a *= max(0.0, min(1.0, (end - frame - 0.5) / p.fade_out))
+    return a
+
+
 def _interp(points, f):
     if not points:
         return 1.0

@@ -21,7 +21,7 @@ import bpy
 from ...config import project_defaults as defaults
 from ...core import handlers
 from ...layers import paint_target
-from ...timeline import clips, events, tracks
+from ...timeline import clips, events, fades, tracks
 
 CANVAS = "Canvas"
 DISPLAY_PREFIX = "Canvas Track "
@@ -31,7 +31,8 @@ PAINT_SHEET = "Canvas Paint Sheet"     # the canvas's own (its UVs follow a move
 EMPTY = "Plastron Empty Panel"
 DEPTH_STEP = 0.01     # higher tracks sit slightly nearer the camera
 
-_state = {"dirty": True, "lo": 0, "hi": -1, "scene": None, "work": 0, "canvas_track": ""}
+_state = {"dirty": True, "lo": 0, "hi": -1, "scene": None, "work": 0, "canvas_track": "",
+          "fading": []}     # [(sheet name, clip name)] whose clip fades / is see-through, this stretch
 
 # Hooks (features/scene3d): SHEET_PLACE: func(track) -> (offset xyz, rotation
 # xyz, scale), where a track's sheet is placed in 3D (moved / turned / scaled
@@ -297,17 +298,27 @@ def sync(scene):
             _absorb(scene, canvas_object(scene), track)
         elif not (active and track.uid == active.uid):
             _absorb(scene, _display_object(scene, track), track)
+    fading = []
     for track in videos:
         y = order_y(scene, track)
         placed = _placed_at(scene, track)
         muted = sed.channels[tracks.channel_of(scene, track)].mute
         material = None if muted else _material_at(scene, track, frame)
+        clip = clips.at(scene, tracks.channel_of(scene, track), frame) if material else None
         if active and track.uid == active.uid:
-            _set(canvas_object(scene), material=material or empty, y=y, placed=placed)
+            obj = canvas_object(scene)
+            _set(obj, material=material or empty, y=y, placed=placed)
             _set(_display_object(scene, track), material=empty, hidden=True)
         else:
-            _set(_display_object(scene, track), material=material or empty, y=y,
-                 hidden=material is None, placed=placed)
+            obj = _display_object(scene, track)
+            _set(obj, material=material or empty, y=y, hidden=material is None, placed=placed)
+        # The clip's opacity / fades (Ollie: the fade handles did nothing on the canvas).
+        if clip is not None and (fades.has_fades(clip) or clip.plastron.opacity < 0.999):
+            fading.append((obj.name, clip.name))
+            _set(obj, alpha=fades.picture_alpha(clip, frame))
+        else:
+            _set(obj, alpha=1.0)
+    _state["fading"] = fading
     canvas_y = (order_y(scene, active) + place(active)[0][1]) if active else 0.0
     _onion(scene, active, frame, canvas_y)
     paint_target.sync(scene=scene)
@@ -321,10 +332,17 @@ def sync(scene):
 
 
 def on_frame(scene, *_args):
-    # Per-frame hook: O(1) unless the playhead crossed a clip edge.
+    # Per-frame hook: O(1) unless the playhead crossed a clip edge; inside a
+    # stretch, only the few sheets whose clip fades get their alpha set.
     if _state["dirty"] or scene.name != _state["scene"] or \
             not (_state["lo"] <= scene.frame_current < _state["hi"]):
         sync(scene)
+    elif _state["fading"]:
+        sed = scene.sequence_editor
+        for obj_name, clip_name in _state["fading"]:
+            obj, clip = bpy.data.objects.get(obj_name), sed.strips_all.get(clip_name)
+            if obj is not None and clip is not None:
+                _set(obj, alpha=fades.picture_alpha(clip, scene.frame_current))
 
 
 def invalidate(scene, **_info):

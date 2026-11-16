@@ -13,7 +13,8 @@ config/timeline.py). The pause is the script bar's Pause slider
 
 The script bar (on top of the script panel): Paste Script pastes what you
 copied into the script (replacing an empty one, else added at the end) and
-makes the panels; Make Panels does it for what's typed; Import reads a file.
+makes the panels; Make Panels does it for what's typed; Retime gives every
+script panel the length its (edited) line now takes; Import reads a file.
 
 A panel remembers its line, so clicking that line in the script jumps to
 it (until it's been recorded: then to where it's spoken).
@@ -83,6 +84,42 @@ def retime(scene, old_pause, new_pause):
         if want != clips.length(strip):
             ripple.trim(scene, strip, 'RIGHT', clips.start(strip) + want)
             changed += 1
+    return changed
+
+
+def relink(scene, text):
+    """[(panel, line index, line)] for the script panels, matched to the
+    script as it is now (difflib over their remembered lines: lines added,
+    removed or reworded in between keep the others right)."""
+    import difflib
+    script = [p for p in panels.all_panels(scene) if p.plastron_panel.script_line >= 0]
+    script.sort(key=lambda p: (p.plastron_panel.script_line, clips.start(p)))
+    lines = script_lines(text)
+    old = [p.plastron_panel.script_text for p in script]
+    new = [line for _i, line in lines]
+    out = []
+    for tag, a0, a1, b0, b1 in difflib.SequenceMatcher(None, old, new, autojunk=False).get_opcodes():
+        if tag in ('equal', 'replace'):
+            for k in range(min(a1 - a0, b1 - b0)):
+                out.append((script[a0 + k], lines[b0 + k][0], lines[b0 + k][1]))
+    return out
+
+
+def retime_all(scene, text=None):
+    """Every panel made from the script gets the length its line (as it reads
+    now) takes, plus the pause; later clips follow ripple. Returns how many changed."""
+    text = text or script_text()
+    if text is None:
+        return 0
+    changed = 0
+    for strip, index, line in sorted(relink(scene, text), key=lambda t: -clips.start(t[0])):
+        strip.plastron_panel.script_line = index
+        strip.plastron_panel.script_text = line[:500]
+        want = frames_for(scene, line)
+        if want != clips.length(strip):
+            ripple.trim(scene, strip, 'RIGHT', clips.start(strip) + want)
+            changed += 1
+    events.clips_changed(scene)
     return changed
 
 
@@ -209,6 +246,18 @@ class PLASTRON_OT_script_panels(bpy.types.Operator):
         return _report(self, make_panels(context.scene))
 
 
+class PLASTRON_OT_script_retime(bpy.types.Operator):
+    """Edited the script? Give every panel made from it the length its line now takes to read (+ the pause)"""
+    bl_idname = "plastron.script_retime"
+    bl_label = "Retime Panels"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        n = retime_all(context.scene)
+        self.report({'INFO'}, f"{n} panel{'s' if n != 1 else ''} retimed" if n else "Every panel already fits its line")
+        return {'FINISHED'}
+
+
 class PLASTRON_OT_script_import(bpy.types.Operator, ImportHelper):
     """Read a script from a text file into the script panel and make a panel for each line"""
     bl_idname = "plastron.script_import"
@@ -251,15 +300,16 @@ class PLASTRON_OT_script_paste(bpy.types.Operator):
 def draw_bar(self, context):
     """The script bar (replaces Blender's text editor header)."""
     row = self.layout.row(align=True)
-    row.operator("plastron.script_paste", text="Paste Script", icon='PASTEDOWN')
-    row.operator("plastron.script_panels", text="Make Panels", icon='SEQ_STRIP_DUPLICATE')
+    row.operator("plastron.script_paste", text="Paste", icon='PASTEDOWN')
+    row.operator("plastron.script_panels", text="Make", icon='SEQ_STRIP_DUPLICATE')
+    row.operator("plastron.script_retime", text="Retime", icon='TIME')
     pause_row = self.layout.row()
-    pause_row.ui_units_x = 6
+    pause_row.ui_units_x = 5
     pause_row.prop(context.window_manager, "plastron_script_pause", text="Pause", slider=True)
     self.layout.operator("plastron.script_import", text="", icon='FILEBROWSER')
 
 
-classes = (PLASTRON_OT_script_panels, PLASTRON_OT_script_import, PLASTRON_OT_script_paste)
+classes = (PLASTRON_OT_script_panels, PLASTRON_OT_script_retime, PLASTRON_OT_script_import, PLASTRON_OT_script_paste)
 
 
 def register():

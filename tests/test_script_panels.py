@@ -95,6 +95,23 @@ def steps():
     yield 0.2
     h.screenshot("script_follow")
 
+    # Retime after editing the script (Ollie): lines reworded / added keep their panels.
+    sc = bpy.context.scene
+    text.from_string("INT. KITCHEN - NIGHT\n\nShe opens the fridge, very slowly, and stares at the cold blue light.\n"
+                     "A new line nobody drew yet.\nNothing.\nHe closes it.\n")
+    with h.override('TEXT_EDITOR'):
+        bpy.ops.plastron.script_retime()
+    yield 0.3
+    p1 = next(p for p in panels.all_panels(sc) if p.plastron_panel.script_text.startswith("She opens"))
+    p2 = next((p for p in panels.all_panels(sc) if p.plastron_panel.script_text == "Nothing."), None)
+    h.check("Retime: a reworded line's panel gets its new reading length (and remembers the new words)",
+            clips.length(p1) == round(sp.seconds_for(text.lines[2].body) * fps) and "very slowly" in p1.plastron_panel.script_text,
+            (clips.length(p1), p1.plastron_panel.script_text))
+    h.check("...panels keep their lines though a line was put in between", p2 is not None and p2.plastron_panel.script_line == 4,
+            p2 and p2.plastron_panel.script_line)
+    ordered = sorted(clips.on_channel(sc, made[0].channel), key=clips.start)
+    h.check("...one after another, no gaps (ripple)", all(clips.end(a) == clips.start(b) for a, b in zip(ordered, ordered[1:])))
+
     # Import from a file: the script panel gets the file; new panels follow.
     path = os.path.join(bpy.app.tempdir, "script_test.txt")
     with open(path, "w", encoding="utf-8") as f:

@@ -137,5 +137,29 @@ def steps():
         if sc.animation_data and sc.animation_data.action and fades._bags(sc.animation_data.action) else []
     h.check("deleting a clip removes its fade keyframes", gone not in left, left)
 
+    # The canvas shows a panel's fade too (Ollie: the handles did nothing in Storyboard).
+    cs = h.module("features.storyboard.canvas_sync")
+    p = panels.all_panels(sc)[0]
+    fades.set_fade(sc, p, 'IN', 12)
+    events.clips_changed(sc)
+    sc.frame_current = clips.start(p)
+    yield 0.4
+    obj = bpy.data.objects[cs._state["fading"][0][0]] if cs._state["fading"] else None
+    a0 = obj.color[3] if obj else None
+    sc.frame_current = clips.start(p) + 6
+    yield 0.2
+    a6 = obj.color[3] if obj else None
+    sc.frame_current = clips.start(p) + 14
+    yield 0.2
+    a14 = obj.color[3] if obj else None
+    h.check("a faded panel fades on the canvas as the playhead moves (start faint, half, full)",
+            obj is not None and a0 < 0.1 and 0.4 < a6 < 0.6 and a14 > 0.99, (a0, a6, a14))
+    fades.set_fade(sc, p, 'IN', 0)
+    events.clips_changed(sc)
+    sc.frame_current = clips.start(p)
+    yield 0.4
+    h.check("...and back to full when the fade is taken off", obj.color[3] > 0.99 and not cs._state["fading"],
+            (obj.color[3], cs._state["fading"]))
+
 
 h.run(steps())
