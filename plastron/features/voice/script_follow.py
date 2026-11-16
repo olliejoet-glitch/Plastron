@@ -115,13 +115,36 @@ def _script_areas():
                 yield area
 
 
+def _row_height(space):
+    """One screen row of the script, in pixels (measured: with word wrap,
+    space.top counts screen rows, not script lines)."""
+    top = space.top
+    y0 = space.region_location_from_cursor(0, 0)[1]
+    space.top = top + 1
+    y1 = space.region_location_from_cursor(0, 0)[1]
+    space.top = top
+    return max(1, y1 - y0)
+
+
+def scroll_to(area, line):
+    """Bring the line into view (a third of the way down) if it's not."""
+    space = area.spaces.active
+    region = next((r for r in area.regions if r.type == 'WINDOW'), None)
+    if region is None or not 0 <= line < len(space.text.lines):
+        return
+    row = _row_height(space)
+    y_top = space.region_location_from_cursor(line, 0)[1]
+    y_end = space.region_location_from_cursor(line, len(space.text.lines[line].body))[1]
+    if y_top <= region.height - row * 0.5 and y_end >= row * 0.5:
+        return                                        # (in view: leave it where you put it)
+    target = region.height - region.height / 3
+    space.top = max(0, space.top + round((target - y_top) / row))
+
+
 def _show(line):
     for area in _script_areas():
-        space = area.spaces.active
         if line is not None and cfg.SCRIPT_FOLLOW["scroll"]:
-            top, rows = space.top, max(1, space.visible_lines)
-            if not top <= line < top + rows - 1:
-                space.top = max(0, line - rows // 3)
+            scroll_to(area, line)
         area.tag_redraw()
 
 

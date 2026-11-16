@@ -717,6 +717,9 @@ Plastron/
   panel's script line. A table of stretches (frame range -> line) is
   rebuilt on clips_changed / when the script or transcripts change; the
   frame hook (_script_frame) only checks "still in the same stretch?".
+  Scrolling is measured on screen (region_location_from_cursor): with word
+  wrap, space.top counts screen rows, not script lines; a line already in
+  view is left where it is.
 - Blender keymap stripped to essentials (BLENDER_KEEP in config/keymap.py):
   area resizing, UI widgets, scrolling, ruler scrubbing, typing in the script,
   painting strokes, tool click/drag behaviour, strip select/move. No right-click

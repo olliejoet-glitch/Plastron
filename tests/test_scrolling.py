@@ -51,5 +51,31 @@ def steps():
     h.check("Alt+Shift+drag scrolls the script", st.top != 0, st.top)
     h.check("Alt+Shift+drag scrolls the tools area", abs(top1 - top0) > 50, (top0, top1))
 
+    # The script follows the playhead with long (wrapped) lines: the line
+    # played is always on screen, and scrolling by hand stays put while paused.
+    st.text.from_string("\n".join(f"Line {i} is a fairly long sentence that wraps in the narrow script panel."
+                                   for i in range(40)))
+    with h.override('VIEW_3D'):
+        bpy.ops.plastron.script_panels()
+    yield 0.5
+    sc = bpy.context.scene
+    follow = h.module("features.voice.script_follow")
+    off = []
+    for f in range(1, 1800, 41):
+        sc.frame_current = f
+        yield 0.02
+        line = follow._now["line"]
+        if line is None:
+            continue
+        y = st.region_location_from_cursor(line, 0)[1]
+        if not 0 < y <= rt.height:
+            off.append((f, line, st.top, y))
+    h.check("playing / scrubbing keeps the line being played on screen (wrapped lines)", not off, off[:5])
+    yield from h.drag((tx, rt.y + 100), (tx, rt.y + 300), alt=True, shift=True)
+    yield 0.2
+    top = st.top
+    yield 1.0
+    h.check("...and a hand scroll stays put while paused", st.top == top, (top, st.top))
+
 
 h.run(steps())
