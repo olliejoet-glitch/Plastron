@@ -32,12 +32,18 @@ _handles = []
 
 
 def _stretches(scene, text):
-    """[(from, to, line)] sorted, not overlapping: panels' lines, then heard
-    lines over voice clips (they win)."""
-    from ..storyboard import panels
+    """[(from, to, line)] sorted, not overlapping: the Script lane's lines
+    (else panels made from the script), then heard lines over voice clips
+    (they win)."""
+    from ..storyboard import panels, script_lane
     out = []
     n = len(text.lines)
-    for s in panels.all_panels(scene):
+    lane = script_lane.blocks(scene)
+    for b in lane:
+        li = b.get(script_lane.INDEX, -1)
+        if 0 <= li < n:
+            out.append((clips.start(b), clips.end(b), li))
+    for s in ([] if lane else panels.all_panels(scene)):
         li = s.plastron_panel.script_line
         if 0 <= li < n and s.plastron_panel.script_text:
             out.append((clips.start(s), clips.end(s), li))

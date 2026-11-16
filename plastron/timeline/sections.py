@@ -1,4 +1,4 @@
-"""Video above, audio below, nothing else (Ollie: "I don't want tracks there,
+"""Video above, the Script lane, audio below, nothing else (Ollie: "I don't want tracks there,
 other than the default ones, unless I add those myself. A clear line, and
 ideally colour separation, between audio tracks on the bottom and video
 tracks on the top").
@@ -70,7 +70,7 @@ def draw_rows():
     found, top = spans(scene)
     shader = gpu.shader.from_builtin('UNIFORM_COLOR')
     gpu.state.blend_set('ALPHA')
-    for kind, key in (('VIDEO', "video_tint"), ('AUDIO', "audio_tint")):
+    for kind, key in KIND_TINTS:
         if kind in found:
             lo, hi = found[kind]
             _rect(shader, x0, lo, x1, hi + 1, _rgba(cfg.SECTIONS[key]))
@@ -79,11 +79,17 @@ def draw_rows():
     gpu.state.blend_set('NONE')
 
 
-def _line_y(scene, to_region):
+KIND_TINTS = (('VIDEO', "video_tint"), ('SCRIPT', "script_tint"), ('AUDIO', "audio_tint"))
+
+
+def _line_ys(scene, to_region):
+    """Pixel y of the lines between sections (audio | script | video)."""
     found, _top = spans(scene)
-    if 'VIDEO' not in found or 'AUDIO' not in found:
-        return None
-    return to_region(found['AUDIO'][1] + 1)
+    out = []
+    for lower in ('AUDIO', 'SCRIPT'):
+        if lower in found and any(k in found for k in ('SCRIPT', 'VIDEO') if k != lower):
+            out.append(to_region(found[lower][1] + 1))
+    return out
 
 
 def draw_line():
@@ -93,13 +99,12 @@ def draw_line():
     if scene is None:
         return
     region = context.region
-    y = _line_y(scene, lambda ch: region.view2d.view_to_region(0, ch, clip=False)[1])
-    if y is None or not 0 <= y <= region.height:
-        return
     w = cfg.SECTIONS["line_px"] * context.preferences.system.ui_scale
     shader = gpu.shader.from_builtin('UNIFORM_COLOR')
     gpu.state.blend_set('ALPHA')
-    _rect(shader, 0, y - w / 2, region.width, y + w / 2, _rgba(cfg.SECTIONS["line"]))
+    for y in _line_ys(scene, lambda ch: region.view2d.view_to_region(0, ch, clip=False)[1]):
+        if 0 <= y <= region.height:
+            _rect(shader, 0, y - w / 2, region.width, y + w / 2, _rgba(cfg.SECTIONS["line"]))
     gpu.state.blend_set('NONE')
 
 
@@ -118,16 +123,16 @@ def draw_headers():
         y = row_span(area, region, top + 1)[0]
         if y < region.height:
             _rect(shader, 0, max(0, y), region.width, region.height, _rgba(cfg.SECTIONS["empty_headers"]))
-    for kind, key in (('VIDEO', "video_tint"), ('AUDIO', "audio_tint")):
+    for kind, key in KIND_TINTS:
         if kind in found:
             lo, hi = found[kind]
             y0, _y = row_span(area, region, lo)
             _y, y1 = row_span(area, region, hi)
             _rect(shader, 0, y0, region.width, y1, _rgba(cfg.SECTIONS[key]))
-    y = _line_y(scene, lambda ch: row_span(area, region, ch)[0])
-    if y is not None and 0 <= y <= region.height:
-        w = cfg.SECTIONS["line_px"] * context.preferences.system.ui_scale
-        _rect(shader, 0, y - w / 2, region.width, y + w / 2, _rgba(cfg.SECTIONS["line"]))
+    w = cfg.SECTIONS["line_px"] * context.preferences.system.ui_scale
+    for y in _line_ys(scene, lambda ch: row_span(area, region, ch)[0]):
+        if 0 <= y <= region.height:
+            _rect(shader, 0, y - w / 2, region.width, y + w / 2, _rgba(cfg.SECTIONS["line"]))
     gpu.state.blend_set('NONE')
 
 

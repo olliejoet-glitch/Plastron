@@ -23,7 +23,7 @@ def steps():
     chan = h.region(tl, 'CHANNELS')
     names = lambda: [tracks.name(bpy.context.scene, t) for t in tracks.all_tracks(bpy.context.scene)]  # noqa: E731
     by = lambda n: next(t for t in tracks.all_tracks(bpy.context.scene) if tracks.name(bpy.context.scene, t) == n)  # noqa: E731
-    h.check("starting tracks (bottom up)", names() == ["Music", "Voice", "Background", "Panels"], names())
+    h.check("starting tracks (bottom up)", names() == ["Music", "Voice", "Script", "Background", "Panels"], names())
     panel = panels.all_panels(sc)[0]
     bg = by("Background")
     bg_panel = panels.create(sc, tracks.channel_of(sc, bg), 1, 24)
@@ -45,14 +45,14 @@ def steps():
     h._event('LEFTMOUSE', 'PRESS')
     h._event('LEFTMOUSE', 'RELEASE')
     yield 0.3
-    h.check("clicking a header doesn't move tracks", names() == ["Music", "Voice", "Background", "Panels"], names())
+    h.check("clicking a header doesn't move tracks", names() == ["Music", "Voice", "Script", "Background", "Panels"], names())
 
     # Drag Background above Panels.
     start, end = row_mid("Background"), row_mid("Panels")
     yield from h.drag(start, (end[0], end[1] + 10), steps=10)
     yield 0.6
     sc = bpy.context.scene
-    h.check("dragging Background's header above Panels moves the track", names() == ["Music", "Voice", "Panels", "Background"],
+    h.check("dragging Background's header above Panels moves the track", names() == ["Music", "Voice", "Script", "Panels", "Background"],
             names())
     bg = by("Background")
     h.check("...its clips, its ripple go with it",
@@ -64,18 +64,18 @@ def steps():
             any(p == f"plastron_timeline.tracks[{i_top}].place_offset" for p in paths), (paths, i_top))
     h.key('Z', ctrl=True)
     yield 0.8
-    h.check("one Ctrl+Z puts it back", names() == ["Music", "Voice", "Background", "Panels"], names())
+    h.check("one Ctrl+Z puts it back", names() == ["Music", "Voice", "Script", "Background", "Panels"], names())
 
     # Video can't go among the audio tracks.
     start, end = row_mid("Background"), row_mid("Music")
     yield from h.drag(start, end, steps=10)
     yield 0.6
     h.check("a video track dragged down stops at the bottom of the video tracks",
-            names() == ["Music", "Voice", "Background", "Panels"], names())
+            names() == ["Music", "Voice", "Script", "Background", "Panels"], names())
     start, end = row_mid("Music"), row_mid("Voice")
     yield from h.drag(start, (end[0], end[1] + 10), steps=10)
     yield 0.6
-    h.check("audio tracks move among themselves", names() == ["Voice", "Music", "Background", "Panels"], names())
+    h.check("audio tracks move among themselves", names() == ["Voice", "Music", "Script", "Background", "Panels"], names())
     h.redraw()
     yield 0.3
     h.screenshot("track_drag")

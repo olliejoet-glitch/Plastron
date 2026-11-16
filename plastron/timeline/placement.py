@@ -16,10 +16,14 @@ RULES = []      # func(scene, strip, track) -> False if strip may not go on trac
 _last = {}      # scene name -> {strip name: (channel, start, end)} after the last check
 
 
+SCRIPT_BLOCK = "plastron_line"      # a script line's block (features/storyboard/script_lane)
+
+
 def allowed(scene, strip, track):
     if track is None:
         return False
-    if track.kind != ('AUDIO' if strip.type == 'SOUND' else 'VIDEO'):
+    want = 'SCRIPT' if strip.get(SCRIPT_BLOCK) else ('AUDIO' if strip.type == 'SOUND' else 'VIDEO')
+    if track.kind != want:
         return False
     return all(rule(scene, strip, track) for rule in RULES)
 

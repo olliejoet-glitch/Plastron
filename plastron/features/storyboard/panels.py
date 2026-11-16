@@ -24,6 +24,8 @@ class PLASTRON_PG_panel(bpy.types.PropertyGroup):
     # Made from a script line (script_panels): which line, and what it said.
     script_line: bpy.props.IntProperty(default=-1)
     script_text: bpy.props.StringProperty()
+    # ...the Script lane block (line) it belongs to (script_lane).
+    script_block: bpy.props.StringProperty()
 
 
 def is_panel(strip):

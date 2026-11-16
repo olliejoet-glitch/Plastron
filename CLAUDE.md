@@ -820,6 +820,36 @@ Plastron/
   give it, each sheet object is scaled to its painting, and paste between
   panels lines up by the camera frame. Image-source fill layers would
   shift scale when a painting grows (rare; not handled).
+- SCRIPT LANE (Ollie: panels "more or less independent of the script"):
+  a "Script" track (track kind SCRIPT, a default track; tracks.add puts it
+  between the audio and video tracks; own tint, lines either side) holds a
+  block per script line: a TEXT strip, blend_alpha 0 (never rendered),
+  strip["plastron_line"] = uid, ["plastron_line_index"] = its line's index.
+  Blocks are clips: drag their edges (ripple on the lane). placement keeps
+  blocks on the lane and everything else off it. Panels remember their
+  block (plastron_panel.script_block). features/storyboard/script_lane.py:
+  - Script edits (seen by the script view's draw, synced AUTO_DELAY 1.5 s
+    after typing stops; one undo step): plan_sync (pure, difflib over the
+    blocks' texts, kept in step): equal lines keep their block; a split /
+    reworded / inserted line shares its neighbour's time by reading time (a
+    block stays with the line that has its exact words); lines after the
+    last block get their reading time after it (the lane grows); removed
+    lines' blocks go and later ones close up.
+  - Retime: every block its reading time + pause, gaps kept. Pause slider:
+    blocks still at the old pause's length get the new one.
+  - "Panels follow script" (script bar link toggle, scene.plastron_script_
+    follow, off by default; Ollie wanted a mode, not position rules): on =
+    every lane change (edge drag, Retime, split / added lines) puts each
+    linked panel on its block's span, blocks without a panel get a blank
+    one, a removed line's panel goes if never drawn on (else unlinked and
+    moved to the end); off = panels left alone.
+  - Make: the first time, blocks one after another from the end of the
+    panels track (the blank starter replaced); then a panel for every block
+    without one, where its line is (if free there). Import replaces the lane.
+  - Older projects: each script panel gets a block at its own span (nothing
+    moves). The script highlight / clicking a line use the blocks.
+  - timeline/view.frame shortens rows if Blender won't scroll the bottom
+    track into view (it keeps the view's top near the highest clip).
 - Panels from the script (Ollie): File > Import Script... (txt / md /
   fountain into the script panel) and File > Panels from Script. One panel
   per non-blank line, on the active video track after its last clip (the

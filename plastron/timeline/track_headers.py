@@ -99,7 +99,7 @@ def draw():
         if is_active:
             _rect(shader, 0, y0 + 1, region.width, y1 - 1, _c("active_row", cfg.ACTIVE_HEADER_ALPHA))
         marker = "active_track" if is_active else (
-            "video_track" if track.kind == 'VIDEO' else "audio_track")
+            {"VIDEO": "video_track", "SCRIPT": "script_track"}.get(track.kind, "audio_track"))
         _rect(shader, 0, y0 + 1, _ui(4 if is_active else 3), y1 - 1, _c(marker))
 
     font = 0

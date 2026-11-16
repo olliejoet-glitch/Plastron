@@ -66,10 +66,11 @@ def steps():
         tl_view = h.module("timeline.view")
         rows = tl_view.row_height(main)
         h.check("timeline rows are tall enough to show panel pictures",
-                rows >= min(h.module("config.timeline").ROW_HEIGHT_PX, main.height / 5) * 0.9, rows)
+                rows >= min(h.module("config.timeline").ROW_HEIGHT_PX,
+                           main.height / (len(h.module("timeline.tracks").all_tracks(bpy.context.scene)) + 1)) * 0.85, rows)
         h.check("...with every track in view",
                 main.view2d.region_to_view(0, 0)[1] <= 1.0 and
-                main.view2d.region_to_view(0, main.height)[1] >= 5.0,
+                main.view2d.region_to_view(0, main.height)[1] >= len(h.module("timeline.tracks").all_tracks(bpy.context.scene)) + 1,
                 (main.view2d.region_to_view(0, 0)[1], main.view2d.region_to_view(0, main.height)[1]))
         h.check("script panel: has its bar (Paste Script...)", script.spaces.active.show_region_header)
         h.check("script panel shows the project's Script",

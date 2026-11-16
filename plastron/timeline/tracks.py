@@ -13,7 +13,7 @@ import bpy
 from ..config import project_defaults as defaults
 from . import clips, events
 
-KINDS = [('VIDEO', "Video", ""), ('AUDIO', "Audio", "")]
+KINDS = [('VIDEO', "Video", ""), ('AUDIO', "Audio", ""), ('SCRIPT', "Script", "")]
 
 
 def _mix_changed(self, context):
@@ -205,15 +205,25 @@ def _shift_channels_up(scene, from_channel):
         target.name, target.lock, target.mute = nm, lock, mute
 
 
+def script_track(scene):
+    """The Script lane (between the audio and video tracks), or None."""
+    return next((t for t in all_tracks(scene) if t.kind == 'SCRIPT'), None)
+
+
 def add(scene, kind, track_name=None, ripple=False):
-    """Add a track: video on top of all tracks, audio on top of the audio tracks."""
+    """Add a track: video on top of all tracks, audio on top of the audio
+    tracks, the Script lane between the audio and the video tracks."""
     tl = data(scene)
     if kind == 'AUDIO':
         index = sum(1 for t in tl.tracks if t.kind == 'AUDIO')
+    elif kind == 'SCRIPT':
+        index = sum(1 for t in tl.tracks if t.kind in {'AUDIO', 'SCRIPT'})
     else:
         index = len(tl.tracks)
     if index < len(tl.tracks):
         _shift_channels_up(scene, channel(index))
+        # (tracks above move up a place: their keys etc. follow)
+        events.emit("tracks_moved", scene, moved={i: i + 1 for i in range(index, len(tl.tracks))})
     track = tl.tracks.add()
     track.uid = uuid.uuid4().hex[:8]
     track.kind = kind
@@ -224,7 +234,7 @@ def add(scene, kind, track_name=None, ripple=False):
     track = tl.tracks[index]
     count = sum(1 for t in tl.tracks if t.kind == kind)
     sed = clips.editor(scene)
-    sed.channels[channel(index)].name = track_name or f"{'Video' if kind == 'VIDEO' else 'Audio'} {count}"
+    sed.channels[channel(index)].name = track_name or f"{dict((k, n) for k, n, _d in KINDS)[kind]} {count}"
     sed.channels[channel(index)].lock = False
     sed.channels[channel(index)].mute = False
     events.tracks_changed(scene)

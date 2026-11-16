@@ -1,4 +1,6 @@
-"""Panels from the script (Ollie): one panel per line of the script panel.
+"""Panels from the script (Ollie). The script's lines live on the Script
+lane (script_lane.py: one block per line, between the audio and video
+tracks); panels are made where the lines are.
 
 File > Import Script... reads a text file into the script panel, then makes
 the panels; File > Panels from Script makes them from what's typed there.
@@ -31,7 +33,7 @@ from bpy_extras.io_utils import ImportHelper
 from ...config import project_defaults as defaults, timeline as timeline_cfg
 from ...core import user_settings
 from ...timeline import clips, events, ripple, tracks
-from . import panels
+from . import panels, script_lane
 
 CFG = timeline_cfg.SCRIPT_PANELS
 
@@ -69,66 +71,30 @@ def frames_for(scene, line, pause_s=None):
     return max(1, round(seconds_for(line, pause_s) * fps))
 
 
-def retime(scene, old_pause, new_pause):
-    """Panels made from the script that still have the length the old pause
-    gave them get the new one (ones trimmed by hand stay). Ripple tracks
-    close up / make room. Returns how many changed."""
-    changed = 0
-    script = [s for s in panels.all_panels(scene) if s.plastron_panel.script_line >= 0
-              and s.plastron_panel.script_text]
-    for strip in sorted(script, key=clips.start, reverse=True):     # (from the end: starts stay put)
-        line = strip.plastron_panel.script_text
-        if clips.length(strip) != frames_for(scene, line, old_pause):
-            continue
-        want = frames_for(scene, line, new_pause)
-        if want != clips.length(strip):
-            ripple.trim(scene, strip, 'RIGHT', clips.start(strip) + want)
-            changed += 1
-    return changed
-
-
-def script_panels_in_order(scene):
-    """Panels made from the script, in timeline order."""
-    out = [p for p in panels.all_panels(scene) if p.plastron_panel.script_line >= 0]
-    out.sort(key=lambda p: (clips.start(p), p.channel))
-    return out
-
-
-def relink(scene, text):
-    """Panels in timeline order go with the script's lines in order (Ollie:
-    splitting a line moves every later line on to the next panel). Panels
-    past the last line are no longer tied to a line (they keep their
-    drawing). Returns [(panel, line index, line)]."""
-    lines = script_lines(text)
-    out = []
-    for k, strip in enumerate(script_panels_in_order(scene)):
-        if k < len(lines):
-            index, line = lines[k]
-            strip.plastron_panel.script_line = index
-            strip.plastron_panel.script_text = line[:500]
-            out.append((strip, index, line))
-        else:
-            strip.plastron_panel.script_line = -1
-    return out
-
-
 def retime_all(scene, text=None):
-    """Panels in order go with the lines in order (lines past the last panel
-    get new panels at the end); each gets the length its line takes, plus the
-    pause; later clips follow ripple. Returns how many changed."""
+    """Retime: the Script lane's blocks follow the script (as edited), then
+    each gets its line's reading time (+ the pause); with "Panels follow
+    script" on, the panels follow. Returns how many lines changed length."""
     text = text or script_text()
     if text is None:
         return 0
-    changed = 0
-    if script_panels_in_order(scene) and missing_lines(scene, text):
-        made = make_panels(scene, text, jump=False)       # (lines past the last panel get theirs)
-        changed += made if isinstance(made, int) else 0
-    for strip, _index, line in sorted(relink(scene, text), key=lambda t: -clips.start(t[0])):
-        want = frames_for(scene, line)
-        if want != clips.length(strip):
-            ripple.trim(scene, strip, 'RIGHT', clips.start(strip) + want)
-            changed += 1
-    events.clips_changed(scene)
+    script_lane.sync_from_text(scene, text)
+    return script_lane.retime(scene)
+
+
+def retime_pause(scene, old_pause, new_pause):
+    """The Pause slider moved: blocks still as long as the old pause made
+    them get the new pause's length (ones dragged by hand stay)."""
+    current = script_lane.blocks(scene)
+    lengths, changed = [], 0
+    for b in current:
+        n = clips.length(b)
+        if n == frames_for(scene, b.text, old_pause):
+            n = frames_for(scene, b.text, new_pause)
+            changed += n != clips.length(b)
+        lengths.append(n)
+    if changed:
+        script_lane.lay_out(scene, lengths)
     return changed
 
 
@@ -141,7 +107,7 @@ def _apply_pause():
     _slider["applied"] = None
     if scene is None or old is None or abs(new - old) < 1e-6:
         return None
-    if retime(scene, old, new):
+    if retime_pause(scene, old, new):
         win = bpy.context.window_manager.windows[0] if bpy.context.window_manager.windows else None
         if win is not None:
             with bpy.context.temp_override(window=win):
@@ -163,10 +129,8 @@ def _set_pause(_wm, value):
     bpy.app.timers.register(_apply_pause, first_interval=0.35)
 
 
-def _untouched(strip):
-    """A panel nobody has drawn on (nor tied to a line)?"""
-    if strip.plastron_panel.script_line >= 0:
-        return False
+def _untouched_drawing(strip):
+    """Has nobody drawn on this panel?"""
     mat = strip.plastron_panel.material
     if mat is None:
         return True
@@ -180,6 +144,12 @@ def _untouched(strip):
     return True
 
 
+def _untouched(strip):
+    """A panel nobody has drawn on (nor tied to a line)?"""
+    return strip.plastron_panel.script_line < 0 and not strip.plastron_panel.script_block \
+        and _untouched_drawing(strip)
+
+
 def _track(scene):
     track = tracks.active(scene)
     if track is None or track.kind != 'VIDEO':
@@ -189,8 +159,10 @@ def _track(scene):
 
 
 def make_panels(scene, text=None, jump=True):
-    """Panels for the script's lines that don't have one yet. Returns how
-    many were made, or an error message."""
+    """The Script lane gets a block per line (the first time: one after
+    another from the end of the panels track, each its reading time; after
+    that: as the script was edited), and every block without a panel gets
+    one where its line is. Returns how many panels were made, or a message."""
     text = text or script_text()
     if text is None:
         return "There's no script"
@@ -204,27 +176,23 @@ def make_panels(scene, text=None, jump=True):
         return "That track is locked"
     channel = tracks.channel_of(scene, track)
     on_track = clips.on_channel(scene, channel)
-    relink(scene, text)                       # (panels in order <-> lines in order)
-    done = {s.plastron_panel.script_line for s in panels.all_panels(scene)
-            if s.plastron_panel.script_line >= 0}
-    start = max((clips.end(s) for s in on_track), default=scene.frame_start)
-    starters = [s for s in on_track if panels.is_panel(s)]
-    if len(on_track) == 1 and len(starters) == 1 and _untouched(starters[0]):
-        start = clips.start(starters[0])        # replace the blank starter panel
-        clips.editor(scene).strips.remove(starters[0])
-    made = 0
-    first = None
-    for index, line in lines:
-        if index in done:
-            continue
-        length = frames_for(scene, line)
-        strip = panels.create(scene, channel, start, length)
-        strip.plastron_panel.script_line = index
-        strip.plastron_panel.script_text = line[:500]
-        first = first or strip
-        start += length
-        made += 1
-    if first is not None and jump:
+    if not script_lane.blocks(scene):
+        start = max((clips.end(s) for s in on_track), default=scene.frame_start)
+        starters = [s for s in on_track if panels.is_panel(s)]
+        if len(on_track) == 1 and len(starters) == 1 and _untouched(starters[0]):
+            start = clips.start(starters[0])        # replace the blank starter panel
+            clips.editor(scene).strips.remove(starters[0])
+        for index, line in lines:
+            n = frames_for(scene, line)
+            script_lane.new_block(scene, start, start + n, index, line)
+            start += n
+    else:
+        script_lane.sync_from_text(scene, text)
+    before = {p.name for p in panels.all_panels(scene)}
+    made = script_lane.make_missing_panels(scene)
+    new = [p for p in panels.all_panels(scene) if p.name not in before]
+    if new and jump:
+        first = min(new, key=clips.start)
         for s in clips.all_clips(scene):
             s.select = False
         scene.sequence_editor.active_strip = first
@@ -234,7 +202,9 @@ def make_panels(scene, text=None, jump=True):
 
 
 def panel_for_line(scene, line_index):
-    return next((s for s in panels.all_panels(scene) if s.plastron_panel.script_line == line_index), None)
+    """Where a script line is: its block on the Script lane (else a panel tied to it)."""
+    block = next((b for b in script_lane.blocks(scene) if b.get(script_lane.INDEX) == line_index), None)
+    return block or next((s for s in panels.all_panels(scene) if s.plastron_panel.script_line == line_index), None)
 
 
 def _report(op, result):
@@ -257,14 +227,14 @@ class PLASTRON_OT_script_panels(bpy.types.Operator):
 
 
 class PLASTRON_OT_script_retime(bpy.types.Operator):
-    """Edited the script? Panels go with the lines in order (new lines get panels at the end), each as long as its line takes to read (+ the pause)"""
+    """Every line on the Script lane as long as it takes to read (+ the pause); panels too if they follow the script"""
     bl_idname = "plastron.script_retime"
     bl_label = "Retime Panels"
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
         n = retime_all(context.scene)
-        self.report({'INFO'}, f"{n} panel{'s' if n != 1 else ''} retimed" if n else "Every panel already fits its line")
+        self.report({'INFO'}, f"{n} line{'s' if n != 1 else ''} retimed" if n else "Every line already fits its reading time")
         return {'FINISHED'}
 
 
@@ -285,9 +255,13 @@ class PLASTRON_OT_script_import(bpy.types.Operator, ImportHelper):
             return {'CANCELLED'}
         text = script_text() or bpy.data.texts.new(defaults.SCRIPT_TEXT_NAME)
         text.from_string(body)
-        for strip in panels.all_panels(context.scene):     # the old script's lines are gone
+        scene = context.scene
+        for b in script_lane.blocks(scene):                # the old script's lines are gone
+            ripple.remove(scene, b)
+        for strip in panels.all_panels(scene):
             strip.plastron_panel.script_line = -1
-        return _report(self, make_panels(context.scene, text))
+            strip.plastron_panel.script_block = ""
+        return _report(self, make_panels(scene, text))
 
 
 class PLASTRON_OT_script_paste(bpy.types.Operator):
@@ -307,34 +281,23 @@ class PLASTRON_OT_script_paste(bpy.types.Operator):
         return _report(self, make_panels(context.scene, text))
 
 
-# New lines get panels by themselves (Ollie: splitting lines in the script
-# moves the panels along with their lines, but the extra line at the end got
-# no panel). Once the script has panels, 1.5 s after an edit stops, every
-# non-blank line without a panel gets one at the end of the track.
+# Script edits reach the Script lane by themselves (Ollie): 1.5 s after an
+# edit stops, the blocks follow the text (a split line shares its time, new
+# lines at the end get theirs); with "Panels follow script" on, panels too.
 AUTO_DELAY = CFG.get("auto_panels_after", 1.5)
 _seen_text = {"body": None}
-
-
-def _script_has_panels(scene):
-    return any(p.plastron_panel.script_line >= 0 for p in panels.all_panels(scene))
-
-
-def missing_lines(scene, text):
-    """Lines past the last script panel (in order): they need panels."""
-    return script_lines(text)[len(script_panels_in_order(scene)):]
 
 
 def _auto_panels():
     scene = bpy.context.scene
     text = script_text()
-    if scene is None or text is None or not _script_has_panels(scene) or not missing_lines(scene, text):
+    if scene is None or text is None or not script_lane.blocks(scene):
         return None
-    made = make_panels(scene, text, jump=False)
-    if isinstance(made, int) and made:
+    if script_lane.sync_from_text(scene, text):
         win = bpy.context.window_manager.windows[0] if bpy.context.window_manager.windows else None
         if win is not None:
             with bpy.context.temp_override(window=win):
-                bpy.ops.ed.undo_push(message="Panels for New Lines")
+                bpy.ops.ed.undo_push(message="Script Edit")
     return None
 
 
@@ -369,6 +332,8 @@ def draw_bar(self, context):
     row.operator("plastron.script_paste", text="Paste", icon='PASTEDOWN')
     row.operator("plastron.script_panels", text="Make", icon='SEQ_STRIP_DUPLICATE')
     row.operator("plastron.script_retime", text="Retime", icon='TIME')
+    self.layout.prop(context.scene, script_lane.FOLLOW, text="",
+                     icon='LINKED' if script_lane.following(context.scene) else 'UNLINKED')
     pause_row = self.layout.row()
     pause_row.ui_units_x = 5
     pause_row.prop(context.window_manager, "plastron_script_pause", text="Pause", slider=True)

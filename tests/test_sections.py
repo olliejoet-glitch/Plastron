@@ -55,20 +55,25 @@ def steps():
     play = px[main.y + y_empty, main.x + xp - 2: main.x + xp + 3]
     h.check("...the playhead line still shows there", float(play.max(axis=0).max() - row.mean(axis=0).max()) > 0.1,
             play)
-    y_line = int(v2d.view_to_region(0, found['AUDIO'][1] + 1, clip=False)[1])
-    line = px[main.y + y_line, main.x + main.width // 2]
-    want = np.array(bpy.app.handlers and [0.784, 0.831, 0.824])
-    h.check("a light line between the audio and video tracks", float(line.mean()) > 0.55, line)
-    yv = int(v2d.view_to_region(0, found['VIDEO'][0] + 0.5, clip=False)[1])
-    ya = int(v2d.view_to_region(0, found['AUDIO'][1] + 0.5, clip=False)[1])
-    xs = main.x + 6
-    hv, ha = px[main.y + yv, xs], px[main.y + ya, xs]
-    h.check("video and audio rows are tinted differently", float(np.abs(hv - ha).max()) > 0.01, (hv, ha))
-    del want
     with h.override('SEQUENCE_EDITOR'):
         bpy.ops.view2d.pan(deltax=0, deltay=-int(main.height * 0.45))
     h.redraw()
     yield 0.5
+    px = grab("sections_lines")
+    xm = main.x + main.width // 2
+    lines = []
+    for ch_line in (found['AUDIO'][1] + 1, found['SCRIPT'][1] + 1):      # audio | script | video
+        y_line = int(v2d.view_to_region(0, ch_line, clip=False)[1])
+        lines.append(px[main.y + y_line, xm] if 0 < y_line < main.height else None)
+    h.check("light lines between the audio tracks, the Script lane and the video tracks",
+            all(l is not None and float(l.mean()) > 0.55 for l in lines), lines)
+    yv = int(v2d.view_to_region(0, found['VIDEO'][0] + 0.5, clip=False)[1])
+    ys = int(v2d.view_to_region(0, found['SCRIPT'][0] + 0.5, clip=False)[1])
+    ya = int(v2d.view_to_region(0, found['AUDIO'][1] + 0.5, clip=False)[1])
+    xs = main.x + 6
+    hv, hs, ha = px[main.y + yv, xs], px[main.y + ys, xs], px[main.y + ya, xs]
+    h.check("video, script and audio rows are tinted differently",
+            min(float(np.abs(a - b).max()) for a, b in ((hv, hs), (hs, ha), (hv, ha))) > 0.01, (hv, hs, ha))
     h.screenshot("sections_all")
 
 

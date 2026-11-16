@@ -25,13 +25,22 @@ def frame(window, area, region, scene):
             if h >= target * 0.97:
                 break
             bpy.ops.view2d.zoom(deltax=0.0, deltay=min(1.0, (target - h) / max(h, 1.0)))
-        # Bottom track at the bottom of the view.
-        for _ in range(60):
-            bottom = region.view2d.region_to_view(0, 0)[1]
-            if 0.6 <= bottom <= 1.0:
+        # Bottom track at the bottom of the view. (Blender keeps the view's
+        # top near the highest clip: if the bottom can't come into view,
+        # the rows get a little shorter until it does.)
+        for _attempt in range(12):
+            for _ in range(60):
+                bottom = region.view2d.region_to_view(0, 0)[1]
+                if 0.6 <= bottom <= 1.0:
+                    break
+                step = max(1, int(abs(bottom - 0.8) * row_height(region)))
+                before = bottom
+                if bottom > 1.0:
+                    bpy.ops.view2d.scroll_down(deltay=step)
+                else:
+                    bpy.ops.view2d.scroll_up(deltay=step)
+                if abs(region.view2d.region_to_view(0, 0)[1] - before) < 1e-3:
+                    break                            # (can't scroll further)
+            if region.view2d.region_to_view(0, 0)[1] <= 1.0:
                 break
-            step = max(1, int(abs(bottom - 0.8) * row_height(region)))
-            if bottom > 1.0:
-                bpy.ops.view2d.scroll_down(deltay=step)
-            else:
-                bpy.ops.view2d.scroll_up(deltay=step)
+            bpy.ops.view2d.zoom(deltax=0.0, deltay=-0.06)

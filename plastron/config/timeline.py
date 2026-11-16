@@ -43,7 +43,7 @@ SNAP_TO_MARKERS = True        # beat markers will be timeline markers
 # Track header widgets, drawn left of Blender's own mute / lock buttons.
 # Each: (id, label, which tracks show it). Reorder or delete lines freely.
 HEADER_WIDGETS = [
-    ("RIPPLE", "R", {"VIDEO", "AUDIO"}),
+    ("RIPPLE", "R", {"VIDEO", "AUDIO", "SCRIPT"}),
     ("SOLO",   "S", {"AUDIO"}),
     ("VOLUME", "",  {"AUDIO"}),
     ("COLLAPSE", "…", {"AUDIO"}),        # transcript bar: one line
@@ -61,6 +61,7 @@ SECTIONS = {
     "hide_empty_channels": True,
     "video_tint":     ("#5d7a76", 0.10),
     "audio_tint":     ("#2f6a8a", 0.16),
+    "script_tint":    ("#c9a25a", 0.14),     # the Script lane (between them)
     "line":           ("#c8d4d2", 0.85),
     "line_px":        3,
     "empty_timeline": "bg_dark",
@@ -83,6 +84,7 @@ HEADER_COLORS = {
     "active_row":    "orange",     # the active track's header and row are tinted with this
     "video_track":   "#5d7a76",    # small kind marker
     "audio_track":   "#2f6a8a",
+    "script_track":  "#c9a25a",
 }
 
 # Fades: the little handles at a clip's top corners (drag inward to fade).

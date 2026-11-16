@@ -145,6 +145,7 @@ def steps():
         h.check(f"moving {why}: it goes back", (sound.channel, clips.start(sound)) == before,
                 ((sound.channel, clips.start(sound)), before))
     before = video.channel
+    panels_track = tracks.track_of_clip(sc, h.module("features.storyboard.panels").all_panels(sc)[0])
     video.channel = tracks.channel_of(sc, panels_track)
     events.clips_changed(sc)
     yield 0.2

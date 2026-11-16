@@ -46,6 +46,7 @@ DEFAULT_TRACKS = [
     # name          kind      ripple
     ("Panels",      "VIDEO",  True),
     ("Background",  "VIDEO",  False),
+    ("Script",      "SCRIPT", True),       # the script's lines (between video and audio)
     ("Voice",       "AUDIO",  True),
     ("Music",       "AUDIO",  False),
 ]

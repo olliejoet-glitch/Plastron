@@ -91,9 +91,9 @@ def steps():
 
     # --- New project ----------------------------------------------------------
     names = [tracks.name(sc, t) for t in reversed(tracks.all_tracks(sc))]
-    h.check("default tracks, top to bottom", names == ["Panels", "Background", "Voice", "Music"], names)
+    h.check("default tracks, top to bottom", names == ["Panels", "Background", "Script", "Voice", "Music"], names)
     kinds = [t.kind for t in reversed(tracks.all_tracks(sc))]
-    h.check("video tracks above audio tracks", kinds == ['VIDEO', 'VIDEO', 'AUDIO', 'AUDIO'], kinds)
+    h.check("video tracks above the Script lane above audio tracks", kinds == ['VIDEO', 'VIDEO', 'SCRIPT', 'AUDIO', 'AUDIO'], kinds)
     h.check("Panels and Voice ripple by default",
             track("Panels").ripple and track("Voice").ripple and not track("Background").ripple)
     h.check("Panels is the active track", tracks.active(sc).uid == track("Panels").uid)
@@ -249,7 +249,7 @@ def steps():
     bpy.ops.plastron.track_add(kind='VIDEO')
     names = [tracks.name(sc, t) for t in reversed(tracks.all_tracks(sc))]
     h.check("new video track on top, new audio track on top of the audio tracks",
-            names == ["Video 3", "Panels", "Background", "Audio 3", "Voice", "Music"], names)
+            names == ["Video 3", "Panels", "Background", "Script", "Audio 3", "Voice", "Music"], names)
     h.check("clips stay on their tracks", pp.channel == ch("Panels") and vv.channel == ch("Voice"))
     h.check("new track becomes active", tracks.name(sc, tracks.active(sc)) == "Video 3")
 
