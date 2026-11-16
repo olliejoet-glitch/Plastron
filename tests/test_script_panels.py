@@ -32,9 +32,13 @@ def steps():
             [(s.name, s.plastron_panel.script_line) for s in made])
     fps = sc.render.fps
     lengths = [clips.end(s) - clips.start(s) for s in made]
-    want = [round(min(cfg["max_seconds"], max(cfg["min_seconds"], len(l.split()) * cfg["seconds_per_word"])) * fps)
-            for l in ("INT. KITCHEN - NIGHT", "She opens the fridge, slowly, and stares at the light.", "Nothing.")]
-    h.check("each lasts about as long as its line takes to read", lengths == want, (lengths, want))
+    sp = h.module("features.storyboard.script_panels")
+    want = [round(s * fps) for s in (4 * 0.4 + 1.0, 10 * 0.4 + 1.0, 2.0)]      # (the last: the shortest)
+    h.check("each lasts a little longer than its line takes to read (a pause after it)",
+            lengths == want and cfg["pause_seconds"] == 1.0, (lengths, want))
+    h.check("...a longer pause for each extra sentence in a line",
+            abs(sp.seconds_for("Wait. Go now! Stop it.") - (5 * 0.4 + 1.0 + 2 * 0.5)) < 1e-6,
+            sp.seconds_for("Wait. Go now! Stop it."))
     h.check("...one after another from the start",
             clips.start(made[0]) == sc.frame_start
             and all(clips.end(a) == clips.start(b) for a, b in zip(made, made[1:])))
@@ -55,6 +59,27 @@ def steps():
     sc.frame_current = 0
     h.check("clicking a line (not recorded yet) jumps to its panel",
             script_link.jump_to_line(sc, 2) and sc.frame_current == clips.start(made[1]), sc.frame_current)
+
+    # The script follows the playhead: the line of the panel under it is lit.
+    follow = h.module("features.voice.script_follow")
+    sc.frame_current = clips.start(made[1]) + 5
+    yield 0.2
+    h.check("scrubbing onto a panel lights its script line", follow._now["line"] == 2
+            and follow.line_at(sc) == 2, follow._now)
+    sc.frame_current = clips.start(now[-1]) + 2
+    yield 0.2
+    h.check("...and the next panel's line when the playhead moves on", follow._now["line"] == 4, follow._now)
+    calls = []
+    real = follow.line_at
+    follow.line_at = lambda *a, **k: calls.append(1) or real(*a, **k)
+    for d in (3, 4, 5):
+        sc.frame_current = clips.start(now[-1]) + d
+        yield 0.05
+    follow.line_at = real
+    h.check("...doing nothing while it stays in the same panel", not calls, len(calls))
+    h.redraw()
+    yield 0.2
+    h.screenshot("script_follow")
 
     # Import from a file: the script panel gets the file; new panels follow.
     path = os.path.join(bpy.app.tempdir, "script_test.txt")

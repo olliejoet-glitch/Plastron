@@ -5,8 +5,10 @@ the panels; File > Panels from Script makes them from what's typed there.
 Blank lines are skipped. Panels go on the active video track (else the top
 one) after its last clip; the untouched starter panel of a new project is
 replaced. Lines that already have a panel are left alone, so running it
-again after adding lines only adds the new ones. Each panel lasts about as
-long as its line takes to read (SCRIPT_PANELS in config/timeline.py).
+again after adding lines only adds the new ones. Each panel lasts a little
+longer than its line takes to read aloud: reading time + a pause after the
+line (+ a shorter one per other sentence in it) (SCRIPT_PANELS in
+config/timeline.py).
 
 The script bar (on top of the script panel): Paste Script pastes what you
 copied into the script (replacing an empty one, else added at the end) and
@@ -17,6 +19,8 @@ it (until it's been recorded: then to where it's spoken).
 """
 
 import os
+
+import re
 
 import bpy
 import numpy as np
@@ -38,10 +42,19 @@ def script_lines(text):
     return [(i, line.body.strip()) for i, line in enumerate(text.lines) if line.body.strip()]
 
 
+def seconds_for(line):
+    """How long a line's panel lasts: reading it aloud, then a pause (Ollie:
+    pauses between sentences), plus a shorter pause per sentence inside it."""
+    words = len(line.split())
+    ends = len(re.findall(r"[.!?]+(?=\s|$)", line.strip()))
+    inner = max(0, ends - 1)
+    seconds = words * CFG["seconds_per_word"] + CFG["pause_seconds"] + inner * CFG["sentence_pause_seconds"]
+    return min(CFG["max_seconds"], max(CFG["min_seconds"], seconds))
+
+
 def frames_for(scene, line):
     fps = scene.render.fps / scene.render.fps_base
-    seconds = min(CFG["max_seconds"], max(CFG["min_seconds"], len(line.split()) * CFG["seconds_per_word"]))
-    return max(1, round(seconds * fps))
+    return max(1, round(seconds_for(line) * fps))
 
 
 def _untouched(strip):

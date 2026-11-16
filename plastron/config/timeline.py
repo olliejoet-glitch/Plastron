@@ -10,9 +10,11 @@ NEW_PANEL_SECONDS = 2.0
 # panel per line of the script (blank lines skipped). Each lasts about as
 # long as it takes to read its line, between the min and max.
 SCRIPT_PANELS = {
-    "seconds_per_word": 0.4,
-    "min_seconds": 1.5,
-    "max_seconds": 8.0,
+    "seconds_per_word": 0.4,         # reading aloud
+    "pause_seconds": 1.0,            # + a pause after each line (between sentences)
+    "sentence_pause_seconds": 0.5,   # + this for each other sentence end (. ! ?) inside the line
+    "min_seconds": 2.0,
+    "max_seconds": 10.0,
     "file_types": "*.txt;*.md;*.fountain",
 }
 

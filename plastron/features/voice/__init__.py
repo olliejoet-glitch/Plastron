@@ -10,6 +10,7 @@ transcript bars under audio tracks, cut by words, script linking.
     transcript_bar     transcript bars (layout: transcript_layout), hover,
                        click, select, cut by words
     script_link        script lines <-> where they're spoken; unrecorded words
+    script_follow      the line at the playhead highlighted in the script
 """
 
 import bpy
@@ -17,9 +18,9 @@ import bpy
 from ...config import voice as cfg
 from ...core import deps
 from ...timeline import header
-from . import mic, record, script_link, takes, transcribe, transcript_bar
+from . import mic, record, script_follow, script_link, takes, transcribe, transcript_bar
 
-_MODULES = (takes, mic, record, transcribe, transcript_bar, script_link)
+_MODULES = (takes, mic, record, transcribe, transcript_bar, script_link, script_follow)
 
 
 def draw_header(layout, context):

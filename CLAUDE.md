@@ -228,7 +228,7 @@ Plastron/
 │  │  └─ voice/              recorder (mic), mic (choosing the input), takes (voice clips + takes), record
 │  │                         (Ctrl+R, switch takes), transcribe (+ _worker: own
 │  │                         process), transcript_layout (pure) + transcript_bar,
-│  │                         script_link (script <-> transcript)
+│  │                         script_link (script <-> transcript), script_follow (line at the playhead lit)
 │  │  └─ canvas_edit/        shapes (pure numpy: masks, homography, warp, resample),
 │  │                         pixels (undoable layer writes, screen <-> canvas),
 │  │                         selection (L / M, stencil), transform (Ctrl+T, V),
@@ -660,7 +660,11 @@ Plastron/
   pinning it pins the launcher. Untestable here (Linux).
 - Microphone (Ollie: "can I select audio input manually?"): the ▾ next to
   Record lists the computer's inputs (sounddevice, those with input
-  channels; "System default" first); the choice is remembered by name in
+  channels; "System default" first). Only the default input's audio system
+  is listed (Windows repeats each input per MME / DirectSound / WASAPI /
+  WDM-KS; MME lists only plugged-in inputs and converts the rate), minus
+  stand-ins (Sound Mapper, Stereo Mix...: MIC_HIDE in config/voice.py);
+  recording opens the device by number (names repeat across systems); the choice is remembered by name in
   user_settings "mic_device" (numbers change when things are plugged in);
   missing at record time: the default is used, with a note. While
   recording a level meter (dB: -60 empty .. 0 full, red near clipping)
@@ -703,6 +707,12 @@ Plastron/
 - Script linking: words matched with difflib (fluffs skipped). Clicking a
   script line jumps to its first heard word; unheard script words are
   underlined orange.
+- Script follows the playhead (Ollie): the line at the playhead gets a blue
+  band in the script and is scrolled into view (SCRIPT_FOLLOW in
+  config/voice.py). Over a voice clip: the line last heard; elsewhere: the
+  panel's script line. A table of stretches (frame range -> line) is
+  rebuilt on clips_changed / when the script or transcripts change; the
+  frame hook (_script_frame) only checks "still in the same stretch?".
 - Blender keymap stripped to essentials (BLENDER_KEEP in config/keymap.py):
   area resizing, UI widgets, scrolling, ruler scrubbing, typing in the script,
   painting strokes, tool click/drag behaviour, strip select/move. No right-click
@@ -768,7 +778,9 @@ Plastron/
   fountain into the script panel) and File > Panels from Script. One panel
   per non-blank line, on the active video track after its last clip (the
   blank starter panel is replaced), each about as long as its line takes
-  to read (0.4 s a word, 1.5-8 s: SCRIPT_PANELS in config/timeline.py).
+  to read aloud plus a pause (Ollie: pauses between sentences): 0.4 s a
+  word + 1 s after the line + 0.5 s per other sentence end in it, 2-10 s
+  (SCRIPT_PANELS in config/timeline.py).
   The panel remembers its line (plastron_panel.script_line / script_text);
   running it again only adds lines without a panel; Import starts the
   links afresh. Clicking a script line not recorded yet jumps to its panel.

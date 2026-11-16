@@ -32,3 +32,21 @@ WORD_COLORS = {
     "hover":     "blue",
     "bar":       "bg_dark",
 }
+
+# The microphone list (the ▾ next to Record). Windows lists every input once
+# per audio system (MME, DirectSound, WASAPI, WDM-KS); only the system the
+# default microphone uses is shown (on Windows: MME, which lists only plugged-in,
+# enabled inputs). Inputs whose name contains one of these are left out
+# (stand-ins, not microphones; lower case).
+MIC_HIDE = ("sound mapper", "primary sound capture", "stereo mix", "what u hear", "wave out mix")
+
+# The script follows the playhead: the line being played is highlighted (a
+# band behind it) and scrolled into view.
+SCRIPT_FOLLOW = {
+    "color": "blue",      # (palette name or "#rrggbb")
+    "alpha": 0.28,
+    "scroll": True,       # keep the line in view while playing / scrubbing
+    "row": 1.4,           # (band size: one text row = font size x this)
+    "above": 1.0,         # band top above the line's first row (rows)
+    "below": 0.15,        # band bottom under its last row (rows)
+}

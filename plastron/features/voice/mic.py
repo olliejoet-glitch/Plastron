@@ -10,28 +10,45 @@ import os
 
 import bpy
 
+from ...config import voice as cfg
 from ...core import user_settings
 from . import recorder
 
 KEY = "mic_device"
 
 
-def inputs():
-    """[(name, is the system default)] of the computer's audio inputs."""
+def pick(devices, default):
+    """[(name, is default, device index)] worth listing, from sounddevice's
+    query_devices() list: inputs only, on the default input's audio system
+    only (Windows repeats each one per system), no stand-ins (MIC_HIDE), each
+    name once."""
+    api = devices[default].get("hostapi") if 0 <= default < len(devices) else None
+    out = []
+    for i, d in enumerate(devices):
+        name = d["name"]
+        if d.get("max_input_channels", 0) <= 0 or (api is not None and d.get("hostapi") != api):
+            continue
+        if any(word in name.lower() for word in cfg.MIC_HIDE) or name in [n for n, _d, _i in out]:
+            continue
+        out.append((name, i == default, i))
+    return out
+
+
+def _found():
     if recorder.fake():
         names = [n for n in os.environ.get("PLASTRON_FAKE_MIC_DEVICES", "Fake Mic").split(";") if n]
-        return [(n, i == 0) for i, n in enumerate(names)]
+        return [(n, i == 0, n) for i, n in enumerate(names)]
     try:
         import sounddevice
-        default = sounddevice.default.device[0]
-        out = []
-        for i, d in enumerate(sounddevice.query_devices()):
-            if d.get("max_input_channels", 0) > 0 and d["name"] not in [n for n, _ in out]:
-                out.append((d["name"], i == default))
-        return out
+        return pick(list(sounddevice.query_devices()), sounddevice.default.device[0])
     except Exception as err:                       # (not installed yet, no audio system)
         print("Plastron: couldn't list microphones:", err)
         return []
+
+
+def inputs():
+    """[(name, is the system default)] of the computer's microphones."""
+    return [(n, d) for n, d, _i in _found()]
 
 
 def chosen():
@@ -44,8 +61,9 @@ def device_for_recording():
     name = chosen()
     if name is None:
         return None, None
-    if name in [n for n, _d in inputs()]:
-        return name, None
+    for n, _d, device in _found():
+        if n == name:
+            return device, None        # (by number: a name can match several audio systems)
     return None, f"{name} isn't connected: recording from the default microphone"
 
 
