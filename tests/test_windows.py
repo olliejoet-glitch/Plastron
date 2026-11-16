@@ -158,5 +158,27 @@ def steps():
             any(windows.is_window_clip(s) and s.scene is not None and len(s.scene.sequence_editor.strips_all) >= 3
                 for s in clips.all_clips(win.scene)))
 
+    # Deleting a window (with a video inside) while playing (Ollie: "Plastron
+    # crashed when deleting a green window": Blender's frames-ahead thread was
+    # rendering it; the delete now goes through Blender's own, which stops it).
+    sc = bpy.context.scene
+    strip = next(s for s in clips.all_clips(sc) if windows.is_window_clip(s))
+    for s in clips.all_clips(sc):
+        s.select = s == strip
+    sc.sequence_editor.active_strip = strip
+    sc.frame_current = clips.start(strip) + 2
+    tl = h.area('SEQUENCE_EDITOR')
+    h.move(*h.center(h.region(tl)))
+    yield 0.2
+    h.key('SPACE')
+    yield 1.5
+    playing = bpy.context.screen.is_animation_playing
+    h.key('DEL')
+    yield 1.5
+    h.key('SPACE')
+    yield 0.3
+    h.check("deleting a window while playing: gone, and Blender carries on",
+            playing and not any(windows.is_window_clip(s) for s in clips.all_clips(bpy.context.scene)), playing)
+
 
 h.run(steps())

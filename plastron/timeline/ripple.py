@@ -135,7 +135,7 @@ def delete(scene, strips):
         s, e = clips.start(strip), clips.end(strip)
         ripples = _ripples(scene, strip)
         events.emit("clip_removing", scene, strip=strip)
-        sed.strips.remove(strip)
+        remove(scene, strip)
         if ripples:
             orig = snapshot(scene)
             changes = {}
@@ -143,6 +143,31 @@ def delete(scene, strips):
             clips.apply(scene, changes)
     events.clips_changed(scene)
     return len(strips)
+
+
+def remove(scene, strip):
+    """Remove one clip the way Blender's own Delete does: that stops the
+    frames-ahead (prefetch) thread first. Python's strips.remove doesn't,
+    and removing a clip it was rendering (an info window, with a timeline
+    inside) mid-playback crashed Blender."""
+    import bpy
+    sed = clips.editor(scene)
+    over = _timeline_override()
+    if over is None or over["window"].scene != scene:
+        sed.strips.remove(strip)
+        return
+    picked = [s for s in sed.strips_all if s.select and s != strip]
+    for s in sed.strips_all:
+        s.select = s == strip
+    with bpy.context.temp_override(**over, scene=scene):
+        if strip.get(clips.LINK):
+            bpy.ops.sequencer.disconnect()     # (Blender's Delete takes connected clips along)
+        bpy.ops.sequencer.delete(delete_data=False)
+    for s in picked:
+        try:
+            s.select = True
+        except ReferenceError:
+            pass
 
 
 def make_room(scene, channel, frame, length):
