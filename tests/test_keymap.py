@@ -66,7 +66,8 @@ def steps():
         km = user.keymaps.get(cfg.WHERE[entry["where"]][0])
         key_type, flags = keymaps.parse_key(entry["key"])
         for kmi in km.keymap_items:
-            values = {'CLICK_DRAG', 'ANY'} if keymaps.key_value(entry["key"]) == 'CLICK_DRAG' \
+            value = keymaps.key_value(entry["key"])
+            values = {value, 'ANY'} if value in ('CLICK_DRAG', 'CLICK') \
                 else {'PRESS', 'ANY', 'CLICK', 'CLICK_DRAG'}
             if (kmi.active and kmi.idname != entry["action"] and kmi.type == key_type
                     and kmi.value in values

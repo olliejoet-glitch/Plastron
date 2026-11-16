@@ -30,13 +30,19 @@ pending = []     # shortcut entries whose action isn't built yet
 
 
 def key_value(text):
-    """'PRESS', or 'CLICK_DRAG' for "LMB drag" (fires once the pen moves while held)."""
-    return 'CLICK_DRAG' if text.endswith(" drag") else 'PRESS'
+    """'PRESS'; 'CLICK_DRAG' for "LMB drag" (fires once the pen moves while
+    held); 'CLICK' for "LMB click" (let go without moving)."""
+    if text.endswith(" drag"):
+        return 'CLICK_DRAG'
+    if text.endswith(" click"):
+        return 'CLICK'
+    return 'PRESS'
 
 
 def parse_key(text):
     """"Ctrl+Shift+Z" -> ('Z', {"ctrl": True, "shift": True})."""
-    text = text[:-len(" drag")] if text.endswith(" drag") else text
+    for suffix in (" drag", " click"):
+        text = text[:-len(suffix)] if text.endswith(suffix) else text
     *mods, key = text.split("+")
     flags = {}
     for mod in mods:

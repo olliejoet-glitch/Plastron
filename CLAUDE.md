@@ -600,6 +600,16 @@ Plastron/
   shift the voice). Not shown live during the drag (Blender's preview is
   its own shuffle). No extra undo step: one Ctrl+Z undoes the drag.
   (timeline/ripple_move.py, run from placement.check.)
+- Several clips at once (Ollie): Shift+click adds / removes a clip (the
+  press toggles it and is handled, so Blender's own Shift+click on release
+  doesn't toggle it back); pressing on a clip that's one of several selected
+  keeps them all, so a drag moves them together (ripple_move plans them as
+  a block); a plain click on it (keymap "LMB click" = CLICK,
+  plastron.clip_click_select) then selects just it.
+- Undo and Texture Paint (crash Ollie hit after Alt+drag copies + Ctrl+Z):
+  tool settings aren't undone but every image is remade, so image_paint.
+  canvas / stencil_image could point at a freed image; layers lets go of
+  them in undo_pre / redo_pre and re-aims painting in undo_post (first).
 - Alt+drag a clip (Ollie): copies follow the pen (timeline/duplicate.py):
   the clip under the pen (with the clips selected with it, if it was
   selected) and their linked sounds are copied with Blender's duplicate,

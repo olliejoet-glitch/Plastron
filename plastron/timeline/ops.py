@@ -90,6 +90,14 @@ class PLASTRON_OT_clip_trim(bpy.types.Operator):
         Blender's version of this click is off: it grabbed edges itself."""
         pos = dict(mouse_x=event.mouse_region_x, mouse_y=event.mouse_region_y)
         scene = bpy.context.scene
+        # Pressing on a clip that's part of a selection of several keeps them
+        # all selected, so the drag moves them together (Ollie).
+        fx, fy = bpy.context.region.view2d.region_to_view(event.mouse_region_x, event.mouse_region_y)
+        hit = clips.at(scene, int(fy), int(fx))
+        if not self.extend and hit is not None and hit.select and \
+                sum(1 for s in clips.top_clips(scene) if s.select) > 1:
+            scene.sequence_editor.active_strip = hit
+            return {'PASS_THROUGH'}
         before = {s: s.select for s in clips.top_clips(scene)}
         if self.extend:
             bpy.ops.sequencer.select('EXEC_DEFAULT', toggle=True, **pos)
@@ -105,6 +113,11 @@ class PLASTRON_OT_clip_trim(bpy.types.Operator):
             for strip in [s for s in clips.top_clips(scene) if s.select]:
                 for other in clips.linked(strip):
                     other.select = True
+        else:
+            # Shift+click: toggled here; handled, so Blender's own Shift+click
+            # on release doesn't toggle it straight back.
+            bpy.context.area.tag_redraw()
+            return {'FINISHED'}
         return {'PASS_THROUGH'}       # a drag from here moves the clip (Blender)
 
     def invoke(self, context, event):
@@ -169,6 +182,30 @@ def _selected(scene):
     return [s for s in clips.top_clips(scene) if s.select]
 
 
+class PLASTRON_OT_clip_click_select(bpy.types.Operator):
+    """A click (no drag) on a clip that's one of several selected: just that clip
+    (and its linked clips). Pressing keeps the others so a drag moves them all."""
+    bl_idname = "plastron.clip_click_select"
+    bl_label = "Select Clip"
+    bl_options = {'INTERNAL'}
+
+    def invoke(self, context, event):
+        scene, region = context.scene, context.region
+        if scene is None or region is None or region.type != 'WINDOW':
+            return {'PASS_THROUGH'}
+        fx, fy = region.view2d.region_to_view(event.mouse_region_x, event.mouse_region_y)
+        hit = clips.at(scene, int(fy), int(fx))
+        chosen = [s for s in clips.top_clips(scene) if s.select]
+        if hit is None or not hit.select or len(chosen) <= 1:
+            return {'PASS_THROUGH'}
+        keep = set(clips.with_linked([hit], clips.top_clips(scene)))
+        for s in clips.all_clips(scene):
+            s.select = s in keep
+        scene.sequence_editor.active_strip = hit
+        context.area.tag_redraw()
+        return {'FINISHED'}
+
+
 class PLASTRON_OT_clip_split(bpy.types.Operator):
     """Cut the selected clips (or the active track's clip) at the playhead"""
     bl_idname = "plastron.clip_split"
@@ -231,6 +268,7 @@ classes = (
     PLASTRON_OT_track_add,
     PLASTRON_OT_track_header_click,
     PLASTRON_OT_clip_trim,
+    PLASTRON_OT_clip_click_select,
     PLASTRON_OT_clip_split,
     PLASTRON_OT_clip_delete,
     PLASTRON_OT_loop_set,

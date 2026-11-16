@@ -36,7 +36,10 @@ def plan_checks():
     h.check("plan: no ripple on the track: nothing (Blender's own result stays)", out == {}, out)
 
 
-def drag_clip(sc, strip, frames, reg, ch):
+def drag_clip(sc, strip, frames, reg, ch, keep_selection=False):
+    if not keep_selection:                   # (as after a click on empty space)
+        for s in clips.all_clips(sc):
+            s.select = False
     v2d = reg.view2d
     x0, y0 = v2d.view_to_region(clips.start(strip) + clips.length(strip) / 2, ch + 0.5, clip=False)
     x1, _ = v2d.view_to_region(clips.start(strip) + clips.length(strip) / 2 + frames, ch + 0.5, clip=False)
@@ -80,10 +83,37 @@ def steps():
     h.check("dragging a panel to the front: it goes in first, the rest move along",
             names() == [c.name, a.name, b.name] and spans() == [(1, 49), (49, 97), (97, 145)],
             (names(), spans()))
+    # Several clips at once: Shift+click two, then drag one of them: both go.
+    sc = bpy.context.scene
+    a, b, c = (sc.sequence_editor.strips_all[n] for n in (na, nb, nc))
+    order0 = names()
+    first, second = sorted([a, b, c], key=clips.start)[:2]
+    for s_ in clips.all_clips(sc):
+        s_.select = False
+    for strip, shift in ((first, False), (second, True)):
+        x, y = reg.view2d.view_to_region(clips.start(strip) + clips.length(strip) / 2, ch + 0.5, clip=False)
+        h.move(reg.x + x, reg.y + y)
+        yield 0.1
+        if shift:
+            h._event('LEFT_SHIFT', 'PRESS')
+            h._event('LEFTMOUSE', 'PRESS', shift=True)
+            h._event('LEFTMOUSE', 'RELEASE', shift=True)
+            h._event('LEFT_SHIFT', 'RELEASE')
+        else:
+            h._event('LEFTMOUSE', 'PRESS')
+            h._event('LEFTMOUSE', 'RELEASE')
+        yield 0.3
+    picked = [s_.name for s_ in clips.all_clips(sc) if s_.select]
+    h.check("Shift+click picks two clips", sorted(picked) == sorted([first.name, second.name]), picked)
+    yield from drag_clip(sc, first, 120, reg, ch, keep_selection=True)   # drag the first past the third
+    h.check("dragging one of two selected clips moves both (the third closes up, they go in after it)",
+            names() == [order0[2], order0[0], order0[1]] and spans() == [(1, 49), (49, 97), (97, 145)],
+            (names(), spans(), order0))
+
     track = tracks.video_tracks(sc)[-1]
     track.ripple = False
     before = spans()
-    yield from drag_clip(sc, sc.sequence_editor.strips_all[na], 200, reg, ch)
+    yield from drag_clip(sc, sc.sequence_editor.strips_all[names()[1]], 200, reg, ch)   # the middle one
     h.check("ripple off: Blender's own drag (the gap stays)", spans()[0] == before[0] and spans()[1] == before[2],
             (spans(), before))
 

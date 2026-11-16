@@ -31,11 +31,30 @@ def _save_pre(*_args):
                 print(f"Plastron: could not pack {img.name}: {err}")
 
 
+def _before_undo(*_args):
+    """Blender never undoes tool settings, but undo frees and remakes every
+    image: Texture Paint's canvas / stencil image could be left pointing at
+    a freed one (a crash when read: Ollie, after Alt+drag copies + Ctrl+Z).
+    So they're let go of before every undo / redo and set again after."""
+    for scene in bpy.data.scenes:
+        ip = scene.tool_settings.image_paint
+        ip.canvas = None
+        ip.stencil_image = None
+
+
+def _after_undo(*_args):
+    paint_target.sync(scene=bpy.context.scene)
+
+
 def register():
     props.register()
     for cls in _CLASSES:
         bpy.utils.register_class(cls)
     handlers.add("save_pre", _save_pre)
+    for name in ("undo_pre", "redo_pre"):
+        handlers.add(name, _before_undo, first=True)
+    for name in ("undo_post", "redo_post"):
+        handlers.add(name, _after_undo, first=True)
 
 
 def unregister():

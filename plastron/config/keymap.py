@@ -11,7 +11,8 @@ Key format: modifiers joined with "+", then the key, e.g. "Ctrl+Shift+Z".
   Mouse:     LMB, MMB, RMB, WheelUp, WheelDown, MouseMove (hover)
              (a mouse button entry starts a drag: it runs until release;
              "LMB drag" fires only once the pen moves while held, so a plain
-             click still goes to Blender's buttons)
+             click still goes to Blender's buttons; "LMB click" fires when let
+             go without moving)
 
 Lines whose action isn't built yet are skipped quietly, so later-stage
 shortcuts can be listed here already.
@@ -130,6 +131,7 @@ SHORTCUTS = [
     ("timeline",     "Ctrl+LMB",         "plastron.clip_trim",           "...snapping (Ctrl flips snapping)"),
     ("timeline",     "Shift+LMB",        "plastron.clip_trim",           "Shift+click: add a clip to the selection", {"extend": True}),
     ("timeline",     "Alt+LMB",          "plastron.clip_duplicate_drag", "Alt+drag a clip: drag a copy of it"),
+    ("timeline",     "LMB click",        "plastron.clip_click_select",   "Click one of several selected clips: just that one (a drag moves them all)"),
     # (after the edge drag: of two actions on one key, the later line is tried first)
     ("timeline",     "LMB",              "plastron.transcript_click",    "Click a transcript word: playhead there, select it"),
     ("timeline",     "Shift+LMB",        "plastron.transcript_click",    "Select words up to this one", {"extend": True}),
@@ -178,7 +180,7 @@ SHORTCUTS = [
 # item on the same key keeps working (e.g. the script click still places
 # the text cursor). board_click only runs while the Board view is on (its
 # poll), so the timeline's own clicks work normally otherwise.
-PASSES_ON = {"plastron.board_click", "plastron.shorts_drag", "plastron.preview_transform", "plastron.fade_drag", "plastron.view_focus", "plastron.camera_pad", "plastron.drag_scroll", "plastron.script_click", "plastron.transcript_click", "plastron.transcript_hover"}
+PASSES_ON = {"plastron.board_click", "plastron.shorts_drag", "plastron.preview_transform", "plastron.fade_drag", "plastron.view_focus", "plastron.camera_pad", "plastron.drag_scroll", "plastron.clip_click_select", "plastron.script_click", "plastron.transcript_click", "plastron.transcript_hover"}
 
 # Blender items switched off even though BLENDER_KEEP keeps their keymap.
 BLENDER_DROP = {
