@@ -14,6 +14,7 @@ SCRIPT_PANELS = {
     "pause_seconds": 1.0,            # + a pause after each line (the script bar's Pause slider; remembered)
     "pause_range": (0.0, 3.0),       # (the slider's range, seconds)
     "sentence_pause_share": 0.5,     # + this share of it for each other sentence end (. ! ?) in the line
+    "auto_panels_after": 1.5,        # s after a script edit stops: new lines get panels (at the end)
     "min_seconds": 2.0,
     "max_seconds": 10.0,
     "file_types": "*.txt;*.md;*.fountain",

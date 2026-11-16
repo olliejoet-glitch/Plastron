@@ -179,7 +179,7 @@ def _track(scene):
     return track
 
 
-def make_panels(scene, text=None):
+def make_panels(scene, text=None, jump=True):
     """Panels for the script's lines that don't have one yet. Returns how
     many were made, or an error message."""
     text = text or script_text()
@@ -214,7 +214,7 @@ def make_panels(scene, text=None):
         first = first or strip
         start += length
         made += 1
-    if first is not None:
+    if first is not None and jump:
         for s in clips.all_clips(scene):
             s.select = False
         scene.sequence_editor.active_strip = first
@@ -297,6 +297,62 @@ class PLASTRON_OT_script_paste(bpy.types.Operator):
         return _report(self, make_panels(context.scene, text))
 
 
+# New lines get panels by themselves (Ollie: splitting lines in the script
+# moves the panels along with their lines, but the extra line at the end got
+# no panel). Once the script has panels, 1.5 s after an edit stops, every
+# non-blank line without a panel gets one at the end of the track.
+AUTO_DELAY = CFG.get("auto_panels_after", 1.5)
+_seen_text = {"body": None}
+
+
+def _script_has_panels(scene):
+    return any(p.plastron_panel.script_line >= 0 for p in panels.all_panels(scene))
+
+
+def missing_lines(scene, text):
+    done = {p.plastron_panel.script_line for p in panels.all_panels(scene)}
+    return [(i, line) for i, line in script_lines(text) if i not in done]
+
+
+def _auto_panels():
+    scene = bpy.context.scene
+    text = script_text()
+    if scene is None or text is None or not _script_has_panels(scene) or not missing_lines(scene, text):
+        return None
+    made = make_panels(scene, text, jump=False)
+    if isinstance(made, int) and made:
+        win = bpy.context.window_manager.windows[0] if bpy.context.window_manager.windows else None
+        if win is not None:
+            with bpy.context.temp_override(window=win):
+                bpy.ops.ed.undo_push(message="Panels for New Lines")
+    return None
+
+
+def _watch_script():
+    """Script view's draw: has the script's text changed? (Then wait for the edit to settle.)"""
+    space = bpy.context.space_data
+    text = space.text if space else None
+    if text is None or text.name != defaults.SCRIPT_TEXT_NAME:
+        return
+    body = text.as_string()
+    if body == _seen_text["body"]:
+        return
+    first = _seen_text["body"] is None
+    _seen_text["body"] = body
+    if first:
+        return                                   # (just opened: nothing typed yet)
+    if bpy.app.timers.is_registered(_auto_panels):
+        bpy.app.timers.unregister(_auto_panels)
+    bpy.app.timers.register(_auto_panels, first_interval=AUTO_DELAY)
+
+
+_watch = []
+
+
+def _on_load(_scene):
+    _seen_text["body"] = None
+
+
 def draw_bar(self, context):
     """The script bar (replaces Blender's text editor header)."""
     row = self.layout.row(align=True)
@@ -320,11 +376,17 @@ def register():
         name="Pause", description="The pause after each script line (your natural pauses between "
         "sentences): panels made from the script are this much longer than their line takes to read",
         min=lo, max=hi, step=10, precision=1, unit='TIME_ABSOLUTE', get=_get_pause, set=_set_pause)
-    from ...core import hidden_ui
+    from ...core import hidden_ui, handlers
     hidden_ui.replace("TEXT_HT_header", "draw", draw_bar)
+    _watch.append(bpy.types.SpaceTextEditor.draw_handler_add(_watch_script, (), 'WINDOW', 'POST_PIXEL'))
+    handlers.on_load(_on_load)
 
 
 def unregister():
+    while _watch:
+        bpy.types.SpaceTextEditor.draw_handler_remove(_watch.pop(), 'WINDOW')
+    if bpy.app.timers.is_registered(_auto_panels):
+        bpy.app.timers.unregister(_auto_panels)
     if bpy.app.timers.is_registered(_apply_pause):
         bpy.app.timers.unregister(_apply_pause)
     del bpy.types.WindowManager.plastron_script_pause

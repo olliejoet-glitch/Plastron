@@ -838,6 +838,12 @@ Plastron/
   is matched to the script as it is now (difflib over their remembered
   lines, so added / removed lines don't shift the rest) and gets that line's
   length (+ pause), hand-trimmed or not; ripple follows.
+  New lines get panels by themselves (Ollie: splitting lines moved the
+  panels along with their lines, but the extra line at the end had none):
+  once the script has panels, AUTO_DELAY (1.5 s, SCRIPT_PANELS
+  "auto_panels_after") after an edit stops, every non-blank line without a
+  panel gets one at the end of the track (make_panels, playhead not moved;
+  one undo step). Edits are seen by the script view's draw comparing the text.
   The script panel has a bar (replaces Blender's text header): Paste Script
   (Ollie: "just copy and paste a script in": the clipboard goes into the
   script, or after what's there, and the panels are made), Make Panels,

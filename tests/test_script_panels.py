@@ -139,5 +139,34 @@ def steps():
     yield 0.2
     h.screenshot("script_panels")
 
+    # Splitting a line in the script (Enter in the middle of it): once the
+    # edit settles, the line left without a panel gets one at the end.
+    sc = bpy.context.scene
+    text = script_panels.script_text()
+    before = len(panels.all_panels(sc))
+    lines_before = len([l for l in text.lines if l.body.strip()])
+    last_end = max(clips.end(p) for p in panels.all_panels(sc) if p.plastron_panel.script_line >= 0)
+    area = h.area('TEXT_EDITOR')
+    with h.override('TEXT_EDITOR'):
+        st = bpy.context.space_data
+        x, y = st.region_location_from_cursor(0, 5)
+    r = h.region(area)
+    h.move(r.x + x + 1, r.y + y + 6)
+    yield 0.2
+    h._event('LEFTMOUSE', 'PRESS')
+    h._event('LEFTMOUSE', 'RELEASE')
+    yield 0.3
+    h.key('RET')
+    yield 0.3
+    h.check("...the script got a new line", len([l for l in text.lines if l.body.strip()]) == lines_before + 1,
+            [l.body for l in text.lines])
+    yield 2.5
+    h.redraw()
+    yield 0.3
+    now = panels.all_panels(sc)
+    new = [p for p in now if clips.start(p) >= last_end]
+    h.check("splitting a line: a panel is added at the end for the line left over (on its own)",
+            len(now) == before + 1 and len(new) == 1, (len(now), before, [(p.name, clips.start(p)) for p in new]))
+
 
 h.run(steps())
