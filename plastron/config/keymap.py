@@ -127,6 +127,7 @@ SHORTCUTS = [
     ("timeline",     "LMB",              "plastron.clip_trim",           "Drag a clip edge to retime (else select / move)"),
     ("timeline",     "Ctrl+LMB",         "plastron.clip_trim",           "...snapping (Ctrl flips snapping)"),
     ("timeline",     "Shift+LMB",        "plastron.clip_trim",           "Shift+click: add a clip to the selection", {"extend": True}),
+    ("timeline",     "Alt+LMB",          "plastron.clip_duplicate_drag", "Alt+drag a clip: drag a copy of it"),
     # (after the edge drag: of two actions on one key, the later line is tried first)
     ("timeline",     "LMB",              "plastron.transcript_click",    "Click a transcript word: playhead there, select it"),
     ("timeline",     "Shift+LMB",        "plastron.transcript_click",    "Select words up to this one", {"extend": True}),
@@ -181,6 +182,8 @@ BLENDER_DROP = {
     # Its press-to-select grabs clip edges itself (a plain resize, no ripple)
     # before Plastron's edge drag sees the click.
     "Sequencer Tool: Select Box*": ["sequencer.select"],
+    # Alt+drag on a clip is Plastron's copy-drag ("action|key": only that key).
+    "Sequencer": ["sequencer.select_box|Alt+LMB", "transform.seq_slide|Alt+LMB"],
 }
 
 # Keys that keep firing while held down (like holding a key in a text box).

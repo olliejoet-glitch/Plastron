@@ -599,6 +599,16 @@ Plastron/
   shift the voice). Not shown live during the drag (Blender's preview is
   its own shuffle). No extra undo step: one Ctrl+Z undoes the drag.
   (timeline/ripple_move.py, run from placement.check.)
+- Alt+drag a clip (Ollie): copies follow the pen (timeline/duplicate.py):
+  the clip under the pen (with the clips selected with it, if it was
+  selected) and their linked sounds are copied with Blender's duplicate,
+  made their own (event "clip_duplicated": a panel gets its own painting,
+  graph, name; linked copies get their own link id), then Blender's drag
+  (transform.seq_slide, release_confirm) carries them. On drop ripple_move
+  places them (fresh copies leave no gap; on a ripple track they go in at
+  the nearest cut). Esc / right-click or Alt+click without moving removes
+  them. Blender's own Alt+LMB items in "Sequencer" are dropped (BLENDER_DROP
+  takes "action|Key" to drop one key only).
 - Track headers: name / mute / lock are Blender's channel buttons; Plastron
   draws R (ripple, all tracks), S (solo) and a volume bar (0-200 %, audio
   tracks only). Clicking a track's row or name makes it the active track.

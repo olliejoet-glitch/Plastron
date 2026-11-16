@@ -25,11 +25,12 @@ import bpy
 from . import clips, tracks
 
 
-def plan(old, mains, followers, ripple, locked, links):
+def plan(old, mains, followers, ripple, locked, links, fresh=()):
     """old: {key: (channel, start, end)} of every clip before the drag.
     mains: {key: (dest channel, intended start)} the dragged clips.
     followers: {key: (main key, channel)} clips riding with a main (its sound).
     ripple / locked: sets of channels. links: {key: [keys linked to it]}.
+    fresh: new copies (Alt+drag): old = what they copy; they leave no gap.
     Returns {key: (channel, start, end)} for every clip that should change."""
     moving = set(mains) | set(followers)
     pos = {k: list(v) for k, v in old.items()}
@@ -72,7 +73,7 @@ def plan(old, mains, followers, ripple, locked, links):
             anchors[dest] = ('after', others[-1][2], be - bs)
 
     # 2. Close the gaps they left (from the right, so frames stay valid).
-    left = sorted(((old[k][0], old[k][1], old[k][2]) for k in mains), key=lambda t: -t[1])
+    left = sorted(((old[k][0], old[k][1], old[k][2]) for k in mains if k not in fresh), key=lambda t: -t[1])
     for ch, s, e in left:
         if ch in ripple and ch not in locked:
             shift_stay(ch, e, -(e - s))
@@ -122,16 +123,28 @@ _seen = [0]
 def apply_drag(scene, last):
     """After Blender's drag-move ended: ripple it. last: {name: (channel,
     start, end)} before the drag. Returns True if anything changed."""
+    from . import duplicate
     wm = bpy.context.window_manager
     op = wm.operators[-1] if wm and len(wm.operators) else None
-    if op is None or op.bl_idname != "TRANSFORM_OT_seq_slide" or op.as_pointer() == _seen[0]:
+    copies = dict(duplicate.pending["names"])
+    is_drag = op is not None and op.bl_idname == "TRANSFORM_OT_seq_slide" and op.as_pointer() != _seen[0]
+    if copies and (not is_drag or op.as_pointer() == duplicate.pending["op"]):
+        duplicate.take_back(scene)                   # (an Alt+drag cancelled)
+        return True
+    duplicate.pending["names"] = {}
+    if not is_drag:
         return False
     _seen[0] = op.as_pointer()
     dx, dy = (round(v) for v in op.properties.value)
     strips = {s.name: s for s in clips.top_clips(scene)}
+    if copies and dx == 0 and dy == 0:              # (an Alt+click: no copy wanted)
+        duplicate.pending["names"] = copies
+        duplicate.take_back(scene)
+        return True
     old = {n: v for n, v in last.items() if n in strips}
+    old.update({n: v for n, v in copies.items() if n in strips})
     moved = [s for n, s in strips.items() if n in old
-             and old[n] != (s.channel, clips.start(s), clips.end(s))
+             and (n in copies or old[n] != (s.channel, clips.start(s), clips.end(s)))
              and clips.length(s) == old[n][2] - old[n][1]]
     if not moved or (dx == 0 and dy == 0):
         return False
@@ -152,7 +165,20 @@ def apply_drag(scene, last):
     sed = clips.editor(scene)
     locked = {c for c in {v[0] for v in old.values()} if sed.channels[c].lock}
     links = {n: [o.name for o in clips.linked(s, list(strips.values()))] for n, s in strips.items()}
-    out = plan(old, mains, followers, ripple, locked, links)
+    fresh = set(copies) & set(old)
+    out = plan(old, mains, followers, ripple, locked, links, fresh)
+    for n in fresh:                       # copies on a track without ripple: where they were dropped
+        if n in mains and n not in out:
+            dest, want = mains[n]
+            length = old[n][2] - old[n][1]
+            if strips[n].channel != dest and all(
+                    not (clips.start(o) < want + length and want < clips.end(o))
+                    for o in clips.on_channel(scene, dest) if o != strips[n]):
+                out[n] = (dest, want, want + length)
+    for n, (main, channel) in followers.items():
+        if n in fresh and main in out and n not in out:
+            d = out[main][1] - old[main][1]
+            out[n] = (channel, old[n][1] + d, old[n][2] + d)
     if not out:
         return False
     # Moving clips off to spare channels first, then the others, then them in.

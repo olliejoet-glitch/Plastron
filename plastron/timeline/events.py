@@ -9,6 +9,7 @@ Events:
     mix_changed          a volume or solo changed (audio mix must be rewritten)
     active_track_changed
     clip_split           info: original, new (the right half)
+    clip_duplicated      info: original, new (an Alt+drag copy: make it its own)
     clip_removing        info: strip (about to be deleted)
 """
 

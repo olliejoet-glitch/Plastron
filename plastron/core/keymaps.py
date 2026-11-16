@@ -60,9 +60,21 @@ def _signature(km_name, kmi):
     return (km_name, kmi.type, bool(kmi.ctrl), bool(kmi.alt), bool(kmi.shift), bool(kmi.oskey))
 
 
+def _drop_match(kmi, pattern):
+    """'action' or 'action|Key' (only that key: e.g. 'transform.seq_slide|Alt+LMB')."""
+    action, _sep, key = pattern.partition("|")
+    if not fnmatch.fnmatchcase(kmi.idname, action):
+        return False
+    if not key:
+        return True
+    key_type, flags = parse_key(key)
+    return kmi.type == key_type and all(bool(getattr(kmi, m)) == flags.get(m, False)
+                                        for m in ("ctrl", "alt", "shift", "oskey"))
+
+
 def _dropped(km_name, kmi):
     return any(fnmatch.fnmatchcase(km_name, name) and
-               any(fnmatch.fnmatchcase(kmi.idname, p) for p in actions)
+               any(_drop_match(kmi, p) for p in actions)
                for name, actions in cfg.BLENDER_DROP.items())
 
 

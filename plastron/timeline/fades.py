@@ -218,6 +218,12 @@ def _on_split(scene, original=None, new=None, **_info):
             del s[SIG]
 
 
+def _on_copy(scene, original=None, new=None, **_info):
+    """A copy keeps its fades; its keys are written afresh (they're the clip's own)."""
+    if new is not None and SIG in new:
+        del new[SIG]
+
+
 # --- Handles on the timeline ----------------------------------------------------------------
 
 def _ui(px):
@@ -362,6 +368,7 @@ def register():
         bpy.utils.register_class(cls)
     events.listen("clips_changed", refresh)
     events.listen("clip_split", _on_split)
+    events.listen("clip_duplicated", _on_copy)
     _handle[0] = bpy.types.SpaceSequenceEditor.draw_handler_add(draw, (), 'WINDOW', 'POST_PIXEL')
 
 

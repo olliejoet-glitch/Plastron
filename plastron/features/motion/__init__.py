@@ -58,6 +58,7 @@ def register():
     layer_motion.register()
     ui.register()
     events.listen("clip_split", _on_split)
+    events.listen("clip_duplicated", _on_split)
     layer_events.listen(_on_layers_changed)
     handlers.on_load(_on_load)
 

@@ -160,6 +160,7 @@ def register():
         bpy.utils.register_class(cls)
     bpy.types.Strip.plastron_panel = bpy.props.PointerProperty(type=PLASTRON_PG_panel)
     events.listen("clip_split", _on_split)
+    events.listen("clip_duplicated", _on_split)      # (a copy gets its own painting, like a split half)
     events.listen("project_created", _on_project_created)
     handlers.on_load(_on_load)
     handlers.add("save_pre", _save_pre)
