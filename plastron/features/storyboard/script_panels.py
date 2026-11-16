@@ -87,34 +87,43 @@ def retime(scene, old_pause, new_pause):
     return changed
 
 
+def script_panels_in_order(scene):
+    """Panels made from the script, in timeline order."""
+    out = [p for p in panels.all_panels(scene) if p.plastron_panel.script_line >= 0]
+    out.sort(key=lambda p: (clips.start(p), p.channel))
+    return out
+
+
 def relink(scene, text):
-    """[(panel, line index, line)] for the script panels, matched to the
-    script as it is now (difflib over their remembered lines: lines added,
-    removed or reworded in between keep the others right)."""
-    import difflib
-    script = [p for p in panels.all_panels(scene) if p.plastron_panel.script_line >= 0]
-    script.sort(key=lambda p: (p.plastron_panel.script_line, clips.start(p)))
+    """Panels in timeline order go with the script's lines in order (Ollie:
+    splitting a line moves every later line on to the next panel). Panels
+    past the last line are no longer tied to a line (they keep their
+    drawing). Returns [(panel, line index, line)]."""
     lines = script_lines(text)
-    old = [p.plastron_panel.script_text for p in script]
-    new = [line for _i, line in lines]
     out = []
-    for tag, a0, a1, b0, b1 in difflib.SequenceMatcher(None, old, new, autojunk=False).get_opcodes():
-        if tag in ('equal', 'replace'):
-            for k in range(min(a1 - a0, b1 - b0)):
-                out.append((script[a0 + k], lines[b0 + k][0], lines[b0 + k][1]))
+    for k, strip in enumerate(script_panels_in_order(scene)):
+        if k < len(lines):
+            index, line = lines[k]
+            strip.plastron_panel.script_line = index
+            strip.plastron_panel.script_text = line[:500]
+            out.append((strip, index, line))
+        else:
+            strip.plastron_panel.script_line = -1
     return out
 
 
 def retime_all(scene, text=None):
-    """Every panel made from the script gets the length its line (as it reads
-    now) takes, plus the pause; later clips follow ripple. Returns how many changed."""
+    """Panels in order go with the lines in order (lines past the last panel
+    get new panels at the end); each gets the length its line takes, plus the
+    pause; later clips follow ripple. Returns how many changed."""
     text = text or script_text()
     if text is None:
         return 0
     changed = 0
-    for strip, index, line in sorted(relink(scene, text), key=lambda t: -clips.start(t[0])):
-        strip.plastron_panel.script_line = index
-        strip.plastron_panel.script_text = line[:500]
+    if script_panels_in_order(scene) and missing_lines(scene, text):
+        made = make_panels(scene, text, jump=False)       # (lines past the last panel get theirs)
+        changed += made if isinstance(made, int) else 0
+    for strip, _index, line in sorted(relink(scene, text), key=lambda t: -clips.start(t[0])):
         want = frames_for(scene, line)
         if want != clips.length(strip):
             ripple.trim(scene, strip, 'RIGHT', clips.start(strip) + want)
@@ -195,6 +204,7 @@ def make_panels(scene, text=None, jump=True):
         return "That track is locked"
     channel = tracks.channel_of(scene, track)
     on_track = clips.on_channel(scene, channel)
+    relink(scene, text)                       # (panels in order <-> lines in order)
     done = {s.plastron_panel.script_line for s in panels.all_panels(scene)
             if s.plastron_panel.script_line >= 0}
     start = max((clips.end(s) for s in on_track), default=scene.frame_start)
@@ -247,7 +257,7 @@ class PLASTRON_OT_script_panels(bpy.types.Operator):
 
 
 class PLASTRON_OT_script_retime(bpy.types.Operator):
-    """Edited the script? Give every panel made from it the length its line now takes to read (+ the pause)"""
+    """Edited the script? Panels go with the lines in order (new lines get panels at the end), each as long as its line takes to read (+ the pause)"""
     bl_idname = "plastron.script_retime"
     bl_label = "Retime Panels"
     bl_options = {'REGISTER', 'UNDO'}
@@ -310,8 +320,8 @@ def _script_has_panels(scene):
 
 
 def missing_lines(scene, text):
-    done = {p.plastron_panel.script_line for p in panels.all_panels(scene)}
-    return [(i, line) for i, line in script_lines(text) if i not in done]
+    """Lines past the last script panel (in order): they need panels."""
+    return script_lines(text)[len(script_panels_in_order(scene)):]
 
 
 def _auto_panels():

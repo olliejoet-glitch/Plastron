@@ -96,33 +96,39 @@ def steps():
     yield 0.2
     h.screenshot("script_follow")
 
-    # Retime after editing the script (Ollie): lines reworded / added keep their panels.
+    # Retime after editing the script (Ollie): panels in order go with the
+    # lines in order (a line put in moves the later ones on a panel); lines
+    # past the last panel get new panels; each gets its line's length.
     sc = bpy.context.scene
     text.from_string("INT. KITCHEN - NIGHT\n\nShe opens the fridge, very slowly, and stares at the cold blue light.\n"
                      "A new line nobody drew yet.\nNothing.\nHe closes it.\n")
     with h.override('TEXT_EDITOR'):
         bpy.ops.plastron.script_retime()
     yield 0.3
-    p1 = next(p for p in panels.all_panels(sc) if p.plastron_panel.script_text.startswith("She opens"))
-    p2 = next((p for p in panels.all_panels(sc) if p.plastron_panel.script_text == "Nothing."), None)
-    h.check("Retime: a reworded line's panel gets its new reading length (and remembers the new words)",
-            clips.length(p1) == round(sp.seconds_for(text.lines[2].body) * fps) and "very slowly" in p1.plastron_panel.script_text,
-            (clips.length(p1), p1.plastron_panel.script_text))
-    h.check("...panels keep their lines though a line was put in between", p2 is not None and p2.plastron_panel.script_line == 4,
-            p2 and p2.plastron_panel.script_line)
+    order = sp.script_panels_in_order(sc)
+    lines = [l for _i, l in sp.script_lines(text)]
+    h.check("Retime: panels in order go with the lines in order (one more panel for the extra line)",
+            [p.plastron_panel.script_text for p in order] == lines and len(order) == 5,
+            [p.plastron_panel.script_text for p in order])
+    h.check("...each as long as its line takes (+ the pause)",
+            [clips.length(p) for p in order] == [round(sp.seconds_for(l) * fps) for l in lines],
+            ([clips.length(p) for p in order], [round(sp.seconds_for(l) * fps) for l in lines]))
     ordered = sorted(clips.on_channel(sc, made[0].channel), key=clips.start)
     h.check("...one after another, no gaps (ripple)", all(clips.end(a) == clips.start(b) for a, b in zip(ordered, ordered[1:])))
+    text.from_string("INT. KITCHEN - NIGHT\n\nShe opens the fridge, very slowly, and stares at the cold blue light.\n"
+                     "A new line nobody drew yet.\nNothing.\nHe closes it.\n")      # (as it was)
 
     # Import from a file: the script panel gets the file; new panels follow.
     path = os.path.join(bpy.app.tempdir, "script_test.txt")
     with open(path, "w", encoding="utf-8") as f:
         f.write("Line one.\r\nLine two is a little longer.\r\n")
+    count0 = len(panels.all_panels(sc))
     with h.override('VIEW_3D'):
         bpy.ops.plastron.script_import(filepath=path)
     yield 0.3
     h.check("Import Script reads the file into the script panel",
             script_panels.script_text().as_string().startswith("Line one.\nLine two"))
-    h.check("...and makes its panels", len(panels.all_panels(sc)) == 6,
+    h.check("...and makes its panels", len(panels.all_panels(sc)) == count0 + 2,
             [(s.name, s.plastron_panel.script_line) for s in panels.all_panels(sc)])
     # Paste Script: the copied script lands in the script panel, panels follow.
     bpy.context.window_manager.clipboard = "Pasted one.\r\nPasted two.\n"
@@ -134,7 +140,7 @@ def steps():
     yield 0.3
     h.check("Paste Script adds the copied lines to the script",
             script_panels.script_text().as_string().rstrip().endswith("Pasted one.\nPasted two."))
-    h.check("...and makes their panels", len(panels.all_panels(sc)) == 8, len(panels.all_panels(sc)))
+    h.check("...and makes their panels", len(panels.all_panels(sc)) == count0 + 4, len(panels.all_panels(sc)))
     h.redraw()
     yield 0.2
     h.screenshot("script_panels")
