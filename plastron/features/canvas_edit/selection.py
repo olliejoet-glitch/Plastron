@@ -237,7 +237,8 @@ class PLASTRON_OT_select_tool(bpy.types.Operator):
             return {'FINISHED'}
         if v == 'PRESS' and not event.ctrl and t == ('L' if self.shape == 'LASSO' else 'M'):
             return {'RUNNING_MODAL'}                    # already this tool
-        if v == 'PRESS' and t in cfg.LEAVE_SELECTION_KEYS and not self.drawing:
+        if v == 'PRESS' and not self.drawing and (t in cfg.LEAVE_SELECTION_KEYS
+                                                  or (event.shift and t in cfg.LEAVE_SELECTION_SHIFT_KEYS)):
             self._finish(context)                       # another tool: let its key through
             return {'FINISHED', 'PASS_THROUGH'}
         return {'RUNNING_MODAL'} if self.drawing else {'PASS_THROUGH'}

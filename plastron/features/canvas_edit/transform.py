@@ -413,7 +413,7 @@ class PLASTRON_OT_move_tool(_TransformBase, bpy.types.Operator):
             return {'FINISHED'}
         if v == 'PRESS' and t == 'V' and not event.ctrl:
             return {'RUNNING_MODAL'}
-        if v == 'PRESS' and self.fl is None and (t in cfg.LEAVE_SELECTION_KEYS or (t == 'T' and event.ctrl)):
+        if v == 'PRESS' and self.fl is None and (t in cfg.LEAVE_TRANSFORM_KEYS or (t == 'T' and event.ctrl)):
             self._finish(context)
             return {'FINISHED', 'PASS_THROUGH'}
         return {'PASS_THROUGH'} if self.fl is None else {'RUNNING_MODAL'}

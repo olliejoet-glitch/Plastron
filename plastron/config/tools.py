@@ -37,8 +37,15 @@ ONION_SKIN_OPACITY = 0.25
 # colour (palette name or hex) at this strength; the edge is drawn white.
 SELECTION_COLOR = "blue"
 SELECTION_TINT_ALPHA = 0.22
-# Keys that end the selection / move / transform tools and do their own job.
-LEAVE_SELECTION_KEYS = {'B', 'E', 'G', 'L', 'M', 'V', 'S', 'A', 'N'}
+# Keys that end the selection tool (L / M) and do their own job: the other
+# drawing tools (Shift+S = smudge; plain S, A and N are timeline keys and
+# leave the selection tool on: Ollie made a new panel and the lasso had
+# stopped).
+LEAVE_SELECTION_KEYS = {'B', 'E', 'G', 'L', 'M', 'V'}
+LEAVE_SELECTION_SHIFT_KEYS = {'S'}
+# ...and the move / transform tools (V, Ctrl+T): those hold the current
+# panel's pixels, so a new panel (N) or the timeline tools end them too.
+LEAVE_TRANSFORM_KEYS = LEAVE_SELECTION_KEYS | {'S', 'A', 'N'}
 
 # Transform (Ctrl+T): handle colour, warp grid (Photoshop's 3x3 cells = 4x4
 # points) and how finely the result is resampled.

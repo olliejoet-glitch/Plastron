@@ -14,6 +14,7 @@ pixels = h.module("features.canvas_edit.pixels")
 selection = h.module("features.canvas_edit.selection")
 panels = h.module("features.storyboard.panels")
 canvas_view = h.module("features.storyboard.canvas_view")
+clips_mod = h.module("timeline.clips")
 
 
 def layer_px():
@@ -101,6 +102,38 @@ def steps():
     yield 0.3
     s = sel()
     h.check("L + drag selects a lasso shape", s is not None and s[550, 1100] and not s[780, 920],
+            None if s is None else int(s.sum()))
+    # New Panel (N over the timeline) leaves the lasso on (Ollie: "I've made
+    # a new panel, and now my lasso tool seems to not be working").
+    h.key('D', ctrl=True)
+    yield 0.2
+    tl = h.area('SEQUENCE_EDITOR')
+    sc = bpy.context.scene
+    frame0 = sc.frame_current
+    sc.frame_current = max(clips_mod.end(s_) for s_ in panels.all_panels(sc)) + 5
+    h.move(*h.center(h.region(tl)))
+    yield 0.2
+    h.key('N')
+    yield 0.8
+    on = any(o.bl_idname == 'PLASTRON_OT_select_tool' for o in bpy.context.window.modal_operators)
+    h.check("...New Panel (N) leaves the lasso on", on and len(panels.all_panels(sc)) == 2)
+    h.key('Z', ctrl=True)                      # (the rest of this test works on the first panel)
+    yield 0.8
+    sc = bpy.context.scene
+    sc.frame_current = frame0
+    yield 0.5
+    h.move(*win(*path[0]))
+    yield
+    h._event('LEFTMOUSE', 'PRESS')
+    yield
+    for (ax, ay), (bx, by) in zip(path, path[1:]):
+        for t in np.linspace(0, 1, 8)[1:]:
+            h.move(*win(ax + (bx - ax) * t, ay + (by - ay) * t))
+            yield
+    h._event('LEFTMOUSE', 'RELEASE')
+    yield 0.3
+    s = sel()
+    h.check("...and still lassos straight after", s is not None and s[550, 1100] and not s[780, 920],
             None if s is None else int(s.sum()))
     h.key('ESC')
     yield 0.2

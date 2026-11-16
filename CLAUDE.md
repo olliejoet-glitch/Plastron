@@ -612,7 +612,8 @@ Plastron/
   pixels). R hold + move = rotate view, snaps back on release. Ctrl+F flip
   view. **G = Fill** (Photoshop's bucket key). Q/W scale brush ×0.8 / ×1.25.
   Stage 5 (pixels): L lasso, M rectangle (drag; Shift adds, Alt takes away;
-  the tool stays on, navigation works, another tool key or Esc ends it),
+  the tool stays on, navigation works, another drawing-tool key or Esc
+  ends it; N / S / A (timeline keys) leave it on: LEAVE_SELECTION_KEYS),
   Ctrl+D deselect, Ctrl+A all, Ctrl+Shift+I invert, Delete erases the
   selection on the active layer. V moves the selection (or the whole layer).
   Ctrl+T: drag inside = move, corner = scale (Shift: proportional), edge
