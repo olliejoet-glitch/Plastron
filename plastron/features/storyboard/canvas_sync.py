@@ -32,7 +32,7 @@ EMPTY = "Plastron Empty Panel"
 DEPTH_STEP = 0.01     # higher tracks sit slightly nearer the camera
 
 _state = {"dirty": True, "lo": 0, "hi": -1, "scene": None, "work": 0, "canvas_track": "",
-          "fading": []}     # [(sheet name, clip name)] whose clip fades / is see-through, this stretch
+          "fading": [], "canvas_clip": ""}   # (the clip on the canvas sheet now)     # [(sheet name, clip name)] whose clip fades / is see-through, this stretch
 
 # Hooks (features/scene3d): SHEET_PLACE: func(track) -> (offset xyz, rotation
 # xyz, scale), where a track's sheet is placed in 3D (moved / turned / scaled
@@ -306,6 +306,7 @@ def sync(scene):
         material = None if muted else _material_at(scene, track, frame)
         clip = clips.at(scene, tracks.channel_of(scene, track), frame) if material else None
         if active and track.uid == active.uid:
+            _state["canvas_clip"] = clip.name if clip is not None else ""
             obj = canvas_object(scene)
             _set(obj, material=material or empty, y=y, placed=placed)
             _set(_display_object(scene, track), material=empty, hidden=True)

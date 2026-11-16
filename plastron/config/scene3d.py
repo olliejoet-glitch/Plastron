@@ -22,3 +22,9 @@ CLIP_END = 1000.0
 TRACK_SPACING = 2.0
 SHADING = 'MATERIAL'               # the cards show their drawings
 CARD_COLOR = "#83a4a0cc"            # outline of each track's card (the one drawn on: orange)
+
+# The keyframe view under the 3D scene: framed on the clip being drawn on
+# (its own timeline), this much of its length either side, outside dimmed.
+KEYS_VIEW_MARGIN = 0.04
+KEYS_VIEW_DIM = ("#000000", 0.45)
+KEYS_VIEW_LABEL = "text"

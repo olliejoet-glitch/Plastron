@@ -536,6 +536,8 @@ def _track_place(track):
 def register():
     for cls in classes:
         bpy.utils.register_class(cls)
+    from . import keys_view
+    keys_view.register()
     from ...timeline.tracks import PLASTRON_PG_track as Track
     Track.place_offset = bpy.props.FloatVectorProperty(size=3, subtype='TRANSLATION')
     Track.place_rotation = bpy.props.FloatVectorProperty(size=3, subtype='EULER')
@@ -566,6 +568,8 @@ def register():
 
 
 def unregister():
+    from . import keys_view
+    keys_view.unregister()
     bpy.types.VIEW3D_HT_header.remove(_draw_header)
     if _draw_handle[0] is not None:
         bpy.types.SpaceView3D.draw_handler_remove(_draw_handle[0], 'WINDOW')

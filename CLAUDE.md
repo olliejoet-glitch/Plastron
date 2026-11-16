@@ -239,7 +239,8 @@ Plastron/
 │  │                         the camera), layer_motion (live positions,
 │  │                         painted-layer UV shift), edit (layer box), thumbnails
 │  │                         (panel_cache hook), ui (Motion panel, presets)
-│  │  └─ scene3d/            the 3D (multiplane) view: track cards, keyed camera, pen-follows modes
+│  │  └─ scene3d/            the 3D (multiplane) view: track cards, keyed camera, pen-follows modes,
+│  │                         keys_view (the keyframe view framed on the clip)
 │  │  └─ review/             notes (Panel panel: status, note), versions, guides,
 │  │                         speed (2x etc. playback), sounds (temp sounds bin), board
 │  │  └─ export/             animatic (MP4), sheet (hand-written PDF), shotlist (CSV),
@@ -903,7 +904,13 @@ Plastron/
   Keyframe view (Ollie: "an editable keyframe view"): a Dope Sheet area under
   the 3D scene view (layout "keys": script 40 % / 3D 38 % / keys 22 %), its
   keymaps kept (Dopesheet, Dopesheet Generic, Animation Channels): select,
-  drag, delete keys. Scene view: no toolbar (Ollie: "get rid of all the
+  drag, delete keys. Each clip its own animation timeline (Ollie): the
+  keyframe view is framed on the clip being drawn on, start to end (+4 %),
+  outside dimmed, its name + length at the top; it re-frames when the
+  playhead reaches another clip or the clip's span changes
+  (scene3d/keys_view.py: the draw compares (name, start, end) with the last
+  framed, view2d.zoom_border from a timer; canvas_sync._state["canvas_clip"]).
+  Scene view: no toolbar (Ollie: "get rid of all the
   unnecessary stuff"); select something and move + rotate gizmos show
   (show_gizmo_object_translate / rotate). The scene view is told apart by
   having no options bar (core/views: tool header = canvas). Modes follow the pen (MouseMove item
