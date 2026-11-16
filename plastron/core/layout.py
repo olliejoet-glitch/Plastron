@@ -61,6 +61,14 @@ def _split(window, area, direction, first_fraction, out):
     out[:] = sorted((area, new), key=key)
 
 
+def spec(name):
+    """An area's settings: config/layout.py's AREAS, or (an area Ollie changed
+    to another editor, e.g. "editor:OUTLINER") just that editor."""
+    if name in cfg.AREAS:
+        return cfg.AREAS[name]
+    return {"editor": name.split(":", 1)[1].split("#", 1)[0]} if name.startswith("editor:") else {}
+
+
 def _build_tree(window, area, node, placed):
     """Generator: divide area according to a rows/columns node."""
     if "area" in node:
@@ -156,7 +164,7 @@ def widen_channel_columns(window, placed):
         return next((r for r in area.regions if r.type == 'CHANNELS'), None)
 
     for name, area in placed.items():
-        want = cfg.AREAS[name].get("channels_width")
+        want = spec(name).get("channels_width")
         if not want or channels(area) is None:
             continue
         want *= bpy.context.preferences.system.ui_scale
@@ -212,17 +220,20 @@ def _setup_canvas_view(space):
     r3d.lock_rotation = True
 
 
-def split_mode(window, mode_name, placed):
-    """Generator, phase 1: divide the window's screen into the mode's areas.
+def split_mode(window, mode_name, placed, tree=None):
+    """Generator, phase 1: divide the window's screen into the mode's areas
+    (tree: a layout to build instead of config's, e.g. Ollie's own).
 
     Fills placed = {area name: area} and sets each area's editor type.
     Yields wherever Blender must refresh its UI before continuing.
     """
     first = reduce_to_one_area(window)
     yield
-    yield from _build_tree(window, first, cfg.MODES[mode_name], placed)
+    yield from _build_tree(window, first, tree or cfg.MODES[mode_name], placed)
     for name, area in placed.items():
-        area.type = cfg.AREAS[name]["editor"]
+        editor = spec(name).get("editor")
+        if editor:
+            area.type = editor
     window.screen.show_statusbar = cfg.WINDOW["status_bar"]
 
 
@@ -230,7 +241,7 @@ def set_view_types(placed):
     """Phase 1b: a Sequencer area's view (timeline / preview). Like an editor
     type, it needs a UI refresh before the area's other settings."""
     for name, area in placed.items():
-        view_type = cfg.AREAS[name].get("settings", {}).get("view_type")
+        view_type = spec(name).get("settings", {}).get("view_type")
         if view_type and area.spaces.active.view_type != view_type:
             area.spaces.active.view_type = view_type
 
@@ -238,9 +249,9 @@ def set_view_types(placed):
 def configure_mode(placed):
     """Phase 2 (after a UI refresh): configure each area."""
     for name, area in placed.items():
-        configure_area(area, cfg.AREAS[name])
-        if cfg.AREAS[name].get("tool"):
-            set_tool(bpy.context.window, area, cfg.AREAS[name]["tool"])
+        configure_area(area, spec(name))
+        if spec(name).get("tool"):
+            set_tool(bpy.context.window, area, spec(name)["tool"])
 
 
 def set_tool(window, area, tool_id):

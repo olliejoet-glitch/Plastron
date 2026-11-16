@@ -50,6 +50,7 @@ class PLASTRON_MT_file(bpy.types.Menu):
         layout.operator("plastron.export_shot_list", text="Export Shot List...", icon='TEXT')
         layout.separator()
         layout.menu("PLASTRON_MT_recover")
+        layout.operator("plastron.layout_reset", text="Reset Layout", icon='WORKSPACE')
         layout.separator()
         layout.operator("wm.quit_blender", text="Quit", icon='QUIT')
 

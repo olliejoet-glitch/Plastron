@@ -22,9 +22,12 @@ def frame(window, area, region, scene):
         target = min(target, region.height / rows)
         for _ in range(30):
             h = row_height(region)
-            if h >= target * 0.97:
+            if target * 0.97 <= h <= target * 1.03:
                 break
-            bpy.ops.view2d.zoom(deltax=0.0, deltay=min(1.0, (target - h) / max(h, 1.0)))
+            if h < target:
+                bpy.ops.view2d.zoom(deltax=0.0, deltay=min(1.0, (target - h) / max(h, 1.0)))
+            else:                                 # (too tall for the tracks to fit: shorter)
+                bpy.ops.view2d.zoom(deltax=0.0, deltay=-min(0.5, (h - target) / max(h, 1.0)))
         # Bottom track at the bottom of the view. (Blender keeps the view's
         # top near the highest clip: if the bottom can't come into view,
         # the rows get a little shorter until it does.)
