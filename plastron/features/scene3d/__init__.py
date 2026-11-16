@@ -194,6 +194,9 @@ def _set_linked(_self, value):
     from ...core import user_settings
     user_settings.set(SETTING, bool(value))
     link_canvases()
+    from ..storyboard import canvas_sync          # (cards in depth only through the camera)
+    if bpy.context.scene is not None:
+        canvas_sync.invalidate(bpy.context.scene)
 
 
 # --- painting <-> object mode as the pen moves between views --------------------------------
@@ -241,12 +244,28 @@ def release_keys():
     bpy.app.timers.register(lambda: _held.__setitem__(0, max(0, _held[0] - 1)), first_interval=0.3)
 
 
+def track_depth(scene, track):
+    """(y, scale) of a video track's card by its place in the list: the top
+    track in the picture plane, each one below TRACK_SPACING further back,
+    scaled to fill the frame from the camera's rest spot. None: flat canvas."""
+    if not linked():
+        return None
+    from ...timeline import tracks
+    videos = tracks.video_tracks(scene)
+    uids = [t.uid for t in videos]
+    if track.uid not in uids:
+        return None
+    y = (len(uids) - 1 - uids.index(track.uid)) * cfg.TRACK_SPACING
+    distance = -rest_pose()[0].y + cfg.ORIGIN[1]
+    return y, (distance + y) / distance
+
+
 def _place_from(track, obj, scene):
     from ..storyboard import canvas_sync
-    base = canvas_sync.order_y(scene, track)
+    base, depth_scale = canvas_sync.depth_of(scene, track)
     offset = (obj.location.x, obj.location.y - base, obj.location.z)
     rotation = tuple(obj.rotation_euler)
-    scale = obj.scale.y                       # (x / z also carry the painting's size)
+    scale = obj.scale.y / depth_scale         # (x / z also carry the painting's size)
     changed = False
     if any(abs(a - b) > 1e-6 for a, b in zip(track.place_offset, offset)):
         track.place_offset = offset
@@ -506,6 +525,7 @@ def register():
     from ..storyboard import canvas_sync
     canvas_sync.SHEET_PLACE[0] = _track_place
     canvas_sync.SHEET_ABSORB[0] = lambda scene, obj, track: _place_from(track, obj, scene)
+    canvas_sync.SHEET_DEPTH[0] = track_depth
     from ..storyboard import canvas_frame
     canvas_frame.FRAME_PROVIDERS.insert(0, frame_through_camera)
     from ..storyboard import canvas_view
@@ -534,6 +554,7 @@ def unregister():
     from ..storyboard import canvas_sync
     canvas_sync.SHEET_PLACE[0] = None
     canvas_sync.SHEET_ABSORB[0] = None
+    canvas_sync.SHEET_DEPTH[0] = None
     from ..storyboard import canvas_frame
     if frame_through_camera in canvas_frame.FRAME_PROVIDERS:
         canvas_frame.FRAME_PROVIDERS.remove(frame_through_camera)

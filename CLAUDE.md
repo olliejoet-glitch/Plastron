@@ -891,6 +891,16 @@ Plastron/
   another to choose leaked memory). Ctrl+Space maximises any area (again:
   back). Blender's brush shelf strip under it is folded away at load.
   Blender's toolbar panel is no longer hidden in 3D views.
+- Cards in depth by track order (Ollie: a new video track's card should
+  be nearer / further from the camera by its place in the list): through
+  the 3D Camera, the top video track's card is the picture plane and each
+  track below stands TRACK_SPACING (2 units, config/scene3d.py) further
+  back, scaled by (D + y) / D (D = the camera's rest distance) so it still
+  fills the frame from the rest pose: moving the camera gives parallax.
+  canvas_sync.SHEET_DEPTH hook (scene3d.track_depth) -> depth_of(scene,
+  track); a card moved by hand keeps its offset on top of that (absorb
+  divides the depth scale back out). Flat canvas (3D Camera off): cards
+  DEPTH_STEP (0.01) apart, unscaled, as before.
 - Selecting the 3D camera (Ollie: hard to select): a Camera button at the
   left of the scene view's header selects it (lit while selected); the
   camera is drawn 3x Blender's size (CAMERA_DISPLAY_SIZE); click / Shift+click

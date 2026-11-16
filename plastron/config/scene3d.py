@@ -14,5 +14,11 @@ CAMERA_DISPLAY_SIZE = 3.0          # how big the 3D Camera is drawn (Blender's 1
 VIEW_DISTANCE = 34.0               # the scene view starts this far from ORIGIN...
 VIEW_ANGLES = (75.0, 0.0, -35.0)   # ...looking at the cards from the front-left (degrees, X/Y/Z)
 CLIP_END = 1000.0
+# Each video track's card stands this much further back than the track above
+# it (the top track's card is the picture plane), scaled up so it still
+# fills the camera's frame from where the camera starts: moving the camera
+# then gives parallax. (Units: the picture is 16 wide.) Only while the canvas
+# looks through the 3D Camera; the flat canvas keeps them all flat.
+TRACK_SPACING = 2.0
 SHADING = 'MATERIAL'               # the cards show their drawings
 CARD_COLOR = "#83a4a0cc"            # outline of each track's card (the one drawn on: orange)

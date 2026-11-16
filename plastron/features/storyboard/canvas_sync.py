@@ -40,6 +40,11 @@ _state = {"dirty": True, "lo": 0, "hi": -1, "scene": None, "work": 0, "canvas_tr
 # the canvas last placed it: keep that on the track before re-placing it.
 SHEET_PLACE = [None]
 SHEET_ABSORB = [None]
+# SHEET_DEPTH: func(scene, track) -> (y, scale) or None: how far back a
+# track's card stands by its place in the list, and how much it's scaled up
+# to still fill the camera's frame (features/scene3d; None: the flat canvas,
+# cards DEPTH_STEP apart, unscaled).
+SHEET_DEPTH = [None]
 _placed = {}     # sheet name -> (location, rotation, scale) as the canvas last set it
 
 
@@ -65,10 +70,24 @@ def place(track):
     return func(track)
 
 
-def order_y(scene, track):
-    """A track's sheet's depth before any 3D placement (higher tracks nearer)."""
+def depth_of(scene, track):
+    """(y, scale) of a track's sheet before any 3D placement (higher tracks nearer)."""
+    func = SHEET_DEPTH[0]
+    found = func(scene, track) if func is not None and track is not None else None
+    if found is not None:
+        return found
     uids = [t.uid for t in tracks.video_tracks(scene)]
-    return -uids.index(track.uid) * DEPTH_STEP if track.uid in uids else 0.0
+    return (-uids.index(track.uid) * DEPTH_STEP if track is not None and track.uid in uids else 0.0), 1.0
+
+
+def order_y(scene, track):
+    return depth_of(scene, track)[0]
+
+
+def _placed_at(scene, track):
+    """place(track) with the track's depth scale folded into its scale."""
+    offset, rotation, k = place(track)
+    return offset, rotation, k * depth_of(scene, track)[1]
 
 
 def sheet_track(scene, obj):
@@ -207,11 +226,12 @@ def _set(obj, material=None, y=None, hidden=None, alpha=None, placed=None):
 def apply_places(scene):
     """Put every track's sheet where its (maybe animated) placement says, now."""
     active = _state["canvas_track"]
-    for depth, track in enumerate(tracks.video_tracks(scene)):
+    for track in tracks.video_tracks(scene):
         obj = canvas_object(scene) if track.uid == active else bpy.data.objects.get(DISPLAY_PREFIX + track.uid)
         if obj is None:
             continue
-        _set(obj, material=obj.material_slots[0].material, y=-depth * DEPTH_STEP, placed=place(track))
+        _set(obj, material=obj.material_slots[0].material, y=order_y(scene, track),
+             placed=_placed_at(scene, track))
 
 
 def _material_at(scene, track, frame):
@@ -234,7 +254,7 @@ def _onion(scene, track, frame, y):
     for name, clip in zip(ONION, near):
         mat = clip.plastron_panel.material if clip is not None and is_panel(clip) else None
         obj = _sheet_object(scene, name, False)
-        (ox, _oy, oz), rot, k = place(track)
+        (ox, _oy, oz), rot, k = _placed_at(scene, track) if track else place(track)
         _set(obj, material=mat or empty_material(), y=y + DEPTH_STEP / 2, hidden=mat is None,
              placed=((ox, 0.0, oz), rot, k),
              alpha=onion.opacity())
@@ -277,9 +297,9 @@ def sync(scene):
             _absorb(scene, canvas_object(scene), track)
         elif not (active and track.uid == active.uid):
             _absorb(scene, _display_object(scene, track), track)
-    for depth, track in enumerate(videos):
-        y = -depth * DEPTH_STEP
-        placed = place(track)
+    for track in videos:
+        y = order_y(scene, track)
+        placed = _placed_at(scene, track)
         muted = sed.channels[tracks.channel_of(scene, track)].mute
         material = None if muted else _material_at(scene, track, frame)
         if active and track.uid == active.uid:
@@ -288,8 +308,7 @@ def sync(scene):
         else:
             _set(_display_object(scene, track), material=material or empty, y=y,
                  hidden=material is None, placed=placed)
-    canvas_y = (-[t.uid for t in videos].index(active.uid) * DEPTH_STEP + place(active)[0][1]) \
-        if active else 0.0
+    canvas_y = (order_y(scene, active) + place(active)[0][1]) if active else 0.0
     _onion(scene, active, frame, canvas_y)
     paint_target.sync(scene=scene)
 
