@@ -218,13 +218,17 @@ def lay_out(scene, lengths):
     events.clips_changed(scene)
 
 
-def retime(scene, pause_s=None):
-    """Every block as long as its line takes (+ the pause)."""
+def retime(scene, pause_s=None, fit_panels=False):
+    """Every block as long as its line takes (+ the pause); fit_panels: the
+    panels linked to lines take their new spans too (the Retime button)."""
     from .script_panels import frames_for
     current = blocks(scene)
     lengths = [frames_for(scene, b.text, pause_s) for b in current]
     changed = sum(1 for b, n in zip(current, lengths) if n != clips.length(b))
     lay_out(scene, lengths)
+    if fit_panels and not following(scene):         # (following: lay_out did it)
+        _fit_for_retime(scene)
+        events.clips_changed(scene)
     return changed
 
 
@@ -308,21 +312,8 @@ def panels_follow(scene):
         if _untouched_drawing(p):
             events.emit("clip_removing", scene, strip=p)
             ripple.remove(scene, p)
-    linked = {p.plastron_panel.script_block: p for p in panels.all_panels(scene) if p.plastron_panel.script_block}
-    sed = clips.editor(scene)
-    spare = max([s.channel for s in sed.strips_all] + [len(tracks.all_tracks(scene))]) + 1
-    moving = [p for uid, p in linked.items() if (clips.start(p), clips.end(p)) !=
-              (clips.start(by_uid[uid]), clips.end(by_uid[uid])) or p.channel != ch]
-    for p in moving:                             # out of the way, then into place
-        p.channel = spare
-        spare += 1
-    clips.apply(scene, {p: (clips.start(by_uid[p.plastron_panel.script_block]),
-                            clips.end(by_uid[p.plastron_panel.script_block])) for p in moving})
+    fit_linked_panels(scene, track)
     end_all = max([clips.end(s) for s in clips.top_clips(scene)] + [scene.frame_start])
-    for p in moving:
-        b = by_uid[p.plastron_panel.script_block]
-        if _free(scene, ch, clips.start(b), clips.end(b), ignore=(p,)):
-            p.channel = ch
     for p in orphans:                            # drawn on: kept, at the very end
         try:
             n = clips.length(p)
@@ -332,6 +323,68 @@ def panels_follow(scene):
         end_all += n
     make_missing_panels(scene)
     _refresh_panel_text(scene)
+
+
+def _fit_for_retime(scene):
+    """Retime with panels not following: linked panels fit their lines; a
+    panel whose line was deleted would be in the way, so it's unlinked and
+    goes to the end of the track (drawing kept, never deleted)."""
+    track = _panel_track(scene)
+    if track is None:
+        return
+    ch = tracks.channel_of(scene, track)
+    by_uid = {b[SCRIPT_BLOCK] for b in blocks(scene)}
+    orphans = [p for p in panels.all_panels(scene)
+               if p.plastron_panel.script_block and p.plastron_panel.script_block not in by_uid]
+    sed = clips.editor(scene)
+    spare = max([x.channel for x in sed.strips_all] + [len(tracks.all_tracks(scene))]) + 1
+    for p in orphans:
+        p.plastron_panel.script_block = ""
+        p.plastron_panel.script_line = -1
+        p.channel = spare
+        spare += 1
+    fit_linked_panels(scene, track)
+    end = max([clips.end(x) for x in clips.on_channel(scene, ch)] + [scene.frame_start])
+    for p in sorted(orphans, key=clips.start):
+        n = clips.length(p)
+        clips.apply(scene, {p: (end, end + n)})
+        p.channel = ch
+        end += n
+
+
+def fit_linked_panels(scene, track=None):
+    """Each panel linked to a line takes its block's span (Retime does this
+    even when panels don't follow the script: Ollie wanted the panels to fit
+    the retimed lines). Nothing is made or removed here."""
+    by_uid = {b[SCRIPT_BLOCK]: b for b in blocks(scene)}
+    track = track or _panel_track(scene)
+    if track is None:
+        return
+    ch = tracks.channel_of(scene, track)
+    linked = {p.plastron_panel.script_block: p for p in panels.all_panels(scene)
+              if p.plastron_panel.script_block in by_uid}
+    sed = clips.editor(scene)
+    spare = max([s.channel for s in sed.strips_all] + [len(tracks.all_tracks(scene))]) + 1
+    moving = [p for uid, p in linked.items() if (clips.start(p), clips.end(p)) !=
+              (clips.start(by_uid[uid]), clips.end(by_uid[uid])) or p.channel != ch]
+    was = {p: (clips.start(p), clips.end(p), p.channel) for p in moving}
+    for p in moving:                             # out of the way, then into place
+        p.channel = spare
+        spare += 1
+    clips.apply(scene, {p: (clips.start(by_uid[p.plastron_panel.script_block]),
+                            clips.end(by_uid[p.plastron_panel.script_block])) for p in moving})
+    stuck = []
+    for p in moving:
+        b = by_uid[p.plastron_panel.script_block]
+        if _free(scene, ch, clips.start(b), clips.end(b), ignore=(p,)):
+            p.channel = ch
+        else:
+            stuck.append(p)
+    for p in stuck:                              # (another clip is there: left where it was)
+        s0, e0, c0 = was[p]
+        clips.apply(scene, {p: (s0, e0)})
+        if _free(scene, c0, s0, e0, ignore=(p,)):
+            p.channel = c0
 
 
 def _on_clips_changed(scene, **_info):

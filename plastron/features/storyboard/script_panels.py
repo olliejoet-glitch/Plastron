@@ -73,13 +73,14 @@ def frames_for(scene, line, pause_s=None):
 
 def retime_all(scene, text=None):
     """Retime: the Script lane's blocks follow the script (as edited), then
-    each gets its line's reading time (+ the pause); with "Panels follow
-    script" on, the panels follow. Returns how many lines changed length."""
+    each gets its line's reading time (+ the pause), and the panels linked
+    to lines fit their new spans (with "Panels follow script" off too).
+    Returns how many lines changed length."""
     text = text or script_text()
     if text is None:
         return 0
     script_lane.sync_from_text(scene, text)
-    return script_lane.retime(scene)
+    return script_lane.retime(scene, fit_panels=True)
 
 
 def retime_pause(scene, old_pause, new_pause):
@@ -227,7 +228,7 @@ class PLASTRON_OT_script_panels(bpy.types.Operator):
 
 
 class PLASTRON_OT_script_retime(bpy.types.Operator):
-    """Every line on the Script lane as long as it takes to read (+ the pause); panels too if they follow the script"""
+    """Every line on the Script lane as long as it takes to read (+ the pause), and its panel with it"""
     bl_idname = "plastron.script_retime"
     bl_label = "Retime Panels"
     bl_options = {'REGISTER', 'UNDO'}

@@ -880,8 +880,14 @@ Plastron/
     block stays with the line that has its exact words); lines after the
     last block get their reading time after it (the lane grows); removed
     lines' blocks go and later ones close up.
-  - Retime: every block its reading time + pause, gaps kept. Pause slider:
-    blocks still at the old pause's length get the new one.
+  - Retime: every block its reading time + pause, gaps kept, and (Ollie:
+    "can Retime change the panels' length too?") every panel linked to a
+    line takes its line's new span even with "Panels follow script" off
+    (script_lane.fit_linked_panels; no panels made or deleted). A panel
+    whose line was deleted is unlinked and goes to the end of the track
+    (drawing kept). A panel whose new span is taken by another clip stays
+    where it was. Pause slider: blocks still at the old pause's length get
+    the new one (panels only if following).
   - "Panels follow script" (script bar link toggle, scene.plastron_script_
     follow, off by default; Ollie wanted a mode, not position rules): on =
     every lane change (edge drag, Retime, split / added lines) puts each
