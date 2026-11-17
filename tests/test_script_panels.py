@@ -250,5 +250,26 @@ def steps():
     yield 0.2
     h.screenshot("script_panels")
 
+    # Lines removed while panels don't follow, then "Panels follow script"
+    # switched on: their blank panel goes, a drawn-on one goes to the end
+    # (crash Ollie hit: the removed panels were moved after Blender freed them).
+    sc.plastron_script_follow = False
+    text = sp.script_text()
+    gone = lane.blocks(sc)[1:3]
+    gone_texts = [b.text for b in gone]
+    drawn_name = lane.panel_of(sc, gone[1]).name
+    real = sp._untouched_drawing
+    sp._untouched_drawing = lambda strip: strip.name != drawn_name
+    text.from_string("\n".join(l for l in text.as_string().split("\n") if l.strip() not in gone_texts))
+    sp._auto_panels()
+    yield 0.3
+    count = len(panels.all_panels(sc))
+    sc.plastron_script_follow = True
+    yield 0.3
+    sp._untouched_drawing = real
+    names = [p.name for p in sorted(panels.all_panels(sc), key=clips.start)]
+    h.check("'Panels follow script' on after lines were removed: the blank panel goes, the drawn one to the end",
+            len(names) == count - 1 and names[-1] == drawn_name, (names, drawn_name, count))
+
 
 h.run(steps())

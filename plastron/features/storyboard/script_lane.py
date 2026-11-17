@@ -306,19 +306,19 @@ def panels_follow(scene):
     ch = tracks.channel_of(scene, track)
     all_p = panels.all_panels(scene)
     orphans = [p for p in all_p if p.plastron_panel.script_block and p.plastron_panel.script_block not in by_uid]
+    kept = []
     for p in orphans:
         p.plastron_panel.script_block = ""
         p.plastron_panel.script_line = -1
         if _untouched_drawing(p):
             events.emit("clip_removing", scene, strip=p)
-            ripple.remove(scene, p)
+            ripple.remove(scene, p)              # (never touch p again: Blender freed it; crash Ollie hit)
+        else:
+            kept.append(p)
     fit_linked_panels(scene, track)
     end_all = max([clips.end(s) for s in clips.top_clips(scene)] + [scene.frame_start])
-    for p in orphans:                            # drawn on: kept, at the very end
-        try:
-            n = clips.length(p)
-        except ReferenceError:
-            continue
+    for p in kept:                               # drawn on: kept, at the very end
+        n = clips.length(p)
         clips.apply(scene, {p: (end_all, end_all + n)})
         end_all += n
     make_missing_panels(scene)
