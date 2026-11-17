@@ -137,30 +137,38 @@ def steps():
             "Nothing." not in [b.text for b in blocks] and clips.start(blocks[-1]) == last_start - gap,
             ([b.text for b in blocks], clips.start(blocks[-1]), last_start - gap))
 
-    # Retime: every line its reading time (+ pause), one after another.
-    n_before = len(panels.all_panels(sc))
-    gone = next(p for p in panels.all_panels(sc) if p.plastron_panel.script_block
-                and lane.block_by_uid(sc, p.plastron_panel.script_block) is None)
-    gone_name = gone.name
+    # Retime: every line its reading time (+ pause), one after another; the
+    # panels stretch with their lines' timing (Ollie: forcing each panel onto
+    # its own line put "clips all over the place").
+    w = lane.warp_from([(0, 10), (10, 20), (30, 40)], [(0, 20), (20, 25), (35, 45)])
+    h.check("the time map: a line's stretch maps onto its new stretch, past the last shifts",
+            [w(5), w(10), w(14), w(25), w(50), w(-5)] == [10, 20, 22, 30, 55, -5],
+            [w(5), w(10), w(14), w(25), w(50), w(-5)])
+    old_blocks = spans(lane.blocks(sc))
+    old_panels = {p.name: (clips.start(p), clips.end(p)) for p in panels.all_panels(sc)}
+    channels = {p.name: p.channel for p in panels.all_panels(sc)}
     with h.override('TEXT_EDITOR'):
         bpy.ops.plastron.script_retime()
     yield 0.3
     blocks = lane.blocks(sc)
-    track_panels = sorted(panels.all_panels(sc), key=clips.start)
-    h.check("Retime: the panel of a deleted line isn't deleted; it goes to the end, unlinked",
-            len(track_panels) == n_before and track_panels[-1].name == gone_name
-            and not track_panels[-1].plastron_panel.script_block,
-            ([p.name for p in track_panels], gone_name))
     h.check("Retime: each line as long as it takes to read (+ the pause)",
             [clips.length(b) for b in blocks] == [round(sp.seconds_for(b.text) * fps) for b in blocks]
             and all(clips.end(a) == clips.start(b) for a, b in zip(blocks, blocks[1:])),
             [clips.length(b) for b in blocks])
-    h.check("...and the panels linked to lines fit them (even with 'Panels follow script' off)",
-            not sc.plastron_script_follow and linked_panels(sc)
-            and all((clips.start(p), clips.end(p)) == (clips.start(lane.block_by_uid(sc, p.plastron_panel.script_block)),
-                                                       clips.end(lane.block_by_uid(sc, p.plastron_panel.script_block)))
-                    for p in linked_panels(sc)),
-            (spans(linked_panels(sc)), spans(blocks)))
+    w = lane.warp_from(old_blocks, spans(blocks))
+    now = {p.name: (clips.start(p), clips.end(p)) for p in panels.all_panels(sc)}
+    want = {n: (w(s0), w(e0)) for n, (s0, e0) in old_panels.items()}
+    h.check("...every panel's edges move with its lines' timing (even with 'Panels follow script' off)",
+            not sc.plastron_script_follow and now == want, (now, want))
+    h.check("...none deleted, none moved off its track",
+            set(now) == set(old_panels) and all(p.channel == channels[p.name] for p in panels.all_panels(sc)))
+    h.check("...a panel over its line before is still exactly over it",
+            all((clips.start(p), clips.end(p)) == (clips.start(lane.block_by_uid(sc, p.plastron_panel.script_block)),
+                                                   clips.end(lane.block_by_uid(sc, p.plastron_panel.script_block)))
+                for p in linked_panels(sc)
+                if lane.block_by_uid(sc, p.plastron_panel.script_block) is not None
+                and old_panels[p.name] in old_blocks),
+            spans(linked_panels(sc)))
 
     # Clicking a line / the highlight follow the lane.
     target = blocks[2]

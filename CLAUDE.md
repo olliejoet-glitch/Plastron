@@ -881,13 +881,17 @@ Plastron/
     last block get their reading time after it (the lane grows); removed
     lines' blocks go and later ones close up.
   - Retime: every block its reading time + pause, gaps kept, and (Ollie:
-    "can Retime change the panels' length too?") every panel linked to a
-    line takes its line's new span even with "Panels follow script" off
-    (script_lane.fit_linked_panels; no panels made or deleted). A panel
-    whose line was deleted is unlinked and goes to the end of the track
-    (drawing kept). A panel whose new span is taken by another clip stays
-    where it was. Pause slider: blocks still at the old pause's length get
-    the new one (panels only if following).
+    "can Retime change the panels' length too?") the panels stretch with
+    the lines' timing even with "Panels follow script" off: a time map from
+    each line's old span to its new one (script_lane.warp_from, piecewise
+    linear; before / after the lines: shifted) moves every panel's edges
+    (stretch_panels). Panels keep how they're cut against the script: one
+    over two lines stays over those two, panels not tied to lines stretch
+    with the line they're in. (First version forced each linked panel onto
+    its own line: Ollie's hand-cut panels shrank, left holes and one jumped
+    to the end: "clips all over the place".) Nothing made / deleted. Pause
+    slider: blocks still at the old pause's length get the new one (panels
+    only if following).
   - "Panels follow script" (script bar link toggle, scene.plastron_script_
     follow, off by default; Ollie wanted a mode, not position rules): on =
     every lane change (edge drag, Retime, split / added lines) puts each

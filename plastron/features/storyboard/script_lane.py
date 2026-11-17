@@ -225,11 +225,68 @@ def retime(scene, pause_s=None, fit_panels=False):
     current = blocks(scene)
     lengths = [frames_for(scene, b.text, pause_s) for b in current]
     changed = sum(1 for b, n in zip(current, lengths) if n != clips.length(b))
+    before = [(clips.start(b), clips.end(b)) for b in current]
     lay_out(scene, lengths)
     if fit_panels and not following(scene):         # (following: lay_out did it)
-        _fit_for_retime(scene)
+        after = [(clips.start(b), clips.end(b)) for b in blocks(scene)]
+        stretch_panels(scene, warp_from(before, after))
         events.clips_changed(scene)
     return changed
+
+
+def warp_from(before, after):
+    """Pure: a time map from the lines' old spans to their new ones (each
+    line's stretch of time stretches the same way; before the first line /
+    after the last: shifted like that line's edge)."""
+    pairs = sorted({(a, a2) for (a, _b), (a2, _b2) in zip(before, after)} |
+                   {(b, b2) for (_a, b), (_a2, b2) in zip(before, after)})
+    olds = [o for o, _n in pairs]
+    news = [n for _o, n in pairs]
+
+    def warp(f):
+        if not olds:
+            return f
+        if f <= olds[0]:
+            return f + news[0] - olds[0]
+        if f >= olds[-1]:
+            return f + news[-1] - olds[-1]
+        import bisect
+        i = bisect.bisect_right(olds, f) - 1
+        o0, o1, n0, n1 = olds[i], olds[i + 1], news[i], news[i + 1]
+        return round(n0 + (f - o0) * (n1 - n0) / (o1 - o0)) if o1 > o0 else n0
+    return warp
+
+
+def stretch_panels(scene, warp):
+    """Retime with panels not following (Ollie: Retime "putting clips all over
+    the place" when each linked panel was forced onto its own line): every
+    panel's edges move with the lines' timing, so panels keep how they're cut
+    against the script (one panel over two lines stays over those two)."""
+    sed = clips.editor(scene)
+    plan = {}
+    for p in panels.all_panels(scene):
+        s0, e0 = clips.start(p), clips.end(p)
+        s1, e1 = warp(s0), warp(e0)
+        if e1 <= s1:
+            e1 = s1 + 1
+        if (s1, e1) != (s0, e0):
+            plan[p] = (s1, e1, p.channel, s0, e0)
+    spare = max([x.channel for x in sed.strips_all] + [len(tracks.all_tracks(scene))]) + 1
+    for p in plan:                               # out of the way, then into place
+        p.channel = spare
+        spare += 1
+    clips.apply(scene, {p: v[:2] for p, v in plan.items()})
+    stuck = []
+    for p, (s1, e1, ch, _s0, _e0) in sorted(plan.items(), key=lambda kv: kv[1][0]):
+        if _free(scene, ch, s1, e1, ignore=(p,)):
+            p.channel = ch
+        else:
+            stuck.append(p)
+    for p in stuck:                              # (another clip is there: as it was)
+        _s1, _e1, ch, s0, e0 = plan[p]
+        clips.apply(scene, {p: (s0, e0)})
+        if _free(scene, ch, s0, e0, ignore=(p,)):
+            p.channel = ch
 
 
 # --- Panels ------------------------------------------------------------------------------------
@@ -323,33 +380,6 @@ def panels_follow(scene):
         end_all += n
     make_missing_panels(scene)
     _refresh_panel_text(scene)
-
-
-def _fit_for_retime(scene):
-    """Retime with panels not following: linked panels fit their lines; a
-    panel whose line was deleted would be in the way, so it's unlinked and
-    goes to the end of the track (drawing kept, never deleted)."""
-    track = _panel_track(scene)
-    if track is None:
-        return
-    ch = tracks.channel_of(scene, track)
-    by_uid = {b[SCRIPT_BLOCK] for b in blocks(scene)}
-    orphans = [p for p in panels.all_panels(scene)
-               if p.plastron_panel.script_block and p.plastron_panel.script_block not in by_uid]
-    sed = clips.editor(scene)
-    spare = max([x.channel for x in sed.strips_all] + [len(tracks.all_tracks(scene))]) + 1
-    for p in orphans:
-        p.plastron_panel.script_block = ""
-        p.plastron_panel.script_line = -1
-        p.channel = spare
-        spare += 1
-    fit_linked_panels(scene, track)
-    end = max([clips.end(x) for x in clips.on_channel(scene, ch)] + [scene.frame_start])
-    for p in sorted(orphans, key=clips.start):
-        n = clips.length(p)
-        clips.apply(scene, {p: (end, end + n)})
-        p.channel = ch
-        end += n
 
 
 def fit_linked_panels(scene, track=None):
