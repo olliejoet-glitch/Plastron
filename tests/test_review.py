@@ -152,6 +152,37 @@ def steps():
     wm.plastron_board = False
     yield 0.2
 
+    # The board is the storyboard: the track with the most panels, even when
+    # another track (with one panel) is active (Ollie saw just one card).
+    other = next(t for t in tracks.video_tracks(sc) if tracks.channel_of(sc, t) != ch)
+    lone = panels.create(sc, tracks.channel_of(sc, other), 1, 24)
+    tracks.set_active(sc, other)
+    h.check("the board shows the track with the most panels, not just the active one",
+            [s.name for s in board.board_panels(sc)] == [s.name for s in strips], [s.name for s in board.board_panels(sc)])
+    # Many panels: the cards scroll (wheel, or a pen drag).
+    last = strips[-1]
+    for _i in range(14):
+        last = panels.create(sc, ch, clips.end(last), 24)
+    wm.plastron_board = True
+    yield 0.3
+    count = len(board.board_panels(sc))
+    h.check("...more cards than fit: there's somewhere to scroll", board.max_scroll(reg, count) > 0,
+            board.max_scroll(reg, count))
+    h.move(reg.x + reg.width // 2, reg.y + reg.height // 2)
+    yield 0.1
+    h._event('WHEELDOWNMOUSE', 'PRESS')
+    yield 0.2
+    after_wheel = board._scroll["y"]
+    yield from h.drag((reg.x + reg.width // 2, reg.y + 40), (reg.x + reg.width // 2, reg.y + 160), alt=True, shift=True)
+    yield 0.2
+    h.check("the wheel scrolls the board, and so does an Alt+Shift drag",
+            after_wheel > 0 and board._scroll["y"] > after_wheel, (after_wheel, board._scroll["y"]))
+    h.redraw()
+    yield 0.2
+    h.screenshot("board_scrolled")
+    wm.plastron_board = False
+    yield 0.2
+
     # --- Versions: keep the drawing as a version, flip between, compare faintly.
     versions = h.module("features.review.versions")
     strip = canvas_sync.panel_on_canvas(sc)

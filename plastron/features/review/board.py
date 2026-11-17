@@ -2,8 +2,10 @@
 panel thumbnails. Drag to reorder, then switch back with the timeline
 updated").
 
-Timeline header: Board. The timeline area shows the panels of the active
-video track (else the first with panels) as cards in time order: picture,
+Timeline header: Board. The timeline area shows the panels of the video
+track with the most panels (the storyboard; Ollie's showed one card from
+another track) as cards in time order; the wheel or an Alt+Shift / Ctrl+Alt
+drag scrolls them: picture,
 name, length, status colour, the start of the note. Drag a card and drop
 it between others: the panels are put in that order, one after another from
 where the first started (their lengths and paintings stay). Click a card to
@@ -24,6 +26,7 @@ from ...timeline import clips, events, tracks
 B = cfg.BOARD
 _images = {}         # cached image path -> (mtime, bpy image)
 _drag = {"from": None, "to": None, "pos": None}
+_scroll = {"y": 0.0}    # how far the cards are scrolled up (pixels)
 
 
 def _ui(px):
@@ -35,13 +38,15 @@ def on(context=None):
 
 
 def board_track(scene):
+    """The video track with the most panels (ties: the active track, then the top one)."""
     from ..storyboard.panels import is_panel
     active = tracks.active(scene)
-    candidates = ([active] if active and active.kind == 'VIDEO' else []) + tracks.video_tracks(scene)
-    for track in candidates:
-        if any(is_panel(s) for s in clips.on_channel(scene, tracks.channel_of(scene, track))):
-            return track
-    return None
+    best, best_n = None, 0
+    for track in reversed(tracks.video_tracks(scene)):          # (top first)
+        n = sum(1 for s in clips.on_channel(scene, tracks.channel_of(scene, track)) if is_panel(s))
+        if n > best_n or (n == best_n and n and active is not None and track.uid == active.uid):
+            best, best_n = track, n
+    return best
 
 
 def board_panels(scene):
@@ -53,16 +58,33 @@ def board_panels(scene):
     return [s for s in clips.on_channel(scene, tracks.channel_of(scene, track)) if is_panel(s)]
 
 
-def layout(region, count):
-    """[(x0, y0, x1, y1)] card rectangles (picture + caption), top-left first."""
+def _grid(region, count):
     w, gap, cap = _ui(B["card_w"]), _ui(B["gap"]), _ui(B["caption"])
     h = w * 9 / 16 + cap
     cols = max(1, int((region.width - gap) // (w + gap)))
+    rows = (count + cols - 1) // cols
+    return w, h, gap, cols, rows
+
+
+def max_scroll(region, count):
+    _w, h, gap, _cols, rows = _grid(region, count)
+    return max(0.0, rows * (h + gap) + gap - region.height)
+
+
+def scroll_by(region, count, dy):
+    """Scroll the cards up by dy pixels (kept within the board)."""
+    _scroll["y"] = min(max(0.0, _scroll["y"] + dy), max_scroll(region, count))
+
+
+def layout(region, count):
+    """[(x0, y0, x1, y1)] card rectangles (picture + caption), top-left first."""
+    w, h, gap, cols, _rows = _grid(region, count)
+    _scroll["y"] = min(max(0.0, _scroll["y"]), max_scroll(region, count))
     out = []
     for i in range(count):
         r, c = divmod(i, cols)
         x0 = gap + c * (w + gap)
-        y1 = region.height - gap - r * (h + gap)
+        y1 = region.height - gap - r * (h + gap) + _scroll["y"]
         out.append((x0, y1 - h, x0 + w, y1))
     return out
 
@@ -253,7 +275,26 @@ class PLASTRON_OT_board_click(bpy.types.Operator):
         return {'RUNNING_MODAL'}
 
 
+class PLASTRON_OT_board_scroll(bpy.types.Operator):
+    """Board: scroll the cards"""
+    bl_idname = "plastron.board_scroll"
+    bl_label = "Scroll Board"
+    bl_options = {'INTERNAL'}
+    step: bpy.props.IntProperty(default=1)
+
+    @classmethod
+    def poll(cls, context):
+        return PLASTRON_OT_board_click.poll(context)
+
+    def execute(self, context):
+        h = _grid(context.region, 1)[1]
+        scroll_by(context.region, len(board_panels(context.scene)), self.step * h / 2)
+        context.area.tag_redraw()
+        return {'FINISHED'}
+
+
 def _toggled(_self, context):
+    _scroll["y"] = 0.0
     for window in context.window_manager.windows:
         for area in window.screen.areas:
             if area.type == 'SEQUENCE_EDITOR':
@@ -264,7 +305,7 @@ def draw_header(layout, context):
     layout.prop(context.window_manager, "plastron_board", text="Board", toggle=True, icon='IMGDISPLAY')
 
 
-classes = (PLASTRON_OT_board_click,)
+classes = (PLASTRON_OT_board_click, PLASTRON_OT_board_scroll)
 _handle = None
 
 

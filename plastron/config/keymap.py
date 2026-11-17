@@ -174,6 +174,8 @@ SHORTCUTS = [
     # (last: of two actions on one key the later is tried first; it only
     # works while the board is showing)
     ("timeline",     "LMB",              "plastron.board_click",         "Board: drag a card to reorder, click to go to it"),
+    ("timeline_view", "WheelDown",       "plastron.board_scroll",        "Board: scroll down", {"step": 1}),
+    ("timeline_view", "WheelUp",         "plastron.board_scroll",        "Board: scroll up", {"step": -1}),
 ]
 
 
@@ -181,7 +183,7 @@ SHORTCUTS = [
 # item on the same key keeps working (e.g. the script click still places
 # the text cursor). board_click only runs while the Board view is on (its
 # poll), so the timeline's own clicks work normally otherwise.
-PASSES_ON = {"plastron.board_click", "plastron.shorts_drag", "plastron.preview_transform", "plastron.fade_drag", "plastron.view_focus", "plastron.camera_pad", "plastron.drag_scroll", "plastron.clip_click_select", "plastron.script_click", "plastron.transcript_click", "plastron.transcript_hover"}
+PASSES_ON = {"plastron.board_click", "plastron.board_scroll", "plastron.shorts_drag", "plastron.preview_transform", "plastron.fade_drag", "plastron.view_focus", "plastron.camera_pad", "plastron.drag_scroll", "plastron.clip_click_select", "plastron.script_click", "plastron.transcript_click", "plastron.transcript_hover"}
 
 # Blender items switched off even though BLENDER_KEEP keeps their keymap.
 BLENDER_DROP = {

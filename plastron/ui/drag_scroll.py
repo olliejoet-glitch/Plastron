@@ -17,8 +17,13 @@ class PLASTRON_OT_drag_scroll(bpy.types.Operator):
         """(area, region) of the tools area / script under the pen. Found by
         hand: this runs before the area's buttons (Screen Editing keymap), so
         a drag that starts on a button still scrolls."""
+        from ..features.review import board
         for area in context.window.screen.areas:
-            if area.type not in {'PROPERTIES', 'TEXT_EDITOR'}:
+            if area.type == 'SEQUENCE_EDITOR' and board.on(context):     # (the Board's cards)
+                from ..core.views import is_timeline
+                if not is_timeline(area.spaces.active):
+                    continue
+            elif area.type not in {'PROPERTIES', 'TEXT_EDITOR'}:
                 continue
             for region in area.regions:
                 if region.type == 'WINDOW' and region.x <= event.mouse_x < region.x + region.width \
@@ -38,7 +43,10 @@ class PLASTRON_OT_drag_scroll(bpy.types.Operator):
         return {'RUNNING_MODAL'}
 
     def _scroll(self, context, dy):
-        if self.area.type == 'TEXT_EDITOR':
+        if self.area.type == 'SEQUENCE_EDITOR':
+            from ..features.review import board
+            board.scroll_by(self.region, len(board.board_panels(context.scene)), dy)
+        elif self.area.type == 'TEXT_EDITOR':
             st = self.area.spaces.active
             if st.text is None:
                 return
