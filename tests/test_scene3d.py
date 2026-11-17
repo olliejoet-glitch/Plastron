@@ -160,6 +160,36 @@ def steps():
                     out |= {(owner.name, fc.data_path, round(k.co[0])) for k in fc.keyframe_points}
         return out
 
+    # Each clip's keys stay in that clip (Ollie: "keyframes from previous clips
+    # are still carrying over to other clips").
+    panels_mod = h.module("features.storyboard.panels")
+    clips_mod = h.module("timeline.clips")
+    first = min((p for p in panels_mod.all_panels(sc) if clips_mod.start(p) <= 25 < clips_mod.end(p)),
+                key=clips_mod.start)
+    a0, a1 = clips_mod.start(first), clips_mod.end(first)
+    second = panels_mod.create(sc, first.channel, a1, 48)
+    canvas_sync.invalidate(sc)
+    rest_loc, _rest_rot = scene3d.rest_pose()
+    sc.frame_current = a1 + 24
+    yield 0.4
+    h.check("a camera move keyed in one clip doesn't carry into the next clip",
+            (cam.location - rest_loc).length < 1e-4 and abs(cam.data.lens - scene3d.cfg.CAMERA_LENS) < 1e-4,
+            (tuple(cam.location), tuple(rest_loc), cam.data.lens))
+    sc.frame_current = a1 - 1
+    yield 0.3
+    h.check("...the clip holds its last keyed pose to its end", abs(cam.location.x - 3.0) < 1e-4, cam.location.x)
+    cam.location.y -= 2.0                            # key the second clip
+    yield 0.4
+    sc.frame_current = 13
+    yield 0.3
+    h.check("...and keying the next clip leaves the first as it was", 1.5 < cam.location.x < 2.5, cam.location.x)
+    sc.frame_current = a1 + 30
+    yield 0.3
+    h.check("...the next clip moves from rest (its start isn't the last clip's pose)",
+            abs(cam.location.x - rest_loc.x) < 1e-4, cam.location.x)
+    sc.frame_current = 25
+    yield 0.3
+
     # No keys Ollie didn't make: scrubbing to frames between keys, touching the
     # camera (an update, not a move), switching the active track back and forth.
     before = key_frames()

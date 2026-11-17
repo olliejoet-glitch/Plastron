@@ -297,7 +297,66 @@ def key_card(scene, track):
     frame = scene.frame_current
     for prop in CARD_PROPS:
         track.keyframe_insert(prop, frame=frame, group=card_group(scene, track))
+    span = clip_span(scene)
+    for prop, rest in zip(CARD_PROPS, ((0.0, 0.0, 0.0), (0.0, 0.0, 0.0), (1.0,))):
+        keep_in_clip(scene, scene, f"{track.path_from_id()}.{prop}", rest, frame, span)
     _animated.update(scene=scene.name, yes=True)
+
+
+def clip_span(scene):
+    """(start, end) of the clip being drawn on, or None."""
+    from ..storyboard import canvas_sync
+    from ...timeline import clips
+    name = canvas_sync._state.get("canvas_clip")
+    sed = scene.sequence_editor
+    strip = sed.strips_all.get(name) if (sed is not None and name) else None
+    return (clips.start(strip), clips.end(strip)) if strip is not None else None
+
+
+GENERATED = 'GENERATED'       # (keys Plastron adds to keep a clip's moves in it; yours are never changed)
+
+
+def _generated(fc, frame, value):
+    k = fc.keyframe_points.insert(frame, value, options={'FAST'})
+    k.type = GENERATED
+    return k
+
+
+def keep_in_clip(scene, owner, path, rest, frame, span):
+    """Keys made in a clip stay in that clip (Ollie: "keyframes from previous
+    clips are still carrying over to other clips"): its first frame starts
+    at rest (if it has no key there), its last frame holds its last keyed
+    pose, and the next clip's first frame is back at rest (if that clip has
+    no key there of its own). Those keys are Blender's "Generated" type
+    (drawn differently in the keyframe view); only they are ever updated."""
+    if span is None:
+        return
+    s, e = span
+    if not (s <= frame < e):
+        return
+    ad = owner.animation_data
+    action = ad.action if ad else None
+    if action is None:
+        return
+    for i, r in enumerate(rest):
+        fc = _fcurve(action, owner, path, i)
+        if fc is None:
+            continue
+        key_at = lambda f: next((k for k in fc.keyframe_points if abs(k.co[0] - f) < 0.5), None)
+        if key_at(s) is None:
+            _generated(fc, s, r)
+        mine = sorted((k.co[0], k.co[1]) for k in fc.keyframe_points
+                      if s - 0.5 < k.co[0] < e - 0.5 and k.type != GENERATED)
+        if mine and mine[-1][0] < e - 1.5:
+            hold = key_at(e - 1)
+            if hold is None:
+                _generated(fc, e - 1, mine[-1][1])
+            elif hold.type == GENERATED:
+                hold.co[1] = mine[-1][1]
+                hold.handle_left[1] = hold.handle_right[1] = mine[-1][1]
+        if key_at(e) is None:
+            _generated(fc, e, r)
+        fc.update()
 
 
 def cards_animated(scene):
@@ -395,9 +454,13 @@ def key_camera(scene, cam):
     _seen["pose"] = pose
     if not moved:
         return
-    for owner, path in ((cam, "location"), (cam, "rotation_euler"), (cam.data, "lens")):
+    loc, rot = rest_pose()
+    span = clip_span(scene)
+    for owner, path, rest in ((cam, "location", tuple(loc)), (cam, "rotation_euler", tuple(rot)),
+                              (cam.data, "lens", (cfg.CAMERA_LENS,))):
         if not _keyed(owner, path, frame):
             owner.keyframe_insert(path, frame=frame)
+        keep_in_clip(scene, owner, path, rest, frame, span)
 
 
 def _moved_off_animation(cam, frame):

@@ -944,6 +944,12 @@ Plastron/
   pass-through press, ends at the painted-image depsgraph update (60 s
   timeout); canvas_fit and the layer_motion re-aim timers wait while busy.
   The camera box grows the painting right when its drag ends.
+- Pen (Ollie: "weird banding" in strokes; their darkness follows pen
+  pressure exactly, tested by painting with set pressures, so the steps
+  came in with the pressure): Canvas panel "Pen" Automatic / Windows Ink /
+  Wintab = Blender's preferences.inputs.tablet_api, remembered in
+  user_settings "tablet_api" and put back at every start
+  (features/storyboard/pen.py, TABLET_APIS in config/tools.py).
 - Quick brush resize (Ollie): Ctrl+Alt+right-click and move the pen (the
   side button, in the air): Blender's radial control on the brush size,
   let go to set (release_confirm).
@@ -1005,6 +1011,14 @@ Plastron/
   crash). canvas_sync._set records a hidden card's size reset as its own
   (it read as a hand move and keyed the track every time the active track
   changed).
+  Each clip's keys stay in that clip (Ollie: "keyframes from previous
+  clips are still carrying over to other clips"): keying the camera or a
+  card in the clip being drawn on (scene3d.keep_in_clip) also keys the
+  clip's first frame at rest (if unkeyed), its last frame holding its last
+  keyed pose, and the next clip's first frame at rest (if that clip has no
+  key there). Those keys are Blender's GENERATED type (drawn differently);
+  only they are updated later, Ollie's own keys never. Rest = rest_pose()
+  + CAMERA_LENS; cards: no offset / turn, scale 1.
   Keyframe view (Ollie: "an editable keyframe view"): a Dope Sheet area under
   the 3D scene view (layout "keys": script 40 % / 3D 38 % / keys 22 %), its
   keymaps kept (Dopesheet, Dopesheet Generic, Animation Channels): select,
