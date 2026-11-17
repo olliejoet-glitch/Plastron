@@ -149,6 +149,39 @@ def steps():
     sc.frame_current = 25
     yield 0.3
     h.check("...lens too", abs(cam.data.lens - 50.0) < 1e-4, cam.data.lens)
+
+    def key_frames():
+        out = set()
+        for owner in (cam, cam.data, sc):
+            ad = owner.animation_data
+            action = ad.action if ad else None
+            if action is not None:
+                for fc in scene3d._all_fcurves(action):
+                    out |= {(owner.name, fc.data_path, round(k.co[0])) for k in fc.keyframe_points}
+        return out
+
+    # No keys Ollie didn't make: scrubbing to frames between keys, touching the
+    # camera (an update, not a move), switching the active track back and forth.
+    before = key_frames()
+    for f in (7, 19, 31):
+        sc.frame_current = f
+        yield 0.2
+        cam.data.lens = cam.data.lens                # (an update with nothing moved)
+        yield 0.2
+    tracks_mod = h.module("timeline.tracks")
+    for t in list(tracks_mod.video_tracks(sc)) * 2:
+        tracks_mod.set_active(sc, t)
+        canvas_sync.invalidate(sc)
+        yield 0.3
+    after = key_frames()
+    h.check("no keys appear by themselves (scrubbing, camera updates, switching the active track)",
+            after == before, sorted(after - before)[:6])
+    sc.frame_current = 19
+    yield 0.2
+    cam.location.z += 0.5                           # a real move between keys: keyed
+    yield 0.3
+    h.check("...a real camera move between keys is keyed",
+            any(f == 19 for _o, _p, f in key_frames() - before), sorted(key_frames() - before)[:6])
     h.redraw()
     yield 0.1
     a = location_3d_to_region_2d(cregion, cr3d, card.matrix_world.translation)

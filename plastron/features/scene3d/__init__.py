@@ -388,14 +388,47 @@ def key_camera(scene, cam):
     (any other update to it, e.g. a view switching to it, keys nothing)."""
     pose = _pose(cam)
     last = _seen["pose"]
-    if cam.animation_data is None and last is not None and \
-            all(abs(a - b) < 1e-6 for a, b in zip(pose, last)):
-        return
-    _seen["pose"] = pose
     frame = scene.frame_current
+    moved = _moved_off_animation(cam, frame)
+    if moved is None:                           # (no keys yet: against the pose last seen)
+        moved = last is None or any(abs(a - b) > 1e-6 for a, b in zip(pose, last))
+    _seen["pose"] = pose
+    if not moved:
+        return
     for owner, path in ((cam, "location"), (cam, "rotation_euler"), (cam.data, "lens")):
         if not _keyed(owner, path, frame):
             owner.keyframe_insert(path, frame=frame)
+
+
+def _moved_off_animation(cam, frame):
+    """Is the camera somewhere its keys don't put it (moved by hand)? None
+    if it has no keys. (It was keyed on ANY update while it had keys and the
+    playhead wasn't on one: dragging a key in the keyframe view replayed the
+    camera, Plastron inserted keys mid-drag and Blender crashed (Ollie).)"""
+    found = False
+    for owner, path in ((cam, "location"), (cam, "rotation_euler"), (cam.data, "lens")):
+        ad = owner.animation_data
+        action = ad.action if ad else None
+        if action is None:
+            continue
+        value = getattr(owner, path)
+        values = list(value) if hasattr(value, "__len__") else [value]
+        for i, v in enumerate(values):
+            fc = _fcurve(action, owner, path, i)
+            if fc is None or not len(fc.keyframe_points):
+                continue
+            found = True
+            if abs(fc.evaluate(frame) - v) > 1e-4:
+                return True
+    return False if found else None
+
+
+ANIM_DRAGS = {"TRANSFORM_OT_transform"}   # (moving keys in the keyframe view; 3D moves are TRANSLATE / ROTATE...)
+
+
+def _dragging_keys():
+    wm = bpy.context.window_manager
+    return wm is not None and any(op.bl_idname in ANIM_DRAGS for w in wm.windows for op in w.modal_operators)
 
 
 def _playing():
@@ -408,7 +441,7 @@ def _on_edit(scene, depsgraph):
     # moved in the scene view moves its track; the 3D camera moved is keyed.
     if _busy[0] or _held[0] or not (depsgraph.id_type_updated('OBJECT') or depsgraph.id_type_updated('CAMERA')):
         return
-    if scene is None or not hasattr(scene, "plastron_timeline") or _playing():
+    if scene is None or not hasattr(scene, "plastron_timeline") or _playing() or _dragging_keys():
         return
     from ..storyboard import canvas_sync
     _busy[0] = True

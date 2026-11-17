@@ -213,6 +213,11 @@ def _set(obj, material=None, y=None, hidden=None, alpha=None, placed=None):
         sx, sz = sx * k, sz * k
         if abs(obj.scale.x - sx) > 1e-6 or abs(obj.scale.z - sz) > 1e-6 or abs(obj.scale.y - k) > 1e-6:
             obj.scale = (sx, k, sz)
+            if y is None and obj.name in _placed:
+                # (Ours, not a hand move: Ollie got card keys he never made
+                # each time the active track changed, from a hidden card's
+                # size reset here going unrecorded.)
+                _placed[obj.name] = _transform(obj)
     if y is not None:
         loc = (offset[0], y + offset[1], offset[2])
         if any(abs(a - b) > 1e-6 for a, b in zip(obj.location, loc)):

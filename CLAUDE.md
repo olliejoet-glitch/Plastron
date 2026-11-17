@@ -997,6 +997,14 @@ Plastron/
   place_rotation / place_scale at the playhead (scene action, group "Card:
   <track>"); a frame hook (_cards_frame, nothing if no card is keyed)
   re-places the sheets from the played values (canvas_sync.apply_places).
+  No keys Ollie didn't make (his "ton of animation I didn't add" + a crash
+  dragging a key): the camera is keyed only when its pose differs from what
+  its own keys give at the playhead (_moved_off_animation; no keys yet: vs
+  the pose last seen), never while a key drag (TRANSFORM_OT_transform) runs
+  (inserting keys mid-drag reallocates the curves Blender is moving:
+  crash). canvas_sync._set records a hidden card's size reset as its own
+  (it read as a hand move and keyed the track every time the active track
+  changed).
   Keyframe view (Ollie: "an editable keyframe view"): a Dope Sheet area under
   the 3D scene view (layout "keys": script 40 % / 3D 38 % / keys 22 %), its
   keymaps kept (Dopesheet, Dopesheet Generic, Animation Channels): select,
