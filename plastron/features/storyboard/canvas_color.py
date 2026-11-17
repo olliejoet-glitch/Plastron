@@ -100,6 +100,8 @@ class PLASTRON_PT_canvas(bpy.types.Panel):
             row.operator("plastron.canvas_color", text=name).color = hex_color
         layout.prop(context.window_manager, "plastron_canvas_color", text="")
         layout.prop(context.window_manager, "plastron_onion_opacity", text="Onion skin", slider=True)
+        layout.label(text="Pen")
+        layout.row(align=True).prop(context.window_manager, "plastron_tablet_api", expand=True)
 
 
 classes = (PLASTRON_OT_canvas_color, PLASTRON_PT_canvas)

@@ -54,5 +54,18 @@ def steps():
     h.check("saved colour comes back on the next start", same(background(), custom), background())
     h.screenshot("canvas_color")
 
+    # Pen: how Windows passes the pen (Blender's tablet_api), remembered.
+    pen = h.module("features.storyboard.pen")
+    wm = bpy.context.window_manager
+    h.check("Pen starts on Automatic (Blender's own choice)",
+            wm.plastron_tablet_api == 'AUTOMATIC' and bpy.context.preferences.inputs.tablet_api == 'AUTOMATIC')
+    wm.plastron_tablet_api = 'WINTAB'
+    yield 1.0
+    h.check("choosing Wintab sets Blender's tablet input", bpy.context.preferences.inputs.tablet_api == 'WINTAB')
+    bpy.context.preferences.inputs.tablet_api = 'AUTOMATIC'      # (a fresh start)
+    user_settings.reload()
+    pen.apply()
+    h.check("...and it comes back on the next start", bpy.context.preferences.inputs.tablet_api == 'WINTAB')
+
 
 h.run(steps())

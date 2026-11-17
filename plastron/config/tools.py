@@ -66,3 +66,13 @@ STABILISER = [
     ("MAX",    "Max",     32,    True,   40,     0.9),
 ]
 STABILISER_DEFAULT = "OFF"
+
+# How Windows passes the pen to Plastron (Canvas panel, "Pen"; remembered).
+# Strokes whose darkness comes out in stretches / beads: try Wintab, the
+# Wacom driver's own channel (Windows Ink can send pressure in steps).
+TABLET_APIS = [
+    # id             label         description
+    ("AUTOMATIC",   "Automatic",   "Blender chooses (usually Windows Ink)"),
+    ("WINDOWS_INK", "Windows Ink", "Windows' own pen input"),
+    ("WINTAB",      "Wintab",      "The tablet driver's own input (Wacom); often smoother pressure"),
+]
