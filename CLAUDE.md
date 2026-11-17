@@ -241,6 +241,7 @@ Plastron/
 │  │                         painted-layer UV shift), edit (layer box), thumbnails
 │  │                         (panel_cache hook), ui (Motion panel, presets)
 │  │  └─ scene3d/            the 3D (multiplane) view: track cards, keyed camera, pen-follows modes,
+│  │                         shots (each clip's own card + camera animation),
 │  │                         keys_view (the keyframe view framed on the clip)
 │  │  └─ review/             notes (Panel panel: status, note), versions, guides,
 │  │                         speed (2x etc. playback), sounds (temp sounds bin), board
@@ -968,10 +969,9 @@ Plastron/
   paper world) looking at the canvas's own sheets: one card per video track
   (orange outline = the card being drawn on, grey = the others; outlines
   drawn because empty cards are see-through). Moving / turning / scaling a
-  card there moves its TRACK: track.place_offset / place_rotation /
-  place_scale (props added to PLASTRON_PG_track by scene3d), applied by
-  canvas_sync (SHEET_PLACE hook; the Canvas sheet takes the active track's
-  placement). Kept two ways: an edit handler (depsgraph_update_post
+  card there moves THAT CLIP's card (keyed at the playhead; see EACH CLIP
+  OWNS ITS ANIMATION below), applied by canvas_sync (SHEET_PLACE hook; the
+  Canvas sheet takes the drawing clip's placement). Kept two ways: an edit handler (depsgraph_update_post
   "_on_edit", added FIRST) and canvas_sync itself (SHEET_ABSORB: a sheet not
   where canvas_sync last put it was moved by hand, so that's saved before
   re-placing; a pending timeline refresh can fire between the move and the
@@ -979,7 +979,8 @@ Plastron/
   marks the scene view: core/views) starts square-on at the distance that
   frames the picture exactly (16 units * lens / 36 mm); moving it keys
   location / rotation / lens at the playhead under the hood (edits only;
-  Blender then plays the animation: allowed, Ollie asked). The canvas's
+  Blender then plays the animation: allowed, Ollie asked; now per clip, see
+  EACH CLIP OWNS ITS ANIMATION below). The canvas's
   flat ortho camera is drawn tiny in 3D (hiding it, hide_viewport, broke the
   canvas's Ctrl+0 fit maths). The CANVAS LOOKS THROUGH THE 3D CAMERA (Ollie:
   "moving the camera needs to actually change what I see on the canvas"):
@@ -1011,14 +1012,29 @@ Plastron/
   crash). canvas_sync._set records a hidden card's size reset as its own
   (it read as a hand move and keyed the track every time the active track
   changed).
-  Each clip's keys stay in that clip (Ollie: "keyframes from previous
-  clips are still carrying over to other clips"): keying the camera or a
-  card in the clip being drawn on (scene3d.keep_in_clip) also keys the
-  clip's first frame at rest (if unkeyed), its last frame holding its last
-  keyed pose, and the next clip's first frame at rest (if that clip has no
-  key there). Those keys are Blender's GENERATED type (drawn differently);
-  only they are updated later, Ollie's own keys never. Rest = rest_pose()
-  + CAMERA_LENS; cards: no offset / turn, scale 1.
+  EACH CLIP OWNS ITS ANIMATION (Ollie: "the animation isn't actually
+  stored per clip, it's stored on a single plane on the entire timeline";
+  confirmed, camera too): features/scene3d/shots.py. A clip (strip) has
+  plastron_card_offset / _rotation / _scale (its card) and plastron_cam_set
+  + _location / _rotation / _lens (its shot's camera), keyed in the scene's
+  action under the clip's own path. So keys move / split / duplicate /
+  delete with the clip (Blender's own clip operations do it; Plastron's
+  Python moves shift a clip's keys with its start: timeline/clips
+  _shift_keys) and never reach another clip. canvas_sync's SHEET_PLACE
+  hook gives each track's sheet its clip-at-the-playhead's card;
+  SHEET_MOVES lists (per stretch) the sheets whose clip's card is keyed,
+  re-placed every frame. The 3D Camera = the shot's camera (the clip being
+  drawn on, canvas_sync canvas_clip; none of its own: rest pose), put there
+  by _camera_frame (O(1) unless that clip's camera is keyed). Moving the
+  camera / a card by hand keys that clip at the playhead (a move is told
+  from Plastron's own placing by the pose last put / seen). Keys edited in
+  the keyframe view: _on_edit re-places camera + cards from the clips. The
+  keyframe view searches "(<clip name>)" (Blender names a strip's channels
+  so), listing only the current clip's channels. Older projects (per-track
+  card keys, one camera animation) are moved onto the clips at load once
+  (shots.migrate, scene flag plastron_clip_anim); the per-track place_*
+  props stay registered only to read them. (Replaced: per-track cards +
+  one camera timeline, then "Generated" fence keys at clip edges.)
   Keyframe view (Ollie: "an editable keyframe view"): a Dope Sheet area under
   the 3D scene view (layout "keys": script 40 % / 3D 38 % / keys 22 %), its
   keymaps kept (Dopesheet, Dopesheet Generic, Animation Channels): select,

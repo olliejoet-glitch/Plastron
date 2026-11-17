@@ -29,9 +29,8 @@ def steps():
     bg_panel = panels.create(sc, tracks.channel_of(sc, bg), 1, 24)
     bg.ripple = True
     events.clips_changed(sc)
-    top = by("Panels")
-    top.place_offset = (0.0, 1.0, 0.0)
-    top.keyframe_insert("place_offset", frame=1)
+    panel.plastron_card_offset = (0.0, 1.0, 0.0)          # (a 3D card key on the clip)
+    panel.keyframe_insert("plastron_card_offset", frame=1)
     yield 0.3
     bpy.ops.ed.undo_push(message="Test setup")
 
@@ -58,10 +57,10 @@ def steps():
     h.check("...its clips, its ripple go with it",
             bg_panel.channel == tracks.channel_of(sc, bg) and panel.channel == tracks.channel_of(sc, by("Panels"))
             and bg.ripple, (bg_panel.channel, panel.channel, tracks.channel_of(sc, bg)))
-    paths = [fc.data_path for fc in h.module("features.scene3d")._all_fcurves(sc.animation_data.action)]
-    i_top = tracks.all_tracks(sc).index(by("Panels"))
-    h.check("...a moved track's 3D card keys still belong to it",
-            any(p == f"plastron_timeline.tracks[{i_top}].place_offset" for p in paths), (paths, i_top))
+    shots = h.module("features.scene3d.shots")
+    h.check("...its clips' 3D card keys go with them",
+            shots.animated(sc, panel, shots.CARD_PROPS) and abs(panel.plastron_card_offset[1] - 1.0) < 1e-6,
+            tuple(panel.plastron_card_offset))
     h.key('Z', ctrl=True)
     yield 0.8
     h.check("one Ctrl+Z puts it back", names() == ["Music", "Voice", "Script", "Background", "Panels"], names())

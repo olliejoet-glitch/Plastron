@@ -137,6 +137,7 @@ def _set(strip, new_start, new_end, new_content=None):
     old_start, old_end = start(strip), end(strip)
     if (old_start, old_end) == (new_start, new_end):
         return
+    _shift_keys(strip, new_start - old_start)
     if new_start - old_start == new_end - old_end:
         # A move: the content moves with it (moving the handles instead would
         # trim a sound clip, putting different audio at the same place).
@@ -161,6 +162,31 @@ def _set(strip, new_start, new_end, new_content=None):
         strip.content_start += new_start - old_start
         if end(strip) != new_end:
             strip.right_handle = new_end
+
+
+def _shift_keys(strip, delta):
+    """A clip's keys follow its start, as when Blender moves it itself (each
+    clip owns its animation: its card, its camera, its fades...)."""
+    if not delta:
+        return
+    scene = strip.id_data
+    ad = scene.animation_data
+    action = ad.action if ad else None
+    if action is None:
+        return
+    base = 'sequence_editor.strips_all["{}"].'.format(strip.name.replace("\\", "\\\\").replace('"', '\\"'))
+    if hasattr(action, "fcurves"):
+        curves = list(action.fcurves)
+    else:
+        curves = [fc for layer in action.layers for st in layer.strips
+                  for bag in getattr(st, "channelbags", []) for fc in bag.fcurves]
+    for fc in curves:
+        if fc.data_path.startswith(base):
+            for k in fc.keyframe_points:
+                k.co[0] += delta
+                k.handle_left[0] += delta
+                k.handle_right[0] += delta
+            fc.update()
 
 
 def _slide(strip, d):

@@ -6,21 +6,20 @@ then move the camera to add parallax; the camera move keyframes itself).
   toolbar (select, move, rotate, scale...), transform and navigation gizmos.
   Ctrl+Space maximises it (any area).
 - It shows the panels as cards, one per video track, where the canvas has
-  them. Moving / turning / scaling a card there moves that whole TRACK (it's
-  kept on the track: place_offset / place_rotation / place_scale, and the
-  canvas sheets follow it).
+  them. Moving / turning / scaling a card there moves that CLIP's card, keyed
+  at the playhead (each clip owns its animation: shots.py).
 - "3D Camera" is the view's own camera (View > Cameras > Active Camera looks
   through it). It starts square-on, exactly framing the picture. Moving it
-  keys it at the playhead (location, rotation, lens) under the hood, so a
+  keys the shot's camera (the clip being drawn on) at the playhead, so a
   move is: playhead to the start, place the camera, playhead to the end,
-  place it again.
+  place it again. Other clips aren't touched; a clip with no camera of its
+  own rests square-on.
 - Painting and the scene need different modes: Object mode over the scene
   view, painting over the canvas (follows the pen, no undo steps). The
   canvas's keys (B, E, Ctrl+T...) do nothing in the scene view.
 """
 
 import math
-import re
 
 import bpy
 from mathutils import Euler, Vector
@@ -28,6 +27,7 @@ from mathutils import Euler, Vector
 from ...config import scene3d as cfg
 from ...core import handlers
 from ...core.views import is_canvas, is_scene_view
+from . import shots
 
 
 def collection(scene):
@@ -261,177 +261,52 @@ def track_depth(scene, track):
     return y, (distance + y) / distance
 
 
-def _place_from(track, obj, scene):
+def _sheet_clip(scene, obj, track):
+    """The clip a sheet shows right now (its card is that clip's)."""
     from ..storyboard import canvas_sync
+    from ...timeline import clips, tracks
+    if obj.name == canvas_sync.CANVAS:
+        return shot_clip(scene)
+    return clips.at(scene, tracks.channel_of(scene, track), scene.frame_current)
+
+
+def _place_from(track, obj, scene):
+    """A card moved by hand in the scene view: the clip it shows keeps it."""
+    from ..storyboard import canvas_sync
+    clip = _sheet_clip(scene, obj, track)
+    if clip is None:
+        return False
     base, depth_scale = canvas_sync.depth_of(scene, track)
     offset = (obj.location.x, obj.location.y - base, obj.location.z)
-    rotation = tuple(obj.rotation_euler)
     scale = obj.scale.y / depth_scale         # (x / z also carry the painting's size)
-    changed = False
-    if any(abs(a - b) > 1e-6 for a, b in zip(track.place_offset, offset)):
-        track.place_offset = offset
-        changed = True
-    if any(abs(a - b) > 1e-6 for a, b in zip(track.place_rotation, rotation)):
-        track.place_rotation = rotation
-        changed = True
-    if abs(track.place_scale - scale) > 1e-6 and scale > 1e-4:
-        track.place_scale = scale
-        changed = True
-    if changed:
-        key_card(scene, track)
-    return changed
+    return shots.set_card(scene, clip, offset, tuple(obj.rotation_euler), scale, scene.frame_current)
 
 
-# Cards animate (Ollie: "the frames need to be moveable and animateable"):
-# moving a card keys its track's placement at the playhead, like the camera.
-CARD_PROPS = ("place_offset", "place_rotation", "place_scale")
-_animated = {"scene": None, "yes": False}
+def _clip_place(scene, track):
+    """canvas_sync hook: where a track's card stands now = its clip's."""
+    from ...timeline import clips, tracks
+    if scene is None or track is None:
+        return shots.card_place(None)
+    return shots.card_place(clips.at(scene, tracks.channel_of(scene, track), scene.frame_current))
 
 
-def card_group(scene, track):
-    from ...timeline import tracks
-    return f"Card: {tracks.name(scene, track)}"
+def _clip_moves(scene, clip):
+    """canvas_sync hook: does this clip's card move (keys)? Asked once per stretch."""
+    return shots.animated(scene, clip, shots.CARD_PROPS)
 
 
-def key_card(scene, track):
-    frame = scene.frame_current
-    for prop in CARD_PROPS:
-        track.keyframe_insert(prop, frame=frame, group=card_group(scene, track))
-    span = clip_span(scene)
-    for prop, rest in zip(CARD_PROPS, ((0.0, 0.0, 0.0), (0.0, 0.0, 0.0), (1.0,))):
-        keep_in_clip(scene, scene, f"{track.path_from_id()}.{prop}", rest, frame, span)
-    _animated.update(scene=scene.name, yes=True)
+# --- the 3D Camera: the shot's own (the clip being drawn on) --------------------------------
+
+_seen = {"pose": None}     # the camera's pose as Plastron last put it / saw it keyed
+_shot = {"work": -1, "name": "", "anim": False, "scene": None}
 
 
-def clip_span(scene):
-    """(start, end) of the clip being drawn on, or None."""
+def shot_clip(scene):
+    """The clip being drawn on (the shot whose camera the 3D Camera shows)."""
     from ..storyboard import canvas_sync
-    from ...timeline import clips
     name = canvas_sync._state.get("canvas_clip")
     sed = scene.sequence_editor
-    strip = sed.strips_all.get(name) if (sed is not None and name) else None
-    return (clips.start(strip), clips.end(strip)) if strip is not None else None
-
-
-GENERATED = 'GENERATED'       # (keys Plastron adds to keep a clip's moves in it; yours are never changed)
-
-
-def _generated(fc, frame, value):
-    k = fc.keyframe_points.insert(frame, value, options={'FAST'})
-    k.type = GENERATED
-    return k
-
-
-def keep_in_clip(scene, owner, path, rest, frame, span):
-    """Keys made in a clip stay in that clip (Ollie: "keyframes from previous
-    clips are still carrying over to other clips"): its first frame starts
-    at rest (if it has no key there), its last frame holds its last keyed
-    pose, and the next clip's first frame is back at rest (if that clip has
-    no key there of its own). Those keys are Blender's "Generated" type
-    (drawn differently in the keyframe view); only they are ever updated."""
-    if span is None:
-        return
-    s, e = span
-    if not (s <= frame < e):
-        return
-    ad = owner.animation_data
-    action = ad.action if ad else None
-    if action is None:
-        return
-    for i, r in enumerate(rest):
-        fc = _fcurve(action, owner, path, i)
-        if fc is None:
-            continue
-        key_at = lambda f: next((k for k in fc.keyframe_points if abs(k.co[0] - f) < 0.5), None)
-        if key_at(s) is None:
-            _generated(fc, s, r)
-        mine = sorted((k.co[0], k.co[1]) for k in fc.keyframe_points
-                      if s - 0.5 < k.co[0] < e - 0.5 and k.type != GENERATED)
-        if mine and mine[-1][0] < e - 1.5:
-            hold = key_at(e - 1)
-            if hold is None:
-                _generated(fc, e - 1, mine[-1][1])
-            elif hold.type == GENERATED:
-                hold.co[1] = mine[-1][1]
-                hold.handle_left[1] = hold.handle_right[1] = mine[-1][1]
-        if key_at(e) is None:
-            _generated(fc, e, r)
-        fc.update()
-
-
-def cards_animated(scene):
-    """Does any track's card have keys? (Worked out once per edit / load.)"""
-    if _animated["scene"] != scene.name:
-        ad = scene.animation_data
-        action = ad.action if ad else None
-        yes = action is not None and any("plastron_timeline.tracks" in fc.data_path
-                                         for fc in _all_fcurves(action))
-        _animated.update(scene=scene.name, yes=yes)
-    return _animated["yes"]
-
-
-_TRACK_PATH = re.compile(r"plastron_timeline\.tracks\[(\d+)\]")
-
-
-def _on_tracks_moved(scene, moved=None, **_info):
-    """A dragged track's card keys follow it (their paths name the track's place)."""
-    ad = scene.animation_data
-    action = ad.action if ad else None
-    if action is None or not moved:
-        return
-    for fc in _all_fcurves(action):
-        m = _TRACK_PATH.search(fc.data_path)
-        if m and int(m.group(1)) in moved:
-            new = moved[int(m.group(1))]
-            fc.data_path = fc.data_path[:m.start(1)] + str(new) + fc.data_path[m.end(1):]
-    _forget_animated()
-
-
-def _forget_animated(*_args):
-    _animated["scene"] = None
-
-
-def _cards_frame(scene, *_args):
-    # Per-frame hook (allowed: Ollie asked for animated cards). O(1) when no
-    # card is keyed; else re-places the track sheets (Blender has already
-    # played the keys into the tracks' placement).
-    if cards_animated(scene):
-        from ..storyboard import canvas_sync
-        canvas_sync.apply_places(scene)
-
-
-def _keyed(owner, path, frame):
-    """Is owner.path already keyed with its current value at frame?"""
-    ad = owner.animation_data
-    action = ad.action if ad else None
-    if action is None:
-        return False
-    value = getattr(owner, path)
-    values = list(value) if hasattr(value, "__len__") else [value]
-    for i, v in enumerate(values):
-        fc = _fcurve(action, owner, path, i)
-        if fc is None or not any(abs(k.co[0] - frame) < 1e-3 for k in fc.keyframe_points) \
-                or abs(fc.evaluate(frame) - v) > 1e-5:
-            return False
-    return True
-
-
-def _fcurve(action, owner, path, index):
-    return next((fc for fc in _all_fcurves(action) if fc.data_path == path and fc.array_index == index), None)
-
-
-def _all_fcurves(action):
-    if hasattr(action, "fcurves"):
-        return list(action.fcurves)
-    out = []                                   # layered actions (Blender 4.4+)
-    for layer in action.layers:
-        for strip in layer.strips:
-            for bag in getattr(strip, "channelbags", []):
-                out.extend(bag.fcurves)
-    return out
-
-
-_seen = {"pose": None}     # the camera's pose when last keyed / looked at
+    return sed.strips_all.get(name) if (sed is not None and name) else None
 
 
 def _pose(cam):
@@ -442,48 +317,65 @@ def remember_pose(cam):
     _seen["pose"] = _pose(cam)
 
 
+def shot_pose(scene):
+    clip = shot_clip(scene)
+    if clip is not None and clip.plastron_cam_set:
+        return tuple(clip.plastron_cam_location), tuple(clip.plastron_cam_rotation), clip.plastron_cam_lens
+    loc, rot = rest_pose()
+    return tuple(loc), tuple(rot), cfg.CAMERA_LENS
+
+
+def apply_camera(scene):
+    """Put the 3D Camera where the shot says (only what differs)."""
+    cam = bpy.data.objects.get(cfg.CAMERA_NAME)
+    if cam is None:
+        return
+    loc, rot, lens = shot_pose(scene)
+    if any(abs(a - b) > 1e-6 for a, b in zip(cam.location, loc)):
+        cam.location = loc
+    if any(abs(a - b) > 1e-6 for a, b in zip(cam.rotation_euler, rot)):
+        cam.rotation_euler = rot
+    if abs(cam.data.lens - lens) > 1e-6:
+        cam.data.lens = lens
+    remember_pose(cam)
+
+
+def _camera_frame(scene, *_args):
+    # Per-frame hook (allowed: Ollie asked for animated cameras). O(1) unless
+    # the canvas moved on to another clip, or the shot's camera is keyed.
+    if scene is None or not hasattr(scene, "plastron_timeline"):
+        return
+    from ..storyboard import canvas_sync
+    canvas_sync.on_frame(scene)                 # (its clip for this frame first; O(1) if done)
+    work = canvas_sync._state["work"]
+    if _shot["work"] != work or _shot["scene"] != scene.name:
+        clip = shot_clip(scene)
+        _shot.update(work=work, scene=scene.name, name=clip.name if clip else "",
+                     anim=shots.animated(scene, clip, shots.CAM_PROPS))
+        apply_camera(scene)
+    elif _shot["anim"]:
+        apply_camera(scene)
+
+
+def _forget_shot(*_args):
+    _shot["work"] = -1
+
+
 def key_camera(scene, cam):
-    """Key the 3D camera where it is now, at the playhead, if it was moved
-    (any other update to it, e.g. a view switching to it, keys nothing)."""
+    """The camera was moved by hand: the shot keeps it, keyed at the playhead
+    (any other update to it, e.g. Plastron putting it where the shot says,
+    keys nothing)."""
     pose = _pose(cam)
     last = _seen["pose"]
-    frame = scene.frame_current
-    moved = _moved_off_animation(cam, frame)
-    if moved is None:                           # (no keys yet: against the pose last seen)
-        moved = last is None or any(abs(a - b) > 1e-6 for a, b in zip(pose, last))
-    _seen["pose"] = pose
-    if not moved:
+    if last is not None and all(abs(a - b) < 1e-6 for a, b in zip(pose, last)):
         return
-    loc, rot = rest_pose()
-    span = clip_span(scene)
-    for owner, path, rest in ((cam, "location", tuple(loc)), (cam, "rotation_euler", tuple(rot)),
-                              (cam.data, "lens", (cfg.CAMERA_LENS,))):
-        if not _keyed(owner, path, frame):
-            owner.keyframe_insert(path, frame=frame)
-        keep_in_clip(scene, owner, path, rest, frame, span)
-
-
-def _moved_off_animation(cam, frame):
-    """Is the camera somewhere its keys don't put it (moved by hand)? None
-    if it has no keys. (It was keyed on ANY update while it had keys and the
-    playhead wasn't on one: dragging a key in the keyframe view replayed the
-    camera, Plastron inserted keys mid-drag and Blender crashed (Ollie).)"""
-    found = False
-    for owner, path in ((cam, "location"), (cam, "rotation_euler"), (cam.data, "lens")):
-        ad = owner.animation_data
-        action = ad.action if ad else None
-        if action is None:
-            continue
-        value = getattr(owner, path)
-        values = list(value) if hasattr(value, "__len__") else [value]
-        for i, v in enumerate(values):
-            fc = _fcurve(action, owner, path, i)
-            if fc is None or not len(fc.keyframe_points):
-                continue
-            found = True
-            if abs(fc.evaluate(frame) - v) > 1e-4:
-                return True
-    return False if found else None
+    _seen["pose"] = pose
+    clip = shot_clip(scene)
+    if clip is None:
+        return                                  # (no clip here: nothing to keep it in)
+    shots.set_camera(scene, clip, tuple(cam.location), tuple(cam.rotation_euler), cam.data.lens,
+                     scene.frame_current)
+    _forget_shot()
 
 
 ANIM_DRAGS = {"TRANSFORM_OT_transform"}   # (moving keys in the keyframe view; 3D moves are TRANSLATE / ROTATE...)
@@ -502,13 +394,15 @@ def _playing():
 def _on_edit(scene, depsgraph):
     # Edits only (depsgraph_update_post doesn't run during playback): a card
     # moved in the scene view moves its track; the 3D camera moved is keyed.
-    if _busy[0] or _held[0] or not (depsgraph.id_type_updated('OBJECT') or depsgraph.id_type_updated('CAMERA')):
+    if _busy[0] or _held[0] or not (depsgraph.id_type_updated('OBJECT') or depsgraph.id_type_updated('CAMERA')
+                                    or depsgraph.id_type_updated('SCENE')):
         return
     if scene is None or not hasattr(scene, "plastron_timeline") or _playing() or _dragging_keys():
         return
     from ..storyboard import canvas_sync
     _busy[0] = True
     try:
+        moved_camera = False
         for update in depsgraph.updates:
             obj = update.id.original if isinstance(update.id, (bpy.types.Object, bpy.types.Camera)) else None
             if obj is None:
@@ -517,10 +411,16 @@ def _on_edit(scene, depsgraph):
                 cam = bpy.data.objects.get(cfg.CAMERA_NAME)
                 if cam is not None:
                     key_camera(scene, cam)
+                    moved_camera = True
             elif isinstance(obj, bpy.types.Object) and update.is_updated_transform:
                 track = canvas_sync.sheet_track(scene, obj)
                 if track is not None:
                     _place_from(track, obj, scene)
+        if not moved_camera and depsgraph.id_type_updated('SCENE'):
+            # Keys edited (keyframe view): the camera / cards show the clips' new values.
+            _forget_shot()
+            apply_camera(scene)
+            canvas_sync.apply_places(scene)
     finally:
         _busy[0] = False
 
@@ -619,14 +519,31 @@ def _draw_cards():
 classes = (PLASTRON_OT_view_focus, PLASTRON_OT_scene_select_camera)
 
 
+def _after_undo(scene, *_args):
+    _forget_shot()
+    if scene is not None and hasattr(scene, "plastron_timeline"):
+        _camera_frame(scene)
+
+
+def _shot_clip_at(scene, frame):
+    """The clip that would be drawn on at frame (older projects' camera keys go there)."""
+    from ..storyboard import canvas_sync
+    from ...timeline import clips, tracks
+    sed = clips.editor(scene)
+    track = canvas_sync._drawing_track(scene, tracks.video_tracks(scene), frame, sed)
+    return clips.at(scene, tracks.channel_of(scene, track), frame) if track is not None else None
+
+
 def _on_load(scene):
-    _animated["scene"] = None
+    _forget_shot()
     ensure(scene)
+    if scene is not None and hasattr(scene, "plastron_timeline"):
+        loc, rot = rest_pose()
+        shots.migrate(scene, loc, rot, _shot_clip_at)
+        from ..storyboard import canvas_sync
+        canvas_sync.invalidate(scene)
+        _camera_frame(scene)
     link_canvases(scene, fit=False)      # (the canvas is fitted once the window is ready)
-
-
-def _track_place(track):
-    return tuple(track.place_offset), tuple(track.place_rotation), track.place_scale
 
 
 def register():
@@ -634,12 +551,14 @@ def register():
         bpy.utils.register_class(cls)
     from . import keys_view
     keys_view.register()
-    from ...timeline.tracks import PLASTRON_PG_track as Track
+    shots.register()
+    from ...timeline.tracks import PLASTRON_PG_track as Track      # (older projects' per-track cards: read once)
     Track.place_offset = bpy.props.FloatVectorProperty(size=3, subtype='TRANSLATION')
     Track.place_rotation = bpy.props.FloatVectorProperty(size=3, subtype='EULER')
     Track.place_scale = bpy.props.FloatProperty(default=1.0, min=0.001)
     from ..storyboard import canvas_sync
-    canvas_sync.SHEET_PLACE[0] = _track_place
+    canvas_sync.SHEET_PLACE[0] = _clip_place
+    canvas_sync.SHEET_MOVES[0] = _clip_moves
     canvas_sync.SHEET_ABSORB[0] = lambda scene, obj, track: _place_from(track, obj, scene)
     canvas_sync.SHEET_DEPTH[0] = track_depth
     from ..storyboard import canvas_frame
@@ -652,15 +571,16 @@ def register():
     # First: a card moved in the scene view must be kept on its track before
     # the timeline's edit handler re-syncs the canvas (which would put it back).
     handlers.add("depsgraph_update_post", _on_edit, first=True)
-    handlers.add("frame_change_post", _cards_frame)
-    handlers.add("undo_post", _forget_animated)
-    handlers.add("redo_post", _forget_animated)
+    handlers.add("frame_change_post", _camera_frame)
+    handlers.add("undo_post", _after_undo)
+    handlers.add("redo_post", _after_undo)
     _draw_handle[0] = bpy.types.SpaceView3D.draw_handler_add(_draw_cards, (), 'WINDOW', 'POST_VIEW')
     bpy.types.VIEW3D_HT_header.prepend(_draw_header)      # (left end: the header is narrow)
     handlers.on_load(_on_load)
     from ...timeline import events
     events.listen("project_created", ensure)
-    events.listen("tracks_moved", _on_tracks_moved)
+    for event in ("clips_changed", "tracks_changed", "active_track_changed"):
+        events.listen(event, _forget_shot)
 
 
 def unregister():
@@ -672,6 +592,7 @@ def unregister():
         _draw_handle[0] = None
     from ..storyboard import canvas_sync
     canvas_sync.SHEET_PLACE[0] = None
+    canvas_sync.SHEET_MOVES[0] = None
     canvas_sync.SHEET_ABSORB[0] = None
     canvas_sync.SHEET_DEPTH[0] = None
     from ..storyboard import canvas_frame
@@ -680,3 +601,4 @@ def unregister():
     del bpy.types.WindowManager.plastron_canvas_3d
     for cls in reversed(classes):
         bpy.utils.unregister_class(cls)
+    shots.unregister()

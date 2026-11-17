@@ -1,6 +1,6 @@
 """The 3D scene view under the script: layout, the panels as cards (moving
-a card moves its track), the 3D camera (square-on at rest, keys itself
-when moved), Blender's tools and gizmos, painting / Object mode following
+a card moves that clip's card), the 3D camera (square-on at rest, keys the
+shot when moved; each clip owns its animation: moves / splits carry it), Blender's tools and gizmos, painting / Object mode following
 the pen, canvas keys staying out of it, Ctrl+Space maximise, Alt+drag orbit."""
 
 import os
@@ -96,23 +96,26 @@ def steps():
     videos = tracks.video_tracks(sc)
     active = canvas_sync._state["canvas_track"]
     other = next(t for t in videos if t.uid != active)
-    panels.create(sc, tracks.channel_of(sc, other), sc.frame_current, 48)
+    opanel = panels.create(sc, tracks.channel_of(sc, other), sc.frame_current, 48)
     canvas_sync.invalidate(sc)
     yield 0.3
+    shots = h.module("features.scene3d.shots")
+    clips_mod = h.module("timeline.clips")
     card = bpy.data.objects[canvas_sync.DISPLAY_PREFIX + other.uid]
     h.check("a panel on another track is a card in the 3D scene", not card.hide_viewport and not card.hide_select)
     base_y = card.location.y
     card.location.y = base_y + 4.0
     card.scale = card.scale * 1.5
     yield 0.3
-    h.check("moving a card back moves its track (kept on the track)",
-            abs(other.place_offset[1] - 4.0) < 1e-4 and abs(other.place_scale - 1.5) < 1e-4,
-            (tuple(other.place_offset), other.place_scale))
+    h.check("moving a card moves THAT CLIP's card (kept on the clip, keyed)",
+            abs(opanel.plastron_card_offset[1] - 4.0) < 1e-4 and abs(opanel.plastron_card_scale - 1.5) < 1e-4
+            and shots.animated(sc, opanel, shots.CARD_PROPS) and abs(other.place_offset[1]) < 1e-6,
+            (tuple(opanel.plastron_card_offset), opanel.plastron_card_scale))
     canvas_sync.invalidate(sc)
     yield 0.2
     h.check("...and the canvas keeps it there", abs(card.location.y - (base_y + 4.0)) < 1e-4)
 
-    # Cards animate: moving one keys its track at the playhead; between keys it moves.
+    # Cards animate: moving one at another frame keys its clip; in between it moves.
     start_frame = sc.frame_current
     sc.frame_current = start_frame + 24
     yield 0.3
@@ -122,19 +125,24 @@ def steps():
     yield 0.4
     h.check("moving a card at another frame animates it (in between: in between)",
             base_y + 4.5 < card.location.y < base_y + 9.5, card.location.y - base_y)
+    later = panels.create(sc, tracks.channel_of(sc, other), clips_mod.end(opanel), 48)
+    canvas_sync.invalidate(sc)
+    sc.frame_current = clips_mod.start(later) + 10
+    yield 0.4
+    shown = bpy.data.objects[canvas_sync.CANVAS] if canvas_sync._state["canvas_track"] == other.uid else card
+    h.check("...the next clip on that track has its own card (at rest: nothing carried over)",
+            abs(shown.location.y - base_y) < 1e-4,
+            (shown.name, shown.location.y - base_y))
     keys = h.area('DOPESHEET_EDITOR')
     h.check("a keyframes view (Dope Sheet) shows what's keyed", keys is not None
             and keys.spaces.active.ui_mode == 'DOPESHEET')
-    action = sc.animation_data.action if sc.animation_data else None
-    groups = {g.name for g in action.groups} if action and hasattr(action, "groups") else set()
-    h.check("...the card's keys are labelled with its track", any(n.startswith("Card: ") for n in groups)
-            or action is not None, groups)
     sc.frame_current = start_frame
     yield 0.3
 
-    # The 3D camera keys itself when moved (location / rotation / lens), at the playhead.
+    # The 3D camera: moving it keys the SHOT (the clip being drawn on) at the playhead.
     sc.frame_current = 1
     yield 0.2
+    first = scene3d.shot_clip(sc)
     cam.location.x = 1.0
     yield 0.3
     sc.frame_current = 25
@@ -144,30 +152,23 @@ def steps():
     yield 0.3
     sc.frame_current = 13
     yield 0.3
-    h.check("moving the 3D camera keys it at the playhead (and plays between keys)",
-            cam.animation_data is not None and 1.5 < cam.location.x < 2.5, cam.location.x)
+    h.check("moving the 3D camera keys the shot at the playhead (and plays between keys)",
+            first is not None and shots.animated(sc, first, shots.CAM_PROPS) and cam.animation_data is None
+            and 1.5 < cam.location.x < 2.5, (first and first.name, cam.location.x))
     sc.frame_current = 25
     yield 0.3
     h.check("...lens too", abs(cam.data.lens - 50.0) < 1e-4, cam.data.lens)
+    h.redraw()
+    yield 0.3
+    h.check("the keyframe view lists only this clip's channels",
+            keys.spaces.active.dopesheet.filter_text == f"({first.name})", keys.spaces.active.dopesheet.filter_text)
 
     def key_frames():
-        out = set()
-        for owner in (cam, cam.data, sc):
-            ad = owner.animation_data
-            action = ad.action if ad else None
-            if action is not None:
-                for fc in scene3d._all_fcurves(action):
-                    out |= {(owner.name, fc.data_path, round(k.co[0])) for k in fc.keyframe_points}
-        return out
+        return {(fc.data_path, round(k.co[0])) for fc in shots.scene_fcurves(sc) for k in fc.keyframe_points}
 
-    # Each clip's keys stay in that clip (Ollie: "keyframes from previous clips
-    # are still carrying over to other clips").
-    panels_mod = h.module("features.storyboard.panels")
-    clips_mod = h.module("timeline.clips")
-    first = min((p for p in panels_mod.all_panels(sc) if clips_mod.start(p) <= 25 < clips_mod.end(p)),
-                key=clips_mod.start)
+    # Each clip owns its animation (Ollie: "the animation isn't actually stored per clip").
     a0, a1 = clips_mod.start(first), clips_mod.end(first)
-    second = panels_mod.create(sc, first.channel, a1, 48)
+    second = panels.create(sc, first.channel, a1, 48)
     canvas_sync.invalidate(sc)
     rest_loc, _rest_rot = scene3d.rest_pose()
     sc.frame_current = a1 + 24
@@ -178,15 +179,31 @@ def steps():
     sc.frame_current = a1 - 1
     yield 0.3
     h.check("...the clip holds its last keyed pose to its end", abs(cam.location.x - 3.0) < 1e-4, cam.location.x)
+    sc.frame_current = a1 + 10
+    yield 0.3
     cam.location.y -= 2.0                            # key the second clip
     yield 0.4
     sc.frame_current = 13
     yield 0.3
     h.check("...and keying the next clip leaves the first as it was", 1.5 < cam.location.x < 2.5, cam.location.x)
-    sc.frame_current = a1 + 30
+    # Its keys move with it.
+    clips_mod.apply(sc, {second: (a1 + 100, a1 + 148)})
+    sc.frame_current = a1 + 110
+    yield 0.4
+    h.check("moving a clip carries its camera move along",
+            abs(cam.location.y - (rest_loc.y - 2.0)) < 1e-4, (cam.location.y, rest_loc.y))
+    sc.frame_current = a1 + 10
     yield 0.3
-    h.check("...the next clip moves from rest (its start isn't the last clip's pose)",
-            abs(cam.location.x - rest_loc.x) < 1e-4, cam.location.x)
+    h.check("...and leaves nothing where it was", (cam.location - rest_loc).length < 1e-4, tuple(cam.location))
+    # A split clip: both halves keep the move.
+    ripple = h.module("timeline.ripple")
+    right = ripple.split(sc, [first], 20)
+    canvas_sync.invalidate(sc)
+    sc.frame_current = 22
+    yield 0.4
+    h.check("splitting a clip: both halves keep its animation",
+            right and shots.animated(sc, right[0], shots.CAM_PROPS) and 2.5 < cam.location.x < 3.0,
+            (right and right[0].name, cam.location.x))
     sc.frame_current = 25
     yield 0.3
 
@@ -206,12 +223,12 @@ def steps():
     after = key_frames()
     h.check("no keys appear by themselves (scrubbing, camera updates, switching the active track)",
             after == before, sorted(after - before)[:6])
-    sc.frame_current = 19
+    sc.frame_current = 9
     yield 0.2
     cam.location.z += 0.5                           # a real move between keys: keyed
     yield 0.3
     h.check("...a real camera move between keys is keyed",
-            any(f == 19 for _o, _p, f in key_frames() - before), sorted(key_frames() - before)[:6])
+            any(f == 9 for _p, f in key_frames() - before), sorted(key_frames() - before)[:6])
     h.redraw()
     yield 0.1
     a = location_3d_to_region_2d(cregion, cr3d, card.matrix_world.translation)
