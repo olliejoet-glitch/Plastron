@@ -414,7 +414,7 @@ def _on_edit(scene, depsgraph):
                     moved_camera = True
             elif isinstance(obj, bpy.types.Object) and update.is_updated_transform:
                 track = canvas_sync.sheet_track(scene, obj)
-                if track is not None:
+                if track is not None and canvas_sync.moved_by_hand(obj):
                     _place_from(track, obj, scene)
         if not moved_camera and depsgraph.id_type_updated('SCENE'):
             # Keys edited (keyframe view): the camera / cards show the clips' new values.

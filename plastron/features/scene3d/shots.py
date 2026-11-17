@@ -133,13 +133,26 @@ def migrate(scene, rest_location, rest_rotation, shot_clip_at):
         if track.kind != 'VIDEO' or not hasattr(track, "place_offset"):
             continue
         curves = track_curves.get(i, [])
+        if curves and all(len({round(k.co[1], 6) for k in fc.keyframe_points}) <= 1 for fc in curves):
+            for fc in curves:                  # (keys that never change: a placement, not a move)
+                if len(fc.keyframe_points):
+                    prop = fc.data_path.rsplit(".", 1)[1]
+                    v = getattr(track, prop)
+                    if hasattr(v, "__len__"):
+                        v = list(v)
+                        v[fc.array_index] = fc.keyframe_points[0].co[1]
+                    else:
+                        v = fc.keyframe_points[0].co[1]
+                    setattr(track, prop, v)
+            curves = []
         static = (tuple(track.place_offset), tuple(track.place_rotation), track.place_scale)
         moved = any(abs(v) > 1e-6 for v in static[0] + static[1]) or abs(static[2] - 1.0) > 1e-6
         if not curves and not moved:
             continue
         for clip in clips.on_channel(scene, tracks.channel(i)):
             s, e = clips.start(clip), clips.end(clip)
-            frames = sorted({s} | {round(k.co[0]) for fc in curves for k in fc.keyframe_points if s <= k.co[0] < e})
+            inside = {round(k.co[0]) for fc in curves for k in fc.keyframe_points if s <= k.co[0] < e}
+            frames = sorted({s} | inside)       # (no keys in its span: just its placement, unkeyed)
 
             def value(prop, n, frame):
                 out = list(getattr(track, prop)) if n > 1 else [getattr(track, prop)]
@@ -147,11 +160,11 @@ def migrate(scene, rest_location, rest_rotation, shot_clip_at):
                     if fc.data_path.endswith(prop) and fc.array_index < n:
                         out[fc.array_index] = fc.evaluate(frame)
                 return tuple(out) if n > 1 else out[0]
-            for f in (frames if curves else [s]):
+            for f in (frames if inside else [s]):
                 clip.plastron_card_offset = value("place_offset", 3, f)
                 clip.plastron_card_rotation = value("place_rotation", 3, f)
                 clip.plastron_card_scale = value("place_scale", 1, f)
-                if curves:
+                if inside:
                     key(scene, clip, CARD_PROPS, f, "Card")
     for curves in track_curves.values():
         for fc in curves:
@@ -192,6 +205,12 @@ def _migrate_camera(scene, rest_location, rest_rotation, shot_clip_at):
                 clip = shot_clip_at(scene, round(k.co[0]))
                 if clip is not None:
                     per_clip.setdefault(clip.name, (clip, set()))[1].add(round(k.co[0]))
+        sed = scene.sequence_editor
+        for clip in (sed.strips_all if sed else []):      # (clips without keys of their own: the pose they showed)
+            if clip.name not in per_clip and clip.type != 'SOUND':
+                clip.plastron_cam_set = True
+                clip.plastron_cam_location, clip.plastron_cam_rotation, clip.plastron_cam_lens = \
+                    pose_at(clips.start(clip))
         for clip, frames in per_clip.values():
             for f in sorted(frames | {clips.start(clip)}):
                 set_camera(scene, clip, *pose_at(f), f)

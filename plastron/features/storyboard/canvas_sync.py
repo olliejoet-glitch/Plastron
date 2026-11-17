@@ -56,6 +56,16 @@ def _transform(obj):
     return tuple(obj.location), tuple(obj.rotation_euler), tuple(obj.scale)
 
 
+def moved_by_hand(obj):
+    """Is the sheet away from where the canvas last put it? (Never placed
+    yet, e.g. just loaded: no.)"""
+    last = _placed.get(obj.name)
+    if last is None:
+        return False
+    now = _transform(obj)
+    return any(abs(a - b) > 1e-6 for u, v in zip(now, last) for a, b in zip(u, v))
+
+
 def _absorb(scene, obj, track):
     """A sheet moved by hand (3D scene view) since we placed it: keep it."""
     last = _placed.get(obj.name)
@@ -412,6 +422,13 @@ def fast_settings(scene):
             setattr(owner, attr, value)
 
 
+def _forget_placed(_scene):
+    """A project opened: where sheets were put in the last one means nothing
+    (it read as cards moved by hand and keyed them)."""
+    _placed.clear()
+    _state["dirty"] = True
+
+
 def _on_load(scene):
     if scene is None:
         return
@@ -426,6 +443,7 @@ def _on_load(scene):
 def register():
     for event in ("clips_changed", "tracks_changed", "active_track_changed"):
         events.listen(event, invalidate)
+    handlers.on_load(_forget_placed, first=True)
     handlers.on_load(_on_load)
     handlers.add("frame_change_post", on_frame)
 
