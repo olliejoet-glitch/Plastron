@@ -127,6 +127,7 @@ AREAS = {
         "settings": {
             "ui_mode": 'DOPESHEET',
             "dopesheet.show_only_selected": False,
+            "dopesheet.show_summary": False,       # (Ollie: no Summary row, just the clip's channels)
             "show_region_channels": True,
         },
     },

@@ -32,6 +32,7 @@ def steps():
     events.clips_changed(sc)
     keys = h.area('DOPESHEET_EDITOR')
     h.check("there's a keyframe view", keys is not None)
+    h.check("...without the Summary row (Ollie)", not keys.spaces.active.dopesheet.show_summary)
     sc.frame_current = 10
     yield 0.5
     h.redraw()

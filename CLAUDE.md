@@ -1050,7 +1050,8 @@ Plastron/
   Keyframe view (Ollie: "an editable keyframe view"): a Dope Sheet area under
   the 3D scene view (layout "keys": script 40 % / 3D 38 % / keys 22 %), its
   keymaps kept (Dopesheet, Dopesheet Generic, Animation Channels): select,
-  drag, delete keys. Each clip its own animation timeline (Ollie): the
+  drag, delete keys; no Summary row (Ollie; dopesheet.show_summary in
+  config/layout.py "keys"). Each clip its own animation timeline (Ollie): the
   keyframe view is framed on the clip being drawn on, start to end (+4 %),
   outside dimmed, its name + length at the top; it re-frames when the
   playhead reaches another clip or the clip's span changes
