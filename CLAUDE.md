@@ -793,6 +793,12 @@ Plastron/
   Scrolling is measured on screen (region_location_from_cursor): with word
   wrap, space.top counts screen rows, not script lines; a line already in
   view is left where it is.
+- Script lines told apart (Ollie: "a small space and an alternating colour
+  shift"): every other non-blank line (all its wrapped rows) faintly tinted
+  and a 3 px darker strip where lines meet (features/voice/script_lines,
+  SCRIPT_LINES in config/voice.py). Drawn over the text (Blender's text
+  view has no line spacing; the script itself is never changed); bands from
+  region_location_from_cursor, meeting halfway; hidden while smooth-scrolling.
 - Blender keymap stripped to essentials (BLENDER_KEEP in config/keymap.py):
   area resizing, UI widgets, scrolling, ruler scrubbing, typing in the script,
   painting strokes, tool click/drag behaviour, strip select/move. No right-click

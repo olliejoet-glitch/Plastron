@@ -71,6 +71,17 @@ def steps():
         if not 0 < y <= rt.height:
             off.append((f, line, st.top, y))
     h.check("playing / scrubbing keeps the line being played on screen (wrapped lines)", not off, off[:5])
+    lines_mod = h.module("features.voice.script_lines")
+    h.redraw()
+    yield 0.2
+    with h.override('TEXT_EDITOR'):
+        row_h = st.font_size * bpy.context.preferences.system.ui_scale * h.module("config.voice").SCRIPT_FOLLOW["row"]
+        bands = lines_mod.bands(st, rt, st.text, row_h)
+    h.check("script lines told apart: the lines on screen, every other one tinted, meeting edge to edge",
+            len(bands) >= 3 and [b[3] for b in bands[:4]] in ([False, True, False, True], [True, False, True, False])
+            and all(abs(a[2] - b[1]) < 1e-6 and a[1] > a[2] for a, b in zip(bands, bands[1:])),
+            bands[:4])
+    h.screenshot("script_lines")
     yield from h.drag((tx, rt.y + 100), (tx, rt.y + 300), alt=True, shift=True)
     yield 0.2
     top = st.top
