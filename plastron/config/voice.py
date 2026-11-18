@@ -46,14 +46,15 @@ MIC_HIDE = ("sound mapper", "primary sound capture", "stereo mix", "what u hear"
 
 # The script follows the playhead: the line being played is highlighted (a
 # band behind it) and scrolled into view.
-# Lines told apart in the script (Ollie): every other line faintly tinted, a
-# thin darker strip where one line meets the next (features/voice/script_lines).
+# Lines told apart in the script (Ollie): every other line faintly tinted (the
+# space between lines is a blank line, config/timeline.py SCRIPT_PANELS
+# "blank_line_between"); an optional strip where two lines touch.
 SCRIPT_LINES = {
     "stripe": "#ffffff",  # (palette name or "#rrggbb")
     "stripe_alpha": 0.04,
     "gap_color": "bg_dark",
     "gap_alpha": 1.0,
-    "gap_px": 3,          # the strip between lines (pixels, 100 % UI scale; 0 = none)
+    "gap_px": 0,          # a strip where two lines touch (pixels, 100 % UI scale; 0 = none)
 }
 
 SCRIPT_FOLLOW = {

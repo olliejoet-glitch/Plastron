@@ -794,11 +794,17 @@ Plastron/
   wrap, space.top counts screen rows, not script lines; a line already in
   view is left where it is.
 - Script lines told apart (Ollie: "a small space and an alternating colour
-  shift"): every other non-blank line (all its wrapped rows) faintly tinted
-  and a 3 px darker strip where lines meet (features/voice/script_lines,
-  SCRIPT_LINES in config/voice.py). Drawn over the text (Blender's text
-  view has no line spacing; the script itself is never changed); bands from
-  region_location_from_cursor, meeting halfway; hidden while smooth-scrolling.
+  shift", then "not good enough, I really need space between the lines"):
+  a REAL blank line is kept between every two script lines
+  (script_panels.spaced / space_out; SCRIPT_PANELS "blank_line_between" in
+  config/timeline.py): on paste / import, 1.5 s after typing settles (with
+  the lane sync) and when a project opens (lane blocks re-pointed at the
+  moved lines); extra blank lines stay; the cursor / selection stay on the
+  same words. Blank lines are ignored by panels / the lane already. Every
+  other non-blank line (all its wrapped rows) is faintly tinted
+  (features/voice/script_lines, SCRIPT_LINES in config/voice.py; an
+  optional strip where two lines touch, gap_px, off). Blender's text view
+  has no line spacing (drawn strips alone weren't enough for Ollie).
 - Blender keymap stripped to essentials (BLENDER_KEEP in config/keymap.py):
   area resizing, UI widgets, scrolling, ruler scrubbing, typing in the script,
   painting strokes, tool click/drag behaviour, strip select/move. No right-click

@@ -47,6 +47,36 @@ def script_lines(text):
     return [(i, line.body.strip()) for i, line in enumerate(text.lines) if line.body.strip()]
 
 
+def spaced(lines):
+    """Pure: lines with a blank line between every two non-blank ones (blank
+    lines already there stay). Returns (new lines, old index -> new index)."""
+    out, where = [], []
+    for i, line in enumerate(lines):
+        if line.strip() and out and out[-1].strip():
+            out.append("")
+        where.append(len(out))
+        out.append(line)
+    return out, where
+
+
+def space_out(text):
+    """Keep a blank line between the script's lines (Ollie: "I really need
+    space between the lines"), the cursor and selection staying on the same
+    words. True if the text changed."""
+    if not CFG.get("blank_line_between", True) or text is None:
+        return False
+    old = [line.body for line in text.lines]
+    new, where = spaced(old)
+    if new == old:
+        return False
+    cur = (text.current_line_index, text.current_character)
+    sel = (text.select_end_line_index, text.select_end_character)
+    text.from_string("\n".join(new))
+    text.cursor_set(where[min(sel[0], len(where) - 1)], character=sel[1])
+    text.cursor_set(where[min(cur[0], len(where) - 1)], character=cur[1], select=True)
+    return True
+
+
 PAUSE_KEY = "script_pause"
 
 
@@ -256,6 +286,7 @@ class PLASTRON_OT_script_import(bpy.types.Operator, ImportHelper):
             return {'CANCELLED'}
         text = script_text() or bpy.data.texts.new(defaults.SCRIPT_TEXT_NAME)
         text.from_string(body)
+        space_out(text)
         scene = context.scene
         for b in script_lane.blocks(scene):                # the old script's lines are gone
             ripple.remove(scene, b)
@@ -279,6 +310,7 @@ class PLASTRON_OT_script_paste(bpy.types.Operator):
         text = script_text() or bpy.data.texts.new(defaults.SCRIPT_TEXT_NAME)
         old = text.as_string()
         text.from_string(body if not old.strip() else old.rstrip("\n") + "\n" + body)
+        space_out(text)
         return _report(self, make_panels(context.scene, text))
 
 
@@ -292,14 +324,28 @@ _seen_text = {"body": None}
 def _auto_panels():
     scene = bpy.context.scene
     text = script_text()
-    if scene is None or text is None or not script_lane.blocks(scene):
+    if scene is None or text is None:
         return None
-    if script_lane.sync_from_text(scene, text):
+    changed = space_out(text)
+    if changed:
+        _seen_text["body"] = text.as_string()
+    if not script_lane.blocks(scene):
+        if changed:
+            _undo_step("Script Spacing")
+        return None
+    if script_lane.sync_from_text(scene, text) or changed:
         win = bpy.context.window_manager.windows[0] if bpy.context.window_manager.windows else None
         if win is not None:
             with bpy.context.temp_override(window=win):
                 bpy.ops.ed.undo_push(message="Script Edit")
     return None
+
+
+def _undo_step(message):
+    win = bpy.context.window_manager.windows[0] if bpy.context.window_manager.windows else None
+    if win is not None:
+        with bpy.context.temp_override(window=win):
+            bpy.ops.ed.undo_push(message=message)
 
 
 def _watch_script():
@@ -323,8 +369,12 @@ def _watch_script():
 _watch = []
 
 
-def _on_load(_scene):
+def _on_load(scene):
     _seen_text["body"] = None
+    text = script_text()
+    if scene is not None and hasattr(scene, "plastron_timeline") and space_out(text):
+        if script_lane.blocks(scene):              # (the lines' places in the text moved)
+            script_lane.sync_from_text(scene, text)
 
 
 def draw_bar(self, context):

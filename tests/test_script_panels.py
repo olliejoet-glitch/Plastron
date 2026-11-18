@@ -231,6 +231,32 @@ def steps():
     h.check("typing Enter in a line: the Script lane gets the new line by itself",
             len(lane.blocks(sc)) == n_blocks + 1, [b.text for b in lane.blocks(sc)])
 
+    # Space between lines (Ollie: "I really need space between the lines"): a
+    # blank line is kept between lines; the cursor stays on the same words.
+    lines, where = sp.spaced(["A", "B", "", "C", "D"])
+    h.check("a blank line between every two lines (blank lines already there stay)",
+            lines == ["A", "", "B", "", "C", "", "D"] and where == [0, 2, 3, 4, 6], (lines, where))
+    t = sp.script_text()
+    t.from_string("One line.\nTwo line.\nThree line.")
+    t.cursor_set(2, character=4)
+    sp._auto_panels()
+    yield 0.2
+    h.check("...kept by itself after typing, the cursor staying on the same words",
+            t.as_string() == "One line.\n\nTwo line.\n\nThree line."
+            and (t.current_line_index, t.current_character) == (4, 4),
+            (t.as_string(), t.current_line_index, t.current_character))
+
+    # An older project's script (no blank lines) gets them when it opens; its
+    # lines keep their Script lane blocks.
+    t.from_string("First.\nSecond.\nThird.")
+    lane.sync_from_text(sc, t) if lane.blocks(sc) else None
+    sp._on_load(sc)
+    yield 0.2
+    h.check("a project's script is spaced when it opens, its lane blocks pointing at the moved lines",
+            t.as_string() == "First.\n\nSecond.\n\nThird."
+            and all(t.lines[b[lane.INDEX]].body == b.text for b in lane.blocks(sc)),
+            (t.as_string(), [(b[lane.INDEX], b.text) for b in lane.blocks(sc)]))
+
     # Import from a file: the script panel gets the file; new lines and panels.
     path = os.path.join(bpy.app.tempdir, "script_test.txt")
     with open(path, "w", encoding="utf-8") as f:
@@ -240,7 +266,7 @@ def steps():
         bpy.ops.plastron.script_import(filepath=path)
     yield 0.3
     h.check("Import Script reads the file into the script panel",
-            sp.script_text().as_string().startswith("Line one.\nLine two"))
+            sp.script_text().as_string().startswith("Line one.\n\nLine two"))
     h.check("...its lines on the Script lane, a panel each",
             [b.text for b in lane.blocks(sc)] == ["Line one.", "Line two is a little longer."]
             and len(panels.all_panels(sc)) == count0 + 2, [b.text for b in lane.blocks(sc)])
@@ -251,7 +277,7 @@ def steps():
         bpy.ops.plastron.script_paste()
     yield 0.3
     h.check("Paste Script adds the copied lines to the script, the lane and the panels",
-            sp.script_text().as_string().rstrip().endswith("Pasted one.\nPasted two.")
+            sp.script_text().as_string().rstrip().endswith("Pasted one.\n\nPasted two.")
             and len(lane.blocks(sc)) == 4 and len(panels.all_panels(sc)) == count0 + 4,
             ([b.text for b in lane.blocks(sc)], len(panels.all_panels(sc))))
     h.redraw()

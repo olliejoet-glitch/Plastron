@@ -1,10 +1,9 @@
 """Script lines told apart at a glance (Ollie: "something that visually
 separates the lines in the script a bit more, both a small space and an
 alternating colour shift"). Every other script line (all its wrapped rows)
-gets a faint band, and a thin strip in the script's background colour sits
-where one line meets the next, so lines read as spaced-out blocks. Blender's
-text view can't add real space between lines, so it's drawn: the script's
-text is never changed. Blank lines get nothing (they're space already).
+gets a faint band. The space itself is a real blank line kept between lines
+(storyboard/script_panels.space_out: Blender's text view has no line
+spacing); a thin strip where two lines touch is optional (gap_px).
 Look and sizes: SCRIPT_LINES in config/voice.py.
 """
 
@@ -39,9 +38,10 @@ def bands(space, region, text, row_h):
         if top < 0:
             break                                     # (below it: the rest are too)
         out.append([i, top, bottom, n % 2 == 0])
-    for a, b in zip(out, out[1:]):                    # meet halfway, so no line's band is cut
-        mid = (a[2] + b[1]) / 2
-        a[2], b[1] = mid, mid
+    for a, b in zip(out, out[1:]):                    # touching lines meet halfway (blank lines between stay clear)
+        if a[0] + 1 == b[0]:
+            mid = (a[2] + b[1]) / 2
+            a[2], b[1] = mid, mid
     return [tuple(b) for b in out]
 
 

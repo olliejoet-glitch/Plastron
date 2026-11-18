@@ -18,6 +18,10 @@ SCRIPT_PANELS = {
     "min_seconds": 2.0,
     "max_seconds": 10.0,
     "file_types": "*.txt;*.md;*.fountain",
+    # Ollie: "I really need space between the lines": a blank line is kept
+    # between every two script lines (added on paste / import and after
+    # typing settles; extra blank lines you add stay). False: left as typed.
+    "blank_line_between": True,
 }
 
 # How close (in screen pixels) the mouse must be to a clip edge to grab it,
