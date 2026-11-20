@@ -225,7 +225,7 @@ Plastron/
 │  │                         brush_presets, brush_palette (import) + abr (.abr reader), onion,
 │  │                         stabiliser (Off / Slight / Max), script_panels
 │  │                         (panels from the script's lines + script bar),
-│  │                         stroke_guard (is a brush stroke running?)
+│  │                         stroke_guard (is a brush stroke running?), script_search (find in the script)
 │  │  └─ voice/              recorder (mic), mic (choosing the input), takes (voice clips + takes), record
 │  │                         (Ctrl+R, switch takes), transcribe (+ _worker: own
 │  │                         process), transcript_layout (pure) + transcript_bar,
@@ -447,6 +447,11 @@ Plastron/
   text.cursor_set(where it is, select=True) makes it redo the layout
   without moving the cursor / selection (script_follow.refresh_layout, on
   load and before every follow scroll).
+- text.cursor_set(..., select=True) moves the selection's END
+  (select_end_*), keeping current_* as the anchor: to keep a selection,
+  set current_* first, then the end with select=True.
+- Blender's "Text Generic" keymap (Ctrl+F start_find) is tried before
+  "Text": a Plastron key there needs Blender's item dropped (BLENDER_DROP).
 - Simulated events can't make a double-click (Blender times real clicks):
   test double-click actions through the function they call.
 - Blender's input_samples (the stabiliser's Steady) averages pen PRESSURE
@@ -918,6 +923,14 @@ Plastron/
     moves). The script highlight / clicking a line use the blocks.
   - timeline/view.frame shortens rows if Blender won't scroll the bottom
     track into view (it keeps the view's top near the highest clip).
+- Script search (Ollie: "a search function in the script"): a magnifier
+  button at the front of the script bar (shows what's searched) opens a
+  box: search field (matches as you type, case-blind), "n/m", ▲ / ▼ (next /
+  previous, wrapping round). Typing selects the first match from the
+  cursor and scrolls it into view; every match on screen is tinted orange,
+  the selected one stronger (SCRIPT_SEARCH in config/voice.py). Ctrl+F over
+  the script opens the box ready to type (Blender's own find, in the hidden
+  sidebar, dropped). features/storyboard/script_search.py.
 - Panels from the script (Ollie): File > Import Script... (txt / md /
   fountain into the script panel) and File > Panels from Script. One panel
   per non-blank line, on the active video track after its last clip (the

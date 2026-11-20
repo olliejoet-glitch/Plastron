@@ -11,6 +11,7 @@
     script_lane    the Script lane: a block per script line (between audio and video);
                    "Panels follow script"
     script_panels  panels from the script's lines (script bar: Paste, Make, Retime)
+    script_search  search the script (script bar field, Ctrl+F)
     (the Layers panel comes from plastron/layers)
 """
 
@@ -18,7 +19,7 @@ import bpy
 
 from ...core import handlers
 from . import (brush_palette, brush_presets, stabiliser, pen, canvas_color, canvas_frame, canvas_sync, canvas_view, onion,
-               options_bar, panel_cache, panels, script_lane, script_panels, tools)
+               options_bar, panel_cache, panels, script_lane, script_panels, script_search, tools)
 
 _CLASSES = canvas_view.classes + tools.classes
 
@@ -44,10 +45,12 @@ def register():
     canvas_sync.register()
     script_lane.register()
     script_panels.register()
+    script_search.register()
     handlers.on_load(_after_load)
 
 
 def unregister():
+    script_search.unregister()
     script_panels.unregister()
     script_lane.unregister()
     canvas_sync.unregister()

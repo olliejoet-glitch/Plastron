@@ -146,8 +146,11 @@ def refresh_layout(text):
     (Ollie's "mismatch between script and timeline": after a project opened,
     the script was drawn from the old layout while Blender's own positions,
     the follow band and the scrolling used the right one.) Setting the cursor
-    where it already is (select=True keeps any selection) is enough."""
-    text.cursor_set(text.current_line_index, character=text.current_character, select=True)
+    where it already is is enough. (cursor_set(select=True) moves the
+    selection's END, from current_*: both ends are put back.)"""
+    end = (text.select_end_line_index, text.select_end_character)
+    text.cursor_set(text.current_line_index, character=text.current_character)
+    text.cursor_set(end[0], character=end[1], select=True)
 
 
 def scroll_to(area, line):

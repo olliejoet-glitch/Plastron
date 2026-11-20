@@ -65,3 +65,12 @@ SCRIPT_FOLLOW = {
     "above": 1.0,         # band top above the line's first row (rows)
     "below": 0.15,        # band bottom under its last row (rows)
 }
+
+# Script search (script bar field, Ctrl+F over the script): every match tinted,
+# the current one (selected) stronger.
+SCRIPT_SEARCH = {
+    "color": "orange",    # (palette name or "#rrggbb")
+    "alpha": 0.25,        # every match
+    "current_alpha": 0.55,  # the one you're on
+    "field_width": 7,     # the search field (UI units)
+}

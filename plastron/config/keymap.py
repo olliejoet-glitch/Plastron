@@ -124,6 +124,7 @@ SHORTCUTS = [
     ("playback",     "Ctrl+R",           "plastron.voice_record",        "Record voice at the playhead (again: stop)"),
 
     ("script",       "LMB",              "plastron.script_click",        "Click a script line: playhead to where it's spoken"),
+    ("script",       "Ctrl+F",           "plastron.script_find",         "Find in the script"),
 
     # --- Timeline: editing -------------------------------------------------
     ("timeline",     "MouseMove",        "plastron.transcript_hover",    "Light up the transcript word under the mouse"),
@@ -192,6 +193,8 @@ BLENDER_DROP = {
     "Sequencer Tool: Select Box*": ["sequencer.select"],
     # Alt+drag on a clip is Plastron's copy-drag ("action|key": only that key).
     "Sequencer": ["sequencer.select_box|Alt+LMB", "transform.seq_slide|Alt+LMB"],
+    # Ctrl+F over the script is Plastron's search box (Blender's opens its hidden sidebar).
+    "Text Generic": ["text.start_find|Ctrl+F"],
 }
 
 # Keys that keep firing while held down (like holding a key in a text box).

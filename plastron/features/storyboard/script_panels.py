@@ -379,6 +379,8 @@ def _on_load(scene):
 
 def draw_bar(self, context):
     """The script bar (replaces Blender's text editor header)."""
+    from . import script_search
+    script_search.draw_button(self.layout, context)
     row = self.layout.row(align=True)
     row.operator("plastron.script_paste", text="Paste", icon='PASTEDOWN')
     row.operator("plastron.script_panels", text="Make", icon='SEQ_STRIP_DUPLICATE')
