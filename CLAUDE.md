@@ -923,10 +923,10 @@ Plastron/
     moves). The script highlight / clicking a line use the blocks.
   - timeline/view.frame shortens rows if Blender won't scroll the bottom
     track into view (it keeps the view's top near the highest clip).
-- Script search (Ollie: "a search function in the script"): a magnifier
-  button at the front of the script bar (shows what's searched) opens a
-  box: search field (matches as you type, case-blind), "n/m", ▲ / ▼ (next /
-  previous, wrapping round). Typing selects the first match from the
+- Script search (Ollie: "a search function in the script", then "just a
+  small search box": the bar scrolls when narrow): a small search field at
+  the front of the script bar (matches as you type, case-blind), "n/m",
+  ▲ / ▼ (next / previous, wrapping round). Typing selects the first match from the
   cursor and scrolls it into view; every match on screen is tinted orange,
   the selected one stronger (SCRIPT_SEARCH in config/voice.py). Ctrl+F over
   the script opens the box ready to type (Blender's own find, in the hidden

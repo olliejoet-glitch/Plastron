@@ -159,7 +159,7 @@ class PLASTRON_OT_script_find(bpy.types.Operator):
 
 
 class PLASTRON_PT_script_find(bpy.types.Panel):
-    """The script bar's search button: the search field in a box."""
+    """The search field in a box (popover)."""
     bl_idname = "PLASTRON_PT_script_find"
     bl_label = "Find in Script"
     bl_space_type = 'TEXT_EDITOR'
@@ -171,9 +171,8 @@ class PLASTRON_PT_script_find(bpy.types.Panel):
 
 
 def draw_button(layout, context):
-    """The script bar's search button (lit while something is searched)."""
-    query = getattr(context.window_manager, PROP, "")
-    layout.popover("PLASTRON_PT_script_find", text=query[:10] if query else "", icon='VIEWZOOM')
+    """The script bar's small search field (the bar scrolls when it's narrow)."""
+    draw_field(layout, context)
 
 
 def draw():
