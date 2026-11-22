@@ -155,7 +155,7 @@ def place(scene, path, frame=None, track=None):
         try:
             sound = sed.strips.new_sound(name, path, spare + 1, frame)
             if clips.length(sound) < 2:                  # (a video without sound: an empty clip)
-                sed.strips.remove(sound)
+                ripple.remove(scene, sound)
             else:
                 made.append(sound)
         except (RuntimeError, TypeError):
@@ -171,13 +171,13 @@ def place(scene, path, frame=None, track=None):
         strip[MARK] = True
     if not _fit(scene, main, tracks.channel_of(scene, target), frame):
         for strip in made:
-            sed.strips.remove(strip)
+            ripple.remove(scene, strip)
         return "No room here: turn on ripple for this track, or make a gap"
     for sound in made[1:]:
         if clips.length(sound) > clips.length(main):
             sound.right_handle = clips.end(main)
         if not _fit(scene, sound, tracks.channel_of(scene, sound_track(scene)), clips.start(main)):
-            sed.strips.remove(sound)
+            ripple.remove(scene, sound)
             made.remove(sound)
     _proxies(main)
     if len(made) > 1:
@@ -235,7 +235,7 @@ def take_drops(scene, **_info):
         # picture just above it: the lowest channel is where it was dropped.
         frame, channel = clips.start(main), min(s.channel for s in group)
         for strip in group:
-            sed.strips.remove(strip)
+            ripple.remove(scene, strip)
         result = place(scene, path, frame, tracks.track_of_channel(scene, channel))
         if isinstance(result, str):
             print("Plastron:", result)

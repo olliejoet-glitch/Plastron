@@ -11,7 +11,7 @@ renders and exports never see it.
 import bpy
 
 from ...config import values as cfg
-from ...timeline import clips, events, tracks
+from ...timeline import clips, events, ripple, tracks
 from . import groups
 
 CLIP_GROUP = "Plastron Values"
@@ -109,7 +109,7 @@ def show(scene, on):
             area.tag_redraw()
         clip = values_clip(scene)
         if clip is not None:
-            clips.editor(scene).strips.remove(clip)
+            ripple.remove(scene, clip)
             track = next((t for t in tracks.all_tracks(scene) if tracks.name(scene, t) == cfg.VALUES_TRACK), None)
             if track is not None and not clips.on_channel(scene, tracks.channel_of(scene, track)):
                 pass                                            # (the empty track stays; harmless)

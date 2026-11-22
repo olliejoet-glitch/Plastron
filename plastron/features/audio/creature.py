@@ -68,7 +68,7 @@ def bake(scene, strip, name):
     new.left_handle, new.right_handle = s, e
     room = ripple.make_room(scene, tracks.channel_of(scene, track), s, e - s)
     if room is None:
-        sed.strips.remove(new)
+        ripple.remove(scene, new)
         return "No room on the Creature track there"
     if room[1] < e - s:
         new.right_handle = s + room[1]

@@ -404,6 +404,12 @@ Plastron/
   workspace.sequencer_scene) makes all Plastron code (context.scene) work on
   the nested timeline. load_post code must put the window back on the main
   scene before anything else (handlers.on_load(..., first=True)).
+- NEVER remove a clip with Python's strips.remove: it doesn't stop
+  Blender's frames-ahead (prefetch) thread, which crashes if it's rendering
+  that clip (info window mid-playback; Ollie's big phone video dropped from
+  Explorer: Plastron re-places drops and removed Blender's clips while the
+  thread was reading them). Use timeline/ripple.remove (Blender's Delete;
+  unlocks / disconnects first). tests/test_code_rules.py enforces it.
 - Window.modal_operators lists running modal operators (placement waits
   while a TRANSFORM_OT_* drag runs).
 - Strip.split copies Plastron's PointerProperties (voice takes, panel data).

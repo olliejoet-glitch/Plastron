@@ -200,7 +200,7 @@ def new_window(scene, style_path, frame=None, track=None):
     strip[media.MARK] = True
     strip.transform.scale_x = strip.transform.scale_y = cfg.WINDOW_SCALE
     if not media._fit(scene, strip, tracks.channel_of(scene, target), frame):
-        sed.strips.remove(strip)
+        ripple.remove(scene, strip)
         bpy.data.scenes.remove(ws)
         return "No room here: turn on ripple for this track, or make a gap"
     for s in clips.all_clips(scene):

@@ -163,21 +163,27 @@ def merge_spans(spans):
 def remove(scene, strip):
     """Remove one clip the way Blender's own Delete does: that stops the
     frames-ahead (prefetch) thread first. Python's strips.remove doesn't,
-    and removing a clip it was rendering (an info window, with a timeline
-    inside) mid-playback crashed Blender."""
+    and removing a clip it was rendering crashed Blender (an info window
+    mid-playback; a big video Blender's own drop had just added, which
+    Plastron removes to place again). Use this for every clip removal."""
     import bpy
     sed = clips.editor(scene)
     over = _timeline_override()
     if over is None or over["window"].scene != scene:
         sed.strips.remove(strip)
         return
+    name = strip.name
     picked = [s for s in sed.strips_all if s.select and s != strip]
     for s in sed.strips_all:
         s.select = s == strip
+    strip.lock = False                         # (Delete skips locked clips)
     with bpy.context.temp_override(**over, scene=scene):
-        if strip.get(clips.LINK):
+        if strip.get(clips.LINK) or len(strip.connections):
             bpy.ops.sequencer.disconnect()     # (Blender's Delete takes connected clips along)
         bpy.ops.sequencer.delete(delete_data=False)
+    left = sed.strips_all.get(name)
+    if left is not None:                       # (the operator couldn't: never leave it behind)
+        sed.strips.remove(left)
     for s in picked:
         try:
             s.select = True

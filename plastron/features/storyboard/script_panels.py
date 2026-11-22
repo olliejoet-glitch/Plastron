@@ -212,7 +212,7 @@ def make_panels(scene, text=None, jump=True):
         starters = [s for s in on_track if panels.is_panel(s)]
         if len(on_track) == 1 and len(starters) == 1 and _untouched(starters[0]):
             start = clips.start(starters[0])        # replace the blank starter panel
-            clips.editor(scene).strips.remove(starters[0])
+            ripple.remove(scene, starters[0])
         for index, line in lines:
             n = frames_for(scene, line)
             script_lane.new_block(scene, start, start + n, index, line)
