@@ -207,7 +207,7 @@ Plastron/
 │  │                         ripple (pure planners), snapping, mix, track_headers, sections,
 │  │                         header, ops, view (framing), edit_tools (Move / Slice),
 │  │                         edit_keys (Q / W, Up / Down, J / K / L), placement (which
-│  │                         clips may go on which track), ripple_move (ripple for clip drags), fades (fade in / out, dips),
+│  │                         clips may go on which track), link (link / unlink by hand), ripple_move (ripple for clip drags), fades (fade in / out, dips),
 │  │                         events (features listen; timeline knows no features)
 │  ├─ layers/                Photoshop-style layer stacks on materials (from CaraPainter):
 │  │                         props, blend_lib, layer_trees, compiler (node trees),
@@ -658,6 +658,13 @@ Plastron/
   tracks.move swaps channels' clips (via spare channels) and settings and
   moves the track data; event "tracks_moved" {old: new}: scene3d re-points
   its card keys (data paths name the track's index). One undo step.
+- Linking by hand (Ollie: "link a video and an audio track so they
+  automatically stay connected, like in DaVinci"): Ctrl+Alt+L (Resolve's
+  key) or the timeline header's chain button (shown while clips are
+  selected; lit when they're linked) links the selected clips (clips.link:
+  strip["plastron_link"] + Blender's connect), or unlinks them if they're
+  already linked together (clips.unlink_all: + Blender's disconnect). One
+  selected linked clip: unlinks it from its partners. timeline/link.py.
 - Track headers: name / mute / lock are Blender's channel buttons; Plastron
   draws R (ripple, all tracks), S (solo) and a volume bar (0-200 %, audio
   tracks only). Clicking a track's row or name makes it the active track.

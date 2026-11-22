@@ -23,9 +23,9 @@ def link(strips):
     _connect(strips)
 
 
-def _connect(strips):
+def _connect(strips, op="connect"):
     import bpy
-    if len(strips) < 2:
+    if len(strips) < (2 if op == "connect" else 1):
         return
     wm = bpy.context.window_manager
     for window in (wm.windows if wm else []):
@@ -38,9 +38,9 @@ def _connect(strips):
             s.select = s in strips
         try:
             with bpy.context.temp_override(window=window, area=area, scene=scene):
-                bpy.ops.sequencer.connect()
+                getattr(bpy.ops.sequencer, op)()
         except RuntimeError as err:
-            print("Plastron: couldn't connect clips:", err)
+            print(f"Plastron: couldn't {op} clips:", err)
         for s, sel in was.items():
             s.select = sel
         return
@@ -49,6 +49,14 @@ def _connect(strips):
 def unlink(strip):
     if LINK in strip:
         del strip[LINK]
+
+
+def unlink_all(strips):
+    """Unlink these clips from each other and everything (Blender's
+    connection too): they move / trim / cut on their own again."""
+    for strip in strips:
+        unlink(strip)
+    _connect(list(strips), op="disconnect")
 
 
 def linked(strip, among=None):
