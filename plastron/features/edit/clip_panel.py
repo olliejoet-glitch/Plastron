@@ -128,6 +128,8 @@ class PLASTRON_PT_clip(bpy.types.Panel):
                                   depress=abs(speed_of(strip) - speed) < 1e-3)
                 op.speed = speed
             layout.prop(context.window_manager, "plastron_clip_speed", text="Speed")
+        if strip.type == 'MOVIE':
+            layout.operator("plastron.clip_frame_rate", icon='TIME')
         if strip.type == 'SOUND':
             layout.separator()
             layout.prop(strip.plastron, "volume", text="Volume", slider=True)

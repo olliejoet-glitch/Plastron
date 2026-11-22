@@ -252,7 +252,7 @@ Plastron/
 │  │                         captions (Export Captions .srt from voice transcripts)
 │  │  └─ edit/               Edit mode: media (placing footage / sound / pictures on
 │  │                         tracks; Blender's drops re-placed), bin (media bin, preview size),
-│  │                         clip_panel (Clip panel), frame_box (move / size / turn in the preview),
+│  │                         clip_panel (Clip panel), frame_rate (Check Frame Rate, real speed), frame_box (move / size / turn in the preview),
 │  │                         windows (info windows: a clip with its own timeline in a UI frame),
 │  │                         shorts (Shorts reframing: 9:16 box per shot, the Shorts render)
 │  │  └─ audio/              Audio mode: analysis (numpy: LUFS, envelope, beats), loudness
@@ -371,6 +371,10 @@ Plastron/
   finds those new right halves itself).
 - Sequencer movie_strip_add's move_strips (default on) moves the clip to the
   mouse: from Python pass move_strips=False.
+- A movie strip's frame_duration / fps is its real length only until it's
+  retimed (then frame_duration is timeline frames); content_end -
+  content_start is its whole media in timeline frames either way. Its fps
+  is the file's nominal rate (r_frame_rate); VFR frames are fetched by time.
 - Clip speed: Blender's retiming_segment_speed_set (speed in %, needs a
   timeline area in context). Moving retiming keys by hand crashed Blender
   on trimmed / split clips (they get extra keys at their handles).
@@ -1221,6 +1225,19 @@ Plastron/
   preview plays at 50 % proxies (made by Blender next to the footage in
   BL_proxy; Blender skips them when decoding is fast). Footage keeps
   Blender's own clip colours (tags are the shot statuses).
+- Frame rate (Ollie: phone footage, "worried a variable frame rate will
+  steadily cause the audio and video to drift"): tested: Blender shows a
+  variable-frame-rate video's frames at their own timestamps, so VFR alone
+  doesn't drift. What did: Python's new_movie plays every video frame as a
+  project frame (a 30 fps video at 24 fps ran at 80 %: 20 s of picture over
+  25 s, its sound 20 s). media.place now retimes footage to real speed
+  (features/edit/frame_rate.match_rate, Blender's retiming via
+  ripple._retime; the media's real length kept in strip["plastron_media_s"]).
+  Clip panel > Check Frame Rate (a selected video): reads the file's frame
+  timing (MP4 / MOV stts table, pure Python: constant / variable with its
+  1-99 % range, average, picture vs sound length in the file), the project
+  rate, and whether the clip plays at real speed here; Play at Real Speed
+  fixes clips placed before.
 - Ripple trim of a clip's start (edge drag with ripple, or Q) keeps the
   clip in place and slides its media: the cut-off start is gone (was: the
   end of the media got cut). Plans carry (start, end, slide); clips.apply

@@ -150,6 +150,8 @@ def place(scene, path, frame=None, track=None):
     made = []
     if kind == 'MOVIE':
         main = sed.strips.new_movie(name, path, spare, frame, fit_method='FIT')
+        from . import frame_rate
+        frame_rate.match_rate(scene, main)           # (a 30 fps video plays at real speed at 24 fps)
         try:
             sound = sed.strips.new_sound(name, path, spare + 1, frame)
             if clips.length(sound) < 2:                  # (a video without sound: an empty clip)
