@@ -664,6 +664,14 @@ Plastron/
 - Audio mix: strip volume = clip volume × track volume × (0 if another track
   is soloed); written on edit. Clip volume shows in the timeline header when a
   sound clip is selected.
+- Project range (Ollie: "I need to be able to set the frame range
+  myself"): the scene's start / end (what plays and exports) follow the
+  last clip's end while "Auto" is on (timeline header; scene.plastron_
+  timeline.range_auto, default on). Setting it by hand turns Auto off and it
+  stays put: the header's start / end fields (range_start / range_end, a
+  start after the end pushes the end along) or Shift+I / Shift+O over the
+  timeline (plastron.range_set, at the playhead). Clicking Auto again
+  follows the clips. Separate from the Loop range (I / O).
 - Split (Ctrl+K): selected clips under the playhead, else the active track's.
   Delete: selected clips. Loop: I / O set Blender's preview range; header
   "Loop" toggles it.

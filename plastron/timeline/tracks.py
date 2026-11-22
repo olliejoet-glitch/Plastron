@@ -35,9 +35,42 @@ class PLASTRON_PG_track(bpy.types.PropertyGroup):
         update=lambda self, context: events.emit("tracks_changed", context.scene))
 
 
+def _range_get(side):
+    return lambda self: getattr(self.id_data, "frame_" + side)
+
+
+def _range_set(side):
+    def setter(self, value):
+        """Set by hand: the range stops following the clips."""
+        scene = self.id_data
+        self.range_auto = False
+        if side == "start":
+            scene.frame_start = value
+            scene.frame_end = max(scene.frame_end, value)
+        else:
+            scene.frame_end = max(value, scene.frame_start)
+    return setter
+
+
+def _range_auto_changed(self, context):
+    if self.range_auto:
+        events.clips_changed(self.id_data)
+
+
 class PLASTRON_PG_timeline(bpy.types.PropertyGroup):
     tracks: bpy.props.CollectionProperty(type=PLASTRON_PG_track)
     active_track: bpy.props.IntProperty(name="Active Track", default=-1)
+    # The project's range (what plays and exports): follows the clips' end
+    # unless set by hand (Ollie: "I need to be able to set the frame range myself").
+    range_auto: bpy.props.BoolProperty(
+        name="Auto Range", default=True, update=_range_auto_changed,
+        description="The project's range ends where the last clip ends (off: the range you set)")
+    range_start: bpy.props.IntProperty(
+        name="Start", description="Where the project starts (plays and exports from here)",
+        min=0, get=_range_get("start"), set=_range_set("start"))
+    range_end: bpy.props.IntProperty(
+        name="End", description="Where the project ends (plays and exports to here)",
+        min=0, get=_range_get("end"), set=_range_set("end"))
 
 
 def _fades_changed(self, context):

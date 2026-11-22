@@ -286,7 +286,27 @@ class PLASTRON_OT_loop_set(bpy.types.Operator):
         return {'FINISHED'}
 
 
+class PLASTRON_OT_range_set(bpy.types.Operator):
+    """Set where the project starts or ends (what plays and exports) at the playhead"""
+    bl_idname = "plastron.range_set"
+    bl_label = "Set Project Range"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    side: bpy.props.EnumProperty(items=[('IN', "Start", ""), ('OUT', "End", "")])
+
+    def execute(self, context):
+        tl = context.scene.plastron_timeline
+        frame = context.scene.frame_current
+        if self.side == 'IN':
+            tl.range_start = frame
+        else:
+            tl.range_end = frame
+        context.area.tag_redraw()
+        return {'FINISHED'}
+
+
 classes = (
+    PLASTRON_OT_range_set,
     PLASTRON_OT_track_add,
     PLASTRON_OT_track_header_click,
     PLASTRON_OT_clip_trim,

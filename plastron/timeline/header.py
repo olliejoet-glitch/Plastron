@@ -89,6 +89,12 @@ def draw(self, context):
 
     ts = scene.tool_settings
     layout.prop(ts, "use_snap_sequencer", text="", icon='SNAP_ON' if ts.use_snap_sequencer else 'SNAP_OFF')
+    tl = scene.plastron_timeline
+    row = layout.row(align=True)
+    row.prop(tl, "range_auto", text="Auto" if tl.range_auto else "Range", toggle=True,
+             icon='AUTO' if tl.range_auto else 'PREVIEW_RANGE')
+    row.prop(tl, "range_start", text="")
+    row.prop(tl, "range_end", text="")
     row = layout.row(align=True)
     row.prop(scene, "use_preview_range", text="Loop", toggle=True)
     sub = row.row(align=True)

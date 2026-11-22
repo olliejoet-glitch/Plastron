@@ -31,6 +31,8 @@ _pending = set()   # scene names waiting for a debounced clips_changed
 
 
 def _update_frame_range(scene, **_info):
+    if not scene.plastron_timeline.range_auto:      # (set by hand)
+        return
     ends = [clips.end(s) for s in clips.top_clips(scene)]
     if ends and scene.frame_end != max(ends) - 1:
         scene.frame_end = max(ends) - 1

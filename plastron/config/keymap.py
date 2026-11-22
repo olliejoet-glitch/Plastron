@@ -170,6 +170,8 @@ SHORTCUTS = [
     ("canvas",       "A",                "plastron.timeline_tool",       "Move tool (move / resize clips)", {"tool": 'MOVE'}),
     ("timeline",     "I",                "plastron.loop_set",            "Loop range start",       {"side": 'IN'}),
     ("timeline",     "O",                "plastron.loop_set",            "Loop range end",         {"side": 'OUT'}),
+    ("timeline",     "Shift+I",          "plastron.range_set",           "Project start at the playhead", {"side": 'IN'}),
+    ("timeline",     "Shift+O",          "plastron.range_set",           "Project end at the playhead",   {"side": 'OUT'}),
     ("track_headers", "LMB",             "plastron.track_header_click",  "Ripple / solo / volume; pick active track"),
     ("track_headers", "LMB drag",        "plastron.track_drag",          "Drag a track's header up / down to move the track"),
     # (last: of two actions on one key the later is tried first; it only
