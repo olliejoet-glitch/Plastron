@@ -1229,7 +1229,12 @@ Plastron/
   linked (strip["plastron_link"] + Blender's connected strips): they select,
   move, trim, cut, delete and ripple together. Pictures last 5 s. The
   preview plays at 50 % proxies (made by Blender next to the footage in
-  BL_proxy; Blender skips them when decoding is fast). Footage keeps
+  BL_proxy/<file>/proxy_50.avi). Blender only builds them when asked
+  (Ollie: "the frame rate is really jittery": they had never been built,
+  so the preview decoded his full-size phone video every frame):
+  features/edit/proxies.py builds them (sequencer.rebuild_proxy, a
+  background job) for placed footage and, 1.5 s after a project opens, for
+  any footage missing them. Footage keeps
   Blender's own clip colours (tags are the shot statuses).
 - Frame rate (Ollie: phone footage, "worried a variable frame rate will
   steadily cause the audio and video to drift"): tested: Blender shows a

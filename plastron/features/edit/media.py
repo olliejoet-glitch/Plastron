@@ -180,6 +180,8 @@ def place(scene, path, frame=None, track=None):
             ripple.remove(scene, sound)
             made.remove(sound)
     _proxies(main)
+    from . import proxies
+    proxies.build(scene, [main])                   # (the preview plays from half-size copies)
     if len(made) > 1:
         clips.link(made)          # the video and its sound move / trim / cut together
     for s in clips.all_clips(scene):

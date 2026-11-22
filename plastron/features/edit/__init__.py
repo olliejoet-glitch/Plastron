@@ -4,15 +4,16 @@
             fixing up Blender's own drops)
     bin     the media bin (file browser) + Add to Timeline; preview size
     clip_panel  the Clip panel (preview sidebar)
+    proxies     the preview's half-size copies of footage, built in the background
     frame_rate  Check Frame Rate (variable? real speed?); footage placed at real speed
     frame_box   move / size / turn the selected clip by hand in the preview
     windows     info windows: a clip with its own timeline inside a UI frame
     shorts      Shorts reframing (a 9:16 box per shot; the Shorts export)
 """
 
-from . import bin, clip_panel, frame_box, frame_rate, media, shorts, windows
+from . import bin, clip_panel, frame_box, frame_rate, media, proxies, shorts, windows
 
-_MODULES = (media, bin, clip_panel, frame_rate, frame_box, windows, shorts)
+_MODULES = (media, proxies, bin, clip_panel, frame_rate, frame_box, windows, shorts)
 
 
 def register():
