@@ -274,5 +274,47 @@ def steps():
             p[hh // 2, w // 2] and p[hh // 2 + 15, w // 2 + 35] and not p[hh // 2 + 30, w // 2],
             int(p.sum()))
 
+    # A picture copied anywhere else (Ollie: "paste images into the panels").
+    ip = h.module("features.canvas_edit.image_paste")
+    types = [a.type for a in h.window().screen.areas]
+    h.check("reading the clipboard (no picture on it here) leaves the layout as it was",
+            ip.read_system(h.window()) is None and [a.type for a in h.window().screen.areas] == types)
+    pic = np.zeros((90, 160, 4), np.float32)
+    pic[..., :] = (0.2, 0.6, 0.3, 1.0)
+    pic[:45, :, 0] = 1.0                       # bottom half red (rows bottom-up)
+    real_read, real_seq = ip.read_system, ip.sequence
+    seq = [5]
+    ip.read_system = lambda window=None: pic
+    ip.sequence = lambda: seq[0]
+    try:
+        clipboard._clip["pixels"] = small
+        ip.mark_copied()                       # (copied in Plastron at clipboard change 5)
+        h.key('V', ctrl=True)
+        yield 0.4
+        h.check("pixels copied in Plastron last still paste first",
+                pixels.active_layer().name == "Pasted", pixels.active_layer().name)
+        seq[0] = 6                             # (then a screenshot was copied)
+        h.key('V', ctrl=True)
+        yield 0.4
+        layer = pixels.active_layer()
+        a = pixels.array(layer.paint_image)
+        from_frame = h.module("features.storyboard.canvas_sync").frame_px(pixels.material().plastron_stack)
+        fw = from_frame[0]
+        h.check("a picture copied elsewhere pastes as a new layer 'Image'", layer.name == "Image", layer.name)
+        h.check("...fitted to the camera frame (16:9 fills it), right way up",
+                a[hh // 2 - int(from_frame[1] * 0.3), w // 2, 0] > 0.9
+                and a[hh // 2 + int(from_frame[1] * 0.3), w // 2, 0] < 0.5
+                and a[hh // 2, int(w / 2 + fw * 0.48), 3] > 0.9 and a[hh // 2, int(w / 2 + fw * 0.52), 3] < 0.1,
+                (a[hh // 2, w // 2], a[hh // 2, int(w / 2 + fw * 0.52)]))
+        tall = np.ones((200, 50, 4), np.float32)
+        out = ip.fitted(tall, 400, 300, (320, 180), "contain")
+        cover = ip.fitted(tall, 400, 300, (320, 180), "cover")
+        h.check("a tall picture fits inside the frame ('contain') or fills it ('cover')",
+                out[150, 200, 3] > 0.9 and out[150, 100, 3] < 0.1 and out[245, 200, 3] < 0.1
+                and cover[150, 60, 3] > 0.9 and cover[150, 30, 3] < 0.1 and cover[245, 200, 3] < 0.1)
+        h.screenshot("pasted_image")
+    finally:
+        ip.read_system, ip.sequence = real_read, real_seq
+
 
 h.run(steps())

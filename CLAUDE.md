@@ -233,7 +233,8 @@ Plastron/
 │  │  └─ canvas_edit/        shapes (pure numpy: masks, homography, warp, resample),
 │  │                         pixels (undoable layer writes, screen <-> canvas),
 │  │                         selection (L / M, stencil), transform (Ctrl+T, V),
-│  │                         clipboard (copy / paste, flips)
+│  │                         clipboard (copy / paste, flips), image_paste (pictures
+│  │                         from the computer's clipboard)
 │  │  └─ motion/             camera (strip.plastron_motion, frame maths, shake),
 │  │                         view_follow (Camera View), camera_pad (camera
 │  │                         controls box), canvas_fit (painting grows to fit
@@ -450,6 +451,9 @@ Plastron/
 - text.cursor_set(..., select=True) moves the selection's END
   (select_end_*), keeping current_* as the anchor: to keep a selection,
   set current_* first, then the end with select=True.
+- bpy.ops.image.clipboard_paste needs an Image Editor in context (poll
+  fails otherwise; its poll also says whether a picture is on the
+  clipboard). Blender on X11 can't copy / paste clipboard pictures.
 - Blender's "Text Generic" keymap (Ctrl+F start_find) is tried before
   "Text": a Plastron key there needs Blender's item dropped (BLENDER_DROP).
 - Simulated events can't make a double-click (Blender times real clicks):
@@ -695,6 +699,16 @@ Plastron/
   left-right in place, or the active layer / every paint layer of the active
   group; Ctrl+Alt+Shift+F upside down. Outside the selection is tinted
   (SELECTION_COLOR) with a white edge.
+  Pictures (Ollie: "paste images into the panels", for a pacing study):
+  Ctrl+V with a picture on the computer's clipboard (screenshot, frame
+  copied from a browser) pastes it as a new layer "Image" fitted inside the
+  camera frame (PASTE_IMAGE_FIT in config/tools.py: contain / cover).
+  Whichever was copied last wins: Plastron's Ctrl+C records Windows'
+  clipboard change number; a later change means the clipboard is newer.
+  Blender reads clipboard pictures only with an Image Editor in context
+  (Windows / macOS; not X11, so tests use a stand-in): a spare area
+  (keyframe view, script...) is turned into one for that moment
+  (canvas_edit/image_paste.py).
   Same pan/zoom drags work on the timeline.
 - Timeline keys (stage 2): N new panel, Ctrl+K split, Delete/Backspace delete,
   I / O loop range.

@@ -76,3 +76,9 @@ TABLET_APIS = [
     ("WINDOWS_INK", "Windows Ink", "Windows' own pen input"),
     ("WINTAB",      "Wintab",      "The tablet driver's own input (Wacom); often smoother pressure"),
 ]
+
+# Ctrl+V with a picture on the computer's clipboard (a screenshot, a frame
+# copied from a browser...): it comes in as a new layer in the camera frame.
+# "contain" = the whole picture inside the frame; "cover" = fills the frame
+# (edges cut off).
+PASTE_IMAGE_FIT = "contain"

@@ -4,7 +4,9 @@ Ctrl+C copies the selected pixels of the active layer (the whole layer with
 nothing selected); Ctrl+X cuts them. Ctrl+V pastes in place as a new layer
 on the panel being drawn on, so copying between panels keeps the drawing
 where it was in the frame (rescaled if the panels were painted at different
-sizes).
+sizes). A picture copied anywhere else (a screenshot...) pastes as a new
+layer fitted to the camera frame (image_paste); whichever was copied last
+wins.
 
 Ctrl+Alt+F flips the selected pixels left-right (in place); with nothing
 selected it flips the active layer (or every paint layer in the active
@@ -15,7 +17,7 @@ import bpy
 import numpy as np
 
 from ...layers import stack as stack_ops
-from . import pixels, selection, shapes
+from . import image_paste, pixels, selection, shapes
 
 _clip = {"pixels": None, "frame": None}   # full-canvas RGBA + its camera frame size (px)
 
@@ -64,6 +66,7 @@ class PLASTRON_OT_pixels_copy(_CanvasOp, bpy.types.Operator):
         _clip["pixels"] = a
         from ..storyboard.canvas_sync import frame_px
         _clip["frame"] = frame_px(mat.plastron_stack)
+        image_paste.mark_copied()
         if self.cut:
             rest = pixels.array(layer.paint_image).copy()
             rest[..., 3] *= (1.0 - m) if m is not None else 0.0
@@ -73,13 +76,24 @@ class PLASTRON_OT_pixels_copy(_CanvasOp, bpy.types.Operator):
 
 
 class PLASTRON_OT_pixels_paste(_CanvasOp, bpy.types.Operator):
-    """Paste in place, as a new layer (Ctrl+V)"""
+    """Paste in place, as a new layer (Ctrl+V); a picture copied elsewhere
+    comes in fitted to the camera frame"""
     bl_idname = "plastron.pixels_paste"
     bl_label = "Paste"
 
     def execute(self, context):
         data = _clip["pixels"]
         mat = pixels.material()
+        if image_paste.clipboard_is_newer(data is not None):
+            picture = image_paste.read_system(context.window)
+            if picture is not None:
+                from ..storyboard.canvas_sync import frame_px
+                w, h = pixels.size(mat)
+                arr = image_paste.fitted(picture, w, h, frame_px(mat.plastron_stack))
+                uid = stack_ops.add_layer(mat, 'PAINT', name="Image")
+                pixels.replace_image(mat, uid, arr)
+                selection.set_mask(context, (arr[..., 3] > 0).astype(np.float32))
+                return {'FINISHED'}
         if data is None:
             self.report({'INFO'}, "Nothing copied yet")
             return {'CANCELLED'}
