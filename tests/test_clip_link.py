@@ -53,11 +53,15 @@ def steps():
     yield 0.3
     sc = bpy.context.scene
     video, sound = (sc.sequence_editor.strips_all[n] for n in (video.name, sound.name))
-    h.check("Ctrl+Alt+L again unlinks them", not clips.linked(video) and not clips.linked(sound))
+    h.check("Ctrl+Alt+L again unlinks them (Blender's connection too)",
+            not clips.linked(video) and not clips.linked(sound) and not len(video.connections),
+            (clips.linked(video), len(video.connections)))
+    names = (video.name, sound.name)          # (a deleted clip's Python object can't be read after)
     ripple.delete(sc, [video])
     yield 0.2
     h.check("...and the sound now stays when the video goes",
-            sound.name in sc.sequence_editor.strips_all and video.name not in sc.sequence_editor.strips_all)
+            names[1] in sc.sequence_editor.strips_all and names[0] not in sc.sequence_editor.strips_all,
+            ([s.name for s in sc.sequence_editor.strips_all], names))
 
 
 h.run(steps())
