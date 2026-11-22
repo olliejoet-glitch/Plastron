@@ -229,7 +229,8 @@ Plastron/
 │  │  └─ voice/              recorder (mic), mic (choosing the input), takes (voice clips + takes), record
 │  │                         (Ctrl+R, switch takes), transcribe (+ _worker: own
 │  │                         process), transcript_layout (pure) + transcript_bar,
-│  │                         script_link (script <-> transcript), script_follow (line at the playhead lit)
+│  │                         script_link (script <-> transcript), script_follow (line at the playhead lit),
+│  │                         ums (the um checker; transcribes footage sound too)
 │  │  └─ canvas_edit/        shapes (pure numpy: masks, homography, warp, resample),
 │  │                         pixels (undoable layer writes, screen <-> canvas),
 │  │                         selection (L / M, stencil), transform (Ctrl+T, V),
@@ -813,6 +814,21 @@ Plastron/
 - Cut by words: click a word (playhead jumps there), Shift+click to extend,
   Delete / Backspace cuts from midway after the previous word to midway
   before the next (follows ripple). Clicking elsewhere clears the selection.
+- Um checker (Ollie: "find ums, highlight them in the timeline, cut them
+  to separate them, then delete them", with ripple): timeline header "Ums"
+  pop-up (features/voice/ums.py, UMS in config/voice.py: the words, red).
+  Transcribe Selected: any sound clip without a transcript (footage sound:
+  read with aud, written as a 16 kHz WAV, queued like a voice take; the
+  clip becomes a voice clip with one take of its own sound; every clip of
+  the same sound shares the take's uid, so one transcript serves them all).
+  Find: each um's stretch (word_span: half the gap either side, as cut by
+  words) is tinted red over its clip and the word in the bar; header shows
+  "Ums n". Separate: each um split out into its own clip (linked video
+  too), marked strip["plastron_um"], all selected (Shift+click one to keep
+  it). Delete (or the Delete key): ripple.delete. Found list cached,
+  dropped on clips_changed / a finished transcription.
+- ripple.delete closes each stretch of time once (merge_spans): a video and
+  its linked sound on two ripple tracks used to close the same gap twice.
 - Script linking: words matched with difflib (fluffs skipped). Clicking a
   script line jumps to its first heard word; unheard script words are
   underlined orange.

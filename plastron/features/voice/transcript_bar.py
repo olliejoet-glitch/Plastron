@@ -263,6 +263,14 @@ def selection():
     return dict(_sel)
 
 
+def word_span(word_list, a, b):
+    """Seconds (start, end) of words a..b with half the gap either side
+    (from midway after the word before to midway before the word after)."""
+    s = word_list[a][1] if a == 0 else (word_list[a - 1][2] + word_list[a][1]) / 2
+    e = word_list[b][2] if b + 1 >= len(word_list) else (word_list[b][2] + word_list[b + 1][1]) / 2
+    return s, e
+
+
 def cut_words(scene, strip, indices):
     """Cut the audio of the given words out of strip (following the track's
     ripple setting). Returns True if anything was cut."""
@@ -273,8 +281,7 @@ def cut_words(scene, strip, indices):
     if clips.editor(scene).channels[strip.channel].lock:
         return False
     a, b = min(indices), max(indices)
-    s = word_list[a][1] if a == 0 else (word_list[a - 1][2] + word_list[a][1]) / 2
-    e = word_list[b][2] if b + 1 >= len(word_list) else (word_list[b][2] + word_list[b + 1][1]) / 2
+    s, e = word_span(word_list, a, b)
     f0 = max(clips.start(strip), round(word_frame(scene, strip, s)))
     f1 = min(clips.end(strip), round(word_frame(scene, strip, e)))
     if f1 <= f0:

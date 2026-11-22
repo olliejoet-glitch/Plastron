@@ -12,6 +12,7 @@ transcript bars under audio tracks, cut by words, script linking.
     script_link        script lines <-> where they're spoken; unrecorded words
     script_lines       every other script line tinted, a thin strip between lines
     script_follow      the line at the playhead highlighted in the script
+    ums                the um checker: find / separate / delete ums (+ transcribe footage sound)
 """
 
 import bpy
@@ -19,9 +20,9 @@ import bpy
 from ...config import voice as cfg
 from ...core import deps
 from ...timeline import header
-from . import mic, record, script_follow, script_lines, script_link, takes, transcribe, transcript_bar
+from . import mic, record, script_follow, script_lines, script_link, takes, transcribe, transcript_bar, ums
 
-_MODULES = (takes, mic, record, transcribe, transcript_bar, script_lines, script_link, script_follow)
+_MODULES = (takes, mic, record, transcribe, transcript_bar, ums, script_lines, script_link, script_follow)
 
 
 def draw_header(layout, context):

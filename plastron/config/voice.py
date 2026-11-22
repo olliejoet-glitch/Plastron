@@ -74,3 +74,12 @@ SCRIPT_SEARCH = {
     "current_alpha": 0.55,  # the one you're on
     "field_width": 5,     # the search field (UI units)
 }
+
+# The um checker (timeline header "Ums"): words counted as ums / fluffs,
+# how they're shown and how much of the gap around them is cut.
+UMS = {
+    "words": ("um", "umm", "ummm", "uh", "uhh", "uhm", "erm", "er", "hmm", "mm", "ah", "ahh"),
+    "color": "#e0503c",      # (palette name or "#rrggbb")
+    "alpha": 0.35,           # the um's stretch over the clip
+    "word_alpha": 0.6,       # the word in the transcript bar
+}

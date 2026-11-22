@@ -131,18 +131,33 @@ def delete(scene, strips):
     """Delete clips; ripple tracks close the gap."""
     sed = clips.editor(scene)
     strips = [s for s in clips.with_linked(strips, clips.top_clips(scene)) if not _locked(scene, s)]
+    gaps = []                     # (start, end) of what's removed on ripple tracks
     for strip in sorted(strips, key=clips.start, reverse=True):
         s, e = clips.start(strip), clips.end(strip)
-        ripples = _ripples(scene, strip)
+        if _ripples(scene, strip):
+            gaps.append((s, e))
         events.emit("clip_removing", scene, strip=strip)
         remove(scene, strip)
-        if ripples:
-            orig = snapshot(scene)
-            changes = {}
-            _shift_after(scene, orig, e, -(e - s), changes)
-            clips.apply(scene, changes)
+    # Each stretch of time closes once (a video and its linked sound, removed
+    # together on two ripple tracks, used to close the same gap twice).
+    for s, e in reversed(merge_spans(gaps)):
+        orig = snapshot(scene)
+        changes = {}
+        _shift_after(scene, orig, e, -(e - s), changes)
+        clips.apply(scene, changes)
     events.clips_changed(scene)
     return len(strips)
+
+
+def merge_spans(spans):
+    """Pure: (start, end) spans joined where they overlap, in time order."""
+    out = []
+    for s, e in sorted(spans):
+        if out and s <= out[-1][1]:
+            out[-1] = (out[-1][0], max(out[-1][1], e))
+        else:
+            out.append((s, e))
+    return out
 
 
 def remove(scene, strip):
