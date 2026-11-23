@@ -99,7 +99,11 @@ class PLASTRON_PT_clip(bpy.types.Panel):
     def draw(self, context):
         layout = self.layout
         strip = active_clip(context)
-        layout.prop(strip, "name", text="", icon='SEQUENCE')
+        row = layout.row(align=True)
+        row.prop(strip, "name", text="", icon='SEQUENCE')
+        sub = row.row(align=True)
+        sub.alert = strip.mute
+        sub.prop(strip, "mute", text="", icon='MUTE_IPO_ON' if strip.mute else 'OUTLINER_OB_SPEAKER')
         from ...timeline.colors import draw_swatches
         draw_swatches(layout)
         from .windows import is_window_clip

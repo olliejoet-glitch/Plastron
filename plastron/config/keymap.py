@@ -171,6 +171,7 @@ SHORTCUTS = [
     ("timeline",     "I",                "plastron.loop_set",            "Loop range start",       {"side": 'IN'}),
     ("timeline",     "O",                "plastron.loop_set",            "Loop range end",         {"side": 'OUT'}),
     ("timeline",     "Ctrl+Alt+L",       "plastron.clip_link",           "Link / unlink the selected clips"),
+    ("timeline",     "H",                "plastron.clip_mute",           "Mute / unmute the selected clips"),
     ("timeline",     "Shift+I",          "plastron.range_set",           "Project start at the playhead", {"side": 'IN'}),
     ("timeline",     "Shift+O",          "plastron.range_set",           "Project end at the playhead",   {"side": 'OUT'}),
     ("track_headers", "LMB",             "plastron.track_header_click",  "Ripple / solo / volume; pick active track"),

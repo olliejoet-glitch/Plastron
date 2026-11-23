@@ -695,6 +695,14 @@ Plastron/
   strip["plastron_link"] + Blender's connect), or unlinks them if they're
   already linked together (clips.unlink_all: + Blender's disconnect). One
   selected linked clip: unlinks it from its partners. timeline/link.py.
+- Muting clips (Ollie: "any reason why I can't hear the audio?": Blender's
+  own clip mute key is stripped, so a muted clip had no way back): H over
+  the timeline / the header's speaker button (shown while clips are
+  selected; red "Muted" when one is) / the Clip panel's speaker next to
+  the name toggle the selected clips + their linked clips
+  (timeline/mute.py). Speed playback (1.5x / 2x) switches the project's
+  sound off and speeds fps_base while it plays: now put back before every
+  save, and on load (a project saved mid-play had no sound).
 - Track headers: name / mute / lock are Blender's channel buttons; Plastron
   draws R (ripple, all tracks), S (solo) and a volume bar (0-200 %, audio
   tracks only). Clicking a track's row or name makes it the active track.

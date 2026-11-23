@@ -112,9 +112,30 @@ def _after_playback(scene, *_args):
     stop(scene)
 
 
+def _before_save(*_args):
+    """Never save the project with its sound switched off for speed playback."""
+    stop()
+
+
+def _on_load(scene):
+    """A project saved mid speed playback (older Plastron) has its sound off
+    and its rate sped up: put both back (Plastron has no other sound-off switch)."""
+    if scene is None or _state["active"]:
+        return
+    if not scene.use_audio:
+        scene.use_audio = True
+    base = scene.render.fps_base
+    if abs(base - 1.0) > 1e-6:
+        for speed in cfg.SPEEDS:                  # (fps_base / speed was saved: undo it)
+            if abs(speed - 1.0) > 1e-6 and abs(base * speed - 1.0) < 1e-4:
+                scene.render.fps_base = 1.0
+
+
 def register():
     bpy.utils.register_class(PLASTRON_OT_play_speed)
     handlers.add("animation_playback_post", _after_playback)
+    handlers.add("save_pre", _before_save)
+    handlers.on_load(_on_load)
     from ...timeline import header
     header.add_section(draw_header)
 
