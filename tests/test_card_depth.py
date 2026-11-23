@@ -38,6 +38,8 @@ def frame_box(sc, obj):
 
 def steps():
     yield 1.0
+    h.add_background()
+    yield 0.5
     sc = bpy.context.scene
     names = {tracks.name(sc, t): t for t in tracks.all_tracks(sc)}
     top, bg = names["Panels"], names["Background"]

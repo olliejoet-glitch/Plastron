@@ -21,6 +21,8 @@ def centre(area):
 
 def steps():
     yield 1.0
+    h.add_background()
+    yield 0.5
     sc = bpy.context.scene
     view = h.area('SCENE_3D')
     script = h.area('TEXT_EDITOR')

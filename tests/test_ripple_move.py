@@ -60,6 +60,8 @@ def drag_clip(sc, strip, frames, reg, ch, keep_selection=False):
 
 def steps():
     yield 1.0
+    h.add_background()
+    yield 0.5
     plan_checks()
     sc = bpy.context.scene
     track = tracks.video_tracks(sc)[-1]

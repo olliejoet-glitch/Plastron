@@ -91,11 +91,18 @@ def steps():
 
     # --- New project ----------------------------------------------------------
     names = [tracks.name(sc, t) for t in reversed(tracks.all_tracks(sc))]
-    h.check("default tracks, top to bottom", names == ["Panels", "Background", "Script", "Voice", "Music"], names)
+    h.check("default tracks, top to bottom (no Background: Ollie didn't need it)",
+            names == ["Panels", "Script", "Voice", "Music"], names)
+    h.add_background()                     # (the tests below use one)
+    yield 0.5
+    sc = scene()
+    names = [tracks.name(sc, t) for t in reversed(tracks.all_tracks(sc))]
+    h.check("a video track added under Panels", names == ["Panels", "Background", "Script", "Voice", "Music"], names)
     kinds = [t.kind for t in reversed(tracks.all_tracks(sc))]
     h.check("video tracks above the Script lane above audio tracks", kinds == ['VIDEO', 'VIDEO', 'SCRIPT', 'AUDIO', 'AUDIO'], kinds)
     h.check("Panels and Voice ripple by default",
             track("Panels").ripple and track("Voice").ripple and not track("Background").ripple)
+    tracks.set_active(sc, track("Panels"))
     h.check("Panels is the active track", tracks.active(sc).uid == track("Panels").uid)
     starters = panels.all_panels(sc)
     h.check("new project has one starter panel", len(starters) == 1, len(starters))

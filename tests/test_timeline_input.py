@@ -55,6 +55,8 @@ def header_widget(track_name, wid):
 
 def steps():
     yield 1.0
+    h.add_background()
+    yield 0.5
     sc = scene()
     p1 = panels.all_panels(sc)[0]
 

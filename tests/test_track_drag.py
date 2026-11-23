@@ -18,6 +18,8 @@ events = h.module("timeline.events")
 
 def steps():
     yield 1.0
+    h.add_background()
+    yield 0.5
     sc = bpy.context.scene
     tl = h.area('SEQUENCE_EDITOR')
     chan = h.region(tl, 'CHANNELS')

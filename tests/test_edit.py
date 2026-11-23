@@ -35,6 +35,8 @@ def make_media(folder):
 
 def steps():
     yield 1.0
+    h.add_background()
+    yield 0.5
     sc = bpy.context.scene
     wm = bpy.context.window_manager
     wm.plastron_mode = 'Edit'

@@ -17,6 +17,8 @@ user_settings = h.module("core.user_settings")
 
 def steps():
     yield 1.0
+    h.add_background()
+    yield 0.5
     sc = bpy.context.scene
     strip = canvas_sync.panel_on_canvas(sc)
     info = strip.plastron_panel

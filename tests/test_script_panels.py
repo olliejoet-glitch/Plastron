@@ -33,6 +33,8 @@ def linked_panels(sc):
 
 def steps():
     yield 1.0
+    h.add_background()
+    yield 0.5
     sc = bpy.context.scene
     fps = sc.render.fps
     kinds = [t.kind for t in tracks.all_tracks(sc)]

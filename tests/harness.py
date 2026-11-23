@@ -159,6 +159,20 @@ def _finish():
     bpy.ops.wm.quit_blender()
 
 
+def add_background():
+    """A "Background" video track under Panels, as new projects had before
+    (Ollie didn't need it: tests that use one add it)."""
+    tracks = module("timeline.tracks")
+    sc = bpy.context.scene
+    if any(tracks.name(sc, t) == "Background" for t in tracks.all_tracks(sc)):
+        return
+    tracks.add(sc, 'VIDEO', "Background")
+    index = len(tracks.all_tracks(sc)) - 1 - tracks.hidden_count(sc)
+    panels_index = next(i for i, t in enumerate(tracks.all_tracks(sc)) if tracks.name(sc, t) == "Panels")
+    tracks.move(sc, index, panels_index)
+    module("timeline.track_edit")._reframe()     # (all the tracks in view again)
+
+
 def run(steps, start_delay=1.5):
     """Run a generator of test steps, then write results and quit."""
     def tick():
