@@ -80,8 +80,15 @@ def whisper(path, model_name, prompt, out_path):
         status(out_path, "Loading the speech model...")
     model = WhisperModel(model_name, device="cpu", compute_type="int8")
     status(out_path, "Transcribing 0%")
-    segments, info = model.transcribe(load_audio(path), word_timestamps=True, initial_prompt=prompt or None,
-                                      vad_filter=False, condition_on_previous_text=False)
+    kw = dict(word_timestamps=True, initial_prompt=prompt or None, vad_filter=False,
+              condition_on_previous_text=False)
+    # The prompt (full of "um"s) only reaches Whisper's first 30 s window; after
+    # that it tidied the ums away (Ollie: "missing 90% of them"). Hotwords go
+    # into every window.
+    import inspect
+    if prompt and "hotwords" in inspect.signature(model.transcribe).parameters:
+        kw["hotwords"] = prompt
+    segments, info = model.transcribe(load_audio(path), **kw)
     out = []
     for segment in segments:
         if info.duration:

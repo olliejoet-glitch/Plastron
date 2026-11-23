@@ -8,7 +8,10 @@ Timeline header "Ums" pop-up:
                    from the local speech model, like a voice recording)
   Find             every um / uh... (UMS["words"] in config/voice.py) in the
                    transcripts is lit red over its clip, with half the gap
-                   either side (what a cut takes out); "n ums"
+                   either side (what a cut takes out); "n ums". Whisper
+                   still leaves many out (Ollie: "missing 90% of them"), so
+                   voiced sounds in a gap between two words with no word of
+                   their own count too (gap_sounds; UMS "gap_*" / "sound_*")
   Separate         each um is cut out into its own clip (linked video
                    pieces too), all of them selected and marked red, so
                    they can be checked (play them, Shift+click to keep one)
@@ -37,25 +40,87 @@ def is_um(word):
     return word.strip(" ,.!?;:-…\"'").lower() in cfg.UMS["words"]
 
 
+HOP = 0.02            # s: loudness steps for finding unworded sounds
+
+
+def gap_sounds(env, words, hop=HOP, look=None):
+    """Pure: [(start s, end s)] of voiced stretches in the gaps between words
+    (and before the first / after the last) that no word covers: ums the
+    transcript left out. env: dB per hop from the take's start."""
+    look = look or cfg.UMS
+    if not len(env):
+        return []
+    loud = float(np.percentile(env, 95))
+    voiced = env >= loud - look["sound_db"]
+    edges = [(-1e9, 0.0)] + [(s, e) for _w, s, e in words] + [(len(env) * hop, 1e9)]
+    out = []
+    for (_s0, e0), (s1, _e1) in zip(edges, edges[1:]):
+        g0, g1 = max(0.0, e0) + look["edge_s"], min(len(env) * hop, s1) - look["edge_s"]
+        if g1 - g0 < look["gap_min_s"] - 2 * look["edge_s"]:
+            continue
+        a, b = int(g0 / hop), int(g1 / hop)
+        run = None
+        for k in range(a, b + 1):
+            on = k < b and voiced[k]
+            if on and run is None:
+                run = k
+            elif not on and run is not None:
+                t0, t1 = run * hop, k * hop
+                if look["sound_min_s"] <= t1 - t0 <= look["sound_max_s"]:
+                    out.append((t0, t1))
+                run = None
+    return out
+
+
+def _gap_spans(scene, strip, word_list):
+    """[(start s, end s)] (in the take) of the clip's unworded sounds, cut a
+    little wider (as a word's cut: half the quiet either side, at most 0.15 s)."""
+    if not cfg.UMS.get("gap_sounds"):
+        return []
+    from ..audio import analysis
+    take = takes.active_take(strip)
+    if take is None or take.sound is None:
+        return []
+    try:
+        env = analysis.file_envelope(analysis.sound_path(take.sound), HOP)
+    except Exception as err:            # (a sound aud can't read: words only)
+        print("Plastron ums: couldn't read the sound:", err)
+        return []
+    pad = 0.15
+    return [(max(0.0, a - pad), b + pad) for a, b in gap_sounds(env, word_list)]
+
+
 def find(scene):
-    """[(strip, first frame, end frame, word index)] of every um heard in the
-    clips (its stretch with half the gap either side), in timeline order."""
+    """[(strip, first frame, end frame, word index or None)] of every um in
+    the clips: um words in the transcripts (their stretch with half the gap
+    either side), and voiced sounds between words with no word of their own
+    (index None), in timeline order."""
     out = []
     fps = scene.render.fps / scene.render.fps_base
     for strip in clips.top_clips(scene):
         if not takes.is_voice(strip) or strip.get(MARK):
             continue
         word_list = takes.words(takes.active_take(strip))
+        spans = []
         for i, (word, _s, _e) in enumerate(word_list):
-            if not is_um(word):
-                continue
-            s, e = transcript_bar.word_span(word_list, i, i)
+            if is_um(word):
+                spans.append((*transcript_bar.word_span(word_list, i, i), i))
+        if word_list:
+            spans += [(a, b, None) for a, b in _gap_spans(scene, strip, word_list)]
+        for s, e, i in spans:
             f0 = max(clips.start(strip), round(strip.content_start + s * fps))
             f1 = min(clips.end(strip), round(strip.content_start + e * fps))
             if f1 > f0:
                 out.append((strip, f0, f1, i))
     out.sort(key=lambda u: (u[1], u[0].channel))
-    return out
+    merged = []                         # (an um word and a sound overlapping: one)
+    for u in out:
+        if merged and merged[-1][0] == u[0] and u[1] < merged[-1][2]:
+            m = merged[-1]
+            merged[-1] = (m[0], m[1], max(m[2], u[2]), m[3] if m[3] is not None else u[3])
+        else:
+            merged.append(u)
+    return merged
 
 
 def found(scene):
@@ -159,6 +224,7 @@ class PLASTRON_OT_ums(bpy.types.Operator):
 
     action: bpy.props.EnumProperty(items=[
         ('TRANSCRIBE', "Transcribe", "Transcribe the selected sound clips (footage sound too)"),
+        ('AGAIN', "Transcribe Again", "Transcribe the selected clips again (keeps more ums)"),
         ('FIND', "Find", "Light up every um in the timeline"),
         ('HIDE', "Hide", "Stop lighting up the ums"),
         ('SEPARATE', "Separate", "Cut each um out into its own clip and select them all, to check"),
@@ -167,6 +233,7 @@ class PLASTRON_OT_ums(bpy.types.Operator):
     @classmethod
     def description(cls, _context, props):
         return {'TRANSCRIBE': "Transcribe the selected sound clips (footage sound too), so their ums can be found",
+                'AGAIN': "Transcribe the selected clips again: transcripts made before now left most ums out",
                 'FIND': "Light up every um / uh in the timeline",
                 'HIDE': "Stop lighting up the ums",
                 'SEPARATE': "Cut each um out into its own clip and select them all, so you can check them "
@@ -186,6 +253,18 @@ class PLASTRON_OT_ums(bpy.types.Operator):
                 self.report({'INFO'}, "Select sound clips without a transcript first")
                 return {'CANCELLED'}
             self.report({'INFO'}, f"Transcribing {done} sound{'s' if done > 1 else ''}...")
+            _state["show"] = True
+        elif self.action == 'AGAIN':
+            seen, n = set(), 0
+            for s in clips.top_clips(scene):
+                take = takes.active_take(s) if s.select and takes.is_voice(s) else None
+                if take is not None and take.uid not in seen:
+                    seen.add(take.uid)
+                    n += transcribe.queue_again(take)
+            if not n:
+                self.report({'INFO'}, "Select transcribed clips first")
+                return {'CANCELLED'}
+            self.report({'INFO'}, f"Transcribing {n} clip{'s' if n > 1 else ''} again...")
             _state["show"] = True
         elif self.action == 'FIND':
             _state["show"] = True
@@ -220,6 +299,8 @@ class PLASTRON_PT_ums(bpy.types.Panel):
         layout = self.layout
         if any(s.select and needs_transcript(s) for s in clips.top_clips(scene)):
             layout.operator("plastron.ums", text="Transcribe Selected", icon='REC').action = 'TRANSCRIBE'
+        if any(s.select and takes.is_voice(s) for s in clips.top_clips(scene)):
+            layout.operator("plastron.ums", text="Transcribe Selected Again", icon='FILE_REFRESH').action = 'AGAIN'
         if transcribe.busy():
             layout.label(text=transcribe.status() or "Transcribing...", icon='SORTTIME')
         n, m = len(found(scene)), len([s for s in marked(scene) if s.type == 'SOUND'])

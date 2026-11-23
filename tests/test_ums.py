@@ -47,6 +47,19 @@ def steps():
     h.check("footage sound gets a transcript (Transcribe in the Ums pop-up)",
             takes.is_voice(sound) and len(takes.words(takes.active_take(sound))) == 7,
             takes.words(takes.active_take(sound)) if takes.is_voice(sound) else None)
+    # Ums Whisper left out: a voiced stretch in a gap between words.
+    import numpy as np
+    env = np.full(300, -60.0)                     # 6 s of quiet at 20 ms steps
+    for a, b in ((0.0, 1.0), (2.0, 3.0), (4.5, 5.5)):  # three words, loud
+        env[int(a / 0.02):int(b / 0.02)] = -12.0
+    env[int(1.4 / 0.02):int(1.8 / 0.02)] = -16.0  # an "um" with no word (gap 1-2 s)
+    env[int(3.3 / 0.02):int(3.6 / 0.02)] = -45.0  # a quiet breath (gap 3-4.5 s): not an um
+    env[int(4.0 / 0.02):int(4.05 / 0.02)] = -14.0 # a click, too short: not an um
+    words = [("one", 0.0, 1.0), ("two", 2.0, 3.0), ("three", 4.5, 5.5)]
+    got = ums.gap_sounds(env, words)
+    h.check("a voiced sound between words with no word of its own counts as an um",
+            len(got) == 1 and abs(got[0][0] - 1.4) < 0.07 and abs(got[0][1] - 1.8) < 0.07, got)
+
     found = ums.find(sc)
     h.check("Find: the two ums in it (in both clips of that footage: 4)",
             [takes.words(takes.active_take(u[0]))[u[3]][0] for u in found] == ["um", "uh", "um", "uh"], found)

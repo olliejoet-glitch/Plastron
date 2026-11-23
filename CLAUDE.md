@@ -703,6 +703,17 @@ Plastron/
   (timeline/mute.py). Speed playback (1.5x / 2x) switches the project's
   sound off and speeds fps_base while it plays: now put back before every
   save, and on load (a project saved mid-play had no sound).
+- Tidying tracks (Ollie: "rename tracks ... have them close together in
+  Edit mode; I don't need a Background layer; the script I can turn on and
+  off in Edit mode"): new projects have no Background track; the header's
+  "-" (after + Video / + Audio Track) removes the active track and its clips
+  (asks first), the tracks above close up (tracks.remove,
+  _shift_channels_down); in Edit mode the header's "Script" eye hides the
+  Script lane: it's parked on the top channel (track.hidden; tracks.move
+  any_kind), covered like an unused row, skipped by headers / sections /
+  framing; new video tracks go under it; other modes show it back in its
+  place (modes.after_switch, timeline/track_edit.py; remembered:
+  scene.plastron_timeline.script_hidden_edit). Renaming: double-click.
 - Track headers: name / mute / lock are Blender's channel buttons; Plastron
   draws R (ripple, all tracks), S (solo) and a volume bar (0-200 %, audio
   tracks only). Clicking a track's row or name makes it the active track.
@@ -864,6 +875,13 @@ Plastron/
   too), marked strip["plastron_um"], all selected (Shift+click one to keep
   it). Delete (or the Delete key): ripple.delete. Found list cached,
   dropped on clips_changed / a finished transcription.
+  Ollie: "missing 90% of them": the prompt full of ums reached only
+  Whisper's first 30 s window (condition_on_previous_text is off): now also
+  passed as hotwords (every window; faster-whisper 1.x). And ums still left
+  out are found by sound: a voiced stretch (within sound_db of the voice's
+  95th percentile, 0.18-1.6 s) in a gap between words (>= 0.3 s) with no
+  word of its own (ums.gap_sounds, UMS gap_* in config/voice.py), cut
+  0.15 s wider. Transcribe Selected Again (Ums pop-up) redoes old transcripts.
 - ripple.delete closes each stretch of time once (merge_spans): a video and
   its linked sound on two ripple tracks used to close the same gap twice.
 - Script linking: words matched with difflib (fluffs skipped). Clicking a

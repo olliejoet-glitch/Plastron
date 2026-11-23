@@ -82,4 +82,12 @@ UMS = {
     "color": "#e0503c",      # (palette name or "#rrggbb")
     "alpha": 0.35,           # the um's stretch over the clip
     "word_alpha": 0.6,       # the word in the transcript bar
+    # Ums the transcript left out (Whisper tidies many away): a stretch of
+    # voice in a gap between two words, with no word of its own.
+    "gap_sounds": True,
+    "gap_min_s": 0.3,        # gaps shorter than this between words are left alone
+    "sound_min_s": 0.18,     # a voiced stretch at least this long...
+    "sound_max_s": 1.6,      # ...and at most this long counts
+    "sound_db": 20,          # voiced = within this many dB of the voice's loud parts
+    "edge_s": 0.06,          # skip this much next to each word (its tail / onset)
 }
