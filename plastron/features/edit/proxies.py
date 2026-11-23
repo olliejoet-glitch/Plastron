@@ -36,6 +36,21 @@ def missing(strip):
             and not all(os.path.exists(p) for p in proxy_files(strip)))
 
 
+_building = set()        # (scene name, clip name) whose copies are being made
+
+
+def building(scene):
+    """How many clips' preview copies are still being made."""
+    left = set()
+    sed = scene.sequence_editor if scene else None
+    for sc_name, name in _building:
+        strip = sed.strips_all.get(name) if sed and sc_name == scene.name else None
+        if strip is not None and missing(strip):
+            left.add((sc_name, name))
+    _building.intersection_update(left | {b for b in _building if b[0] != (scene.name if scene else "")})
+    return len(left)
+
+
 def build(scene, strips):
     """Have Blender make the preview copies of these clips (in the
     background). Returns how many were started."""
@@ -49,7 +64,7 @@ def build(scene, strips):
         s.select = s in todo
     try:
         with bpy.context.temp_override(**over, scene=scene):
-            bpy.ops.sequencer.rebuild_proxy()
+            bpy.ops.sequencer.rebuild_proxy('INVOKE_DEFAULT')    # (a background job: EXEC builds them right there, freezing Plastron)
     except RuntimeError as err:
         print("Plastron: couldn't make preview copies:", err)
         return 0
@@ -59,6 +74,7 @@ def build(scene, strips):
                 s.select = sel
             except ReferenceError:
                 pass
+    _building.update((scene.name, s.name) for s in todo)
     return len(todo)
 
 

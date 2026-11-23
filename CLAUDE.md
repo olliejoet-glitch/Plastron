@@ -369,6 +369,9 @@ Plastron/
   mode spots a drop by the last one being an add-strip operator.
 - Blender's strip.split cuts the strip's connected strips too (ripple.split
   finds those new right halves itself).
+- bpy.ops.sequencer.rebuild_proxy() from Python (EXEC) builds the proxies
+  synchronously; 'INVOKE_DEFAULT' runs Blender's background job (top bar
+  shows "Building proxies..."). bpy.app.is_job_running can't see it.
 - Sequencer movie_strip_add's move_strips (default on) moves the clip to the
   mouse: from Python pass move_strips=False.
 - A movie strip's frame_duration / fps is its real length only until it's
@@ -1232,9 +1235,17 @@ Plastron/
   BL_proxy/<file>/proxy_50.avi). Blender only builds them when asked
   (Ollie: "the frame rate is really jittery": they had never been built,
   so the preview decoded his full-size phone video every frame):
-  features/edit/proxies.py builds them (sequencer.rebuild_proxy, a
-  background job) for placed footage and, 1.5 s after a project opens, for
-  any footage missing them. Footage keeps
+  features/edit/proxies.py builds them (sequencer.rebuild_proxy with
+  'INVOKE_DEFAULT': a background job writing proxy_50_part.avi, renamed
+  when done; EXEC from Python builds them right there, freezing Plastron
+  for a big file) for placed footage and, 1.5 s after a project opens, for
+  any footage missing them. Playback meter (Ollie: "still low fps, and
+  janky"): the video preview header shows "Making preview copies (n)..."
+  while they build and, while playing, the frames really drawn per second
+  ("18 / 24 fps", red under PLAYBACK_WARN of the rate; a PREVIEW draw
+  handler counts frames) (features/edit/playback_meter.py). Plastron's own
+  Python costs ~0.1 s per 6 s of playback (profiled): slowness is Blender
+  decoding / drawing. Footage keeps
   Blender's own clip colours (tags are the shot statuses).
 - Frame rate (Ollie: phone footage, "worried a variable frame rate will
   steadily cause the audio and video to drift"): tested: Blender shows a

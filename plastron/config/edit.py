@@ -51,3 +51,7 @@ WINDOW_CLEAR_ALPHA = 0.5       # how see-through counts as the opening
 # left / right in the preview; the YouTube Shorts export follows it.
 SHORTS_ASPECT = (9, 16)
 SHORTS_DIM = (0.0, 0.0, 0.0, 0.55)   # outside the box
+
+# Playback meter (video preview header while playing): the fps shows red
+# below this share of the project's rate.
+PLAYBACK_WARN = 0.9
