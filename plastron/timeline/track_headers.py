@@ -40,7 +40,7 @@ def widgets(area, region, scene):
     """[(track index, widget id, (x0, y0, x1, y1))] for every visible widget."""
     out = []
     size = _ui(cfg.HEADER_TOGGLE_PX)
-    for i, track in enumerate(tracks.all_tracks(scene)):
+    for i, track in tracks.visible_tracks(scene):
         y0, y1 = row_span(area, region, tracks.channel(i))
         if y1 < 0 or y0 > region.height:
             continue
@@ -93,7 +93,7 @@ def draw():
     active = tracks.active(scene)
     labels = {wid: label for wid, label, _k in cfg.HEADER_WIDGETS}
 
-    for i, track in enumerate(tracks.all_tracks(scene)):
+    for i, track in tracks.visible_tracks(scene):
         y0, y1 = row_span(area, region, tracks.channel(i))
         is_active = active and track.uid == active.uid
         if is_active:

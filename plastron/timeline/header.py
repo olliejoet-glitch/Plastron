@@ -76,6 +76,7 @@ def draw(self, context):
     row = layout.row(align=True)
     row.operator("plastron.track_add", text="Video Track", icon='ADD').kind = 'VIDEO'
     row.operator("plastron.track_add", text="Audio Track", icon='ADD').kind = 'AUDIO'
+    row.operator("plastron.track_remove", text="", icon='REMOVE')
 
     for section in _sections:
         layout.separator(type='LINE')

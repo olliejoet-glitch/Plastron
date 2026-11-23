@@ -30,6 +30,8 @@ class PLASTRON_PG_track(bpy.types.PropertyGroup):
     volume: bpy.props.FloatProperty(
         name="Track Volume", default=1.0, min=0.0, max=2.0, subtype='FACTOR',
         update=_mix_changed)
+    hidden: bpy.props.BoolProperty(
+        name="Hidden", description="Parked above the other tracks, out of view (the Script lane in Edit mode)")
     collapse: bpy.props.BoolProperty(
         name="Collapse Transcript", description="Show this track's transcript as one line",
         update=lambda self, context: events.emit("tracks_changed", context.scene))
@@ -60,6 +62,10 @@ def _range_auto_changed(self, context):
 class PLASTRON_PG_timeline(bpy.types.PropertyGroup):
     tracks: bpy.props.CollectionProperty(type=PLASTRON_PG_track)
     active_track: bpy.props.IntProperty(name="Active Track", default=-1)
+    script_hidden_edit: bpy.props.BoolProperty(
+        name="Hide Script in Edit Mode",
+        description="Hide the Script lane while editing (it stays in Storyboard mode)",
+        update=lambda self, context: __import__(__package__ + ".track_edit", fromlist=["x"])._flag_changed(self, context))
     # The project's range (what plays and exports): follows the clips' end
     # unless set by hand (Ollie: "I need to be able to set the frame range myself").
     range_auto: bpy.props.BoolProperty(
@@ -174,14 +180,25 @@ def ripple_channels(scene):
 
 # --- Changes ------------------------------------------------------------------
 
-def move(scene, index, to):
+def visible_tracks(scene):
+    """[(index, track)] of the tracks shown (hidden ones are parked on top)."""
+    return [(i, t) for i, t in enumerate(all_tracks(scene)) if not t.hidden]
+
+
+def hidden_count(scene):
+    return sum(1 for t in all_tracks(scene) if t.hidden)
+
+
+def move(scene, index, to, any_kind=False):
     """Move the track at index to position to (its clips, name, mute, lock
     and Plastron settings go with it). Video tracks stay above audio ones:
-    to is kept inside the track's own section. Returns the new index."""
+    to is kept inside the track's own section (any_kind: anywhere). Returns
+    the new index."""
     tl = data(scene)
     kind = tl.tracks[index].kind
-    same = [i for i, t in enumerate(tl.tracks) if t.kind == kind]
-    to = max(min(same), min(max(same), to))
+    if not any_kind:
+        same = [i for i, t in enumerate(tl.tracks) if t.kind == kind and not t.hidden]
+        to = max(min(same), min(max(same), to))
     if to == index:
         return index
     lo, hi = min(index, to), max(index, to)
@@ -252,7 +269,7 @@ def add(scene, kind, track_name=None, ripple=False):
     elif kind == 'SCRIPT':
         index = sum(1 for t in tl.tracks if t.kind in {'AUDIO', 'SCRIPT'})
     else:
-        index = len(tl.tracks)
+        index = len(tl.tracks) - hidden_count(scene)      # (below tracks parked out of view)
     if index < len(tl.tracks):
         _shift_channels_up(scene, channel(index))
         # (tracks above move up a place: their keys etc. follow)
@@ -272,6 +289,70 @@ def add(scene, kind, track_name=None, ripple=False):
     sed.channels[channel(index)].mute = False
     events.tracks_changed(scene)
     return track
+
+
+def _shift_channels_down(scene, from_channel):
+    """Move every channel > from_channel (clips and settings) down by one
+    (from_channel itself must be empty)."""
+    sed = clips.editor(scene)
+    top = max([s.channel for s in clips.top_clips(scene)] + [len(data(scene).tracks)])
+    settings = {ch: (sed.channels[ch].name, sed.channels[ch].lock, sed.channels[ch].mute)
+                for ch in range(from_channel + 1, top + 1)}
+    for ch in settings:
+        sed.channels[ch].lock = False
+    for ch in range(from_channel + 1, top + 1):     # bottom up: target is always empty
+        for strip in clips.on_channel(scene, ch):
+            strip.channel = ch - 1
+    for ch in range(from_channel, top + 1):
+        sed.channels[ch].name = f"__plastron_tmp_{ch}"
+    for ch, (nm, lock, mute) in settings.items():
+        target = sed.channels[ch - 1]
+        target.name, target.lock, target.mute = nm, lock, mute
+    sed.channels[top].name = f"Channel {top}"
+
+
+def remove(scene, index):
+    """Remove a track and its clips; the tracks above move down a place."""
+    from . import ripple
+    tl = data(scene)
+    ch = channel(index)
+    clips.editor(scene).channels[ch].lock = False
+    for strip in clips.on_channel(scene, ch):
+        ripple.remove(scene, strip)
+    _shift_channels_down(scene, ch)
+    active_uid = tl.tracks[tl.active_track].uid if 0 <= tl.active_track < len(tl.tracks) else None
+    tl.tracks.remove(index)
+    tl.active_track = next((i for i, t in enumerate(tl.tracks) if t.uid == active_uid),
+                           min(index, len(tl.tracks) - 1))
+    events.emit("tracks_moved", scene, moved={i: i - 1 for i in range(index + 1, len(tl.tracks) + 1)})
+    events.tracks_changed(scene)
+    events.clips_changed(scene)
+
+
+def natural_index(scene, track):
+    """Where a track belongs when shown: the Script lane between the audio and
+    the video tracks."""
+    tl = data(scene)
+    if track.kind == 'SCRIPT':
+        return sum(1 for t in tl.tracks if t.kind == 'AUDIO')
+    return list(tl.tracks).index(track)
+
+
+def set_hidden(scene, track, hide):
+    """Park a track on top, out of view (hide) or put it back in its place."""
+    tl = data(scene)
+    if track.hidden == hide:
+        return
+    index = list(tl.tracks).index(track)
+    uid = track.uid
+    if hide:
+        move(scene, index, len(tl.tracks) - 1, any_kind=True)
+    else:
+        target = sum(1 for t in tl.tracks if t.kind == 'AUDIO') if track.kind == 'SCRIPT' else index
+        move(scene, index, target, any_kind=True)
+    track = next(t for t in tl.tracks if t.uid == uid)
+    track.hidden = hide
+    events.tracks_changed(scene)
 
 
 def ensure_default_tracks(scene):

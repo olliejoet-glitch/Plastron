@@ -33,7 +33,7 @@ def _rgba(spec):
 def spans(scene):
     """{'VIDEO': (first channel, last channel), 'AUDIO': ...} and the top channel."""
     out, top = {}, 0
-    for i, track in enumerate(tracks.all_tracks(scene)):
+    for i, track in tracks.visible_tracks(scene):       # (hidden ones are parked on top: covered)
         ch = tracks.channel(i)
         lo, hi = out.get(track.kind, (ch, ch))
         out[track.kind] = (min(lo, ch), max(hi, ch))

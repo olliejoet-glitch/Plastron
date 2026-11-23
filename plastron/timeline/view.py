@@ -17,7 +17,7 @@ def frame(window, area, region, scene):
     with bpy.context.temp_override(window=window, area=area, region=region):
         bpy.ops.anim.scene_range_frame()      # whole project across
         target = cfg.ROW_HEIGHT_PX * bpy.context.preferences.system.ui_scale
-        rows = len(tracks.all_tracks(scene)) + 1
+        rows = len(tracks.visible_tracks(scene)) + 1
         # Taller rows, but never so tall the tracks don't fit.
         target = min(target, region.height / rows)
         for _ in range(30):

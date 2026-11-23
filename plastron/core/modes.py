@@ -26,6 +26,7 @@ def _set(self, value):
 
 
 before_switch = []    # features: func(context) run before another mode is shown
+after_switch = []     # features: func(context, mode_name) run once it's shown
 
 
 def switch_to(mode_name):
@@ -35,6 +36,8 @@ def switch_to(mode_name):
         for func in before_switch:          # (e.g. step out of an info window first)
             func(bpy.context)
         window.workspace = workspace
+        for func in after_switch:           # (e.g. the Script lane hidden in Edit mode)
+            func(bpy.context, mode_name)
 
 
 def register():

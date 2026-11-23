@@ -18,6 +18,7 @@
     fades.py          fade in / out per clip (corner handles; Ctrl+D dip at a cut)
     colors.py         clip colours (header colour button, Clip panel swatches)
     link.py           link / unlink clips by hand (Ctrl+Alt+L, header chain button)
+    track_edit.py     remove a track; the Script lane hidden in Edit mode
     mute.py           mute / unmute clips (H, header speaker button)
     rate.py           the project's frame rate (header fps menu): everything keeps its time
     events.py         events features listen to
@@ -27,9 +28,9 @@ import bpy
 
 from ..config import project_defaults
 from ..core import handlers
-from . import clips, colors, duplicate, link, mute, rate, edit_keys, edit_tools, events, fades, header, mix, ops, placement, sections, snapping, track_drag, track_headers, tracks
+from . import clips, colors, duplicate, link, mute, rate, track_edit, edit_keys, edit_tools, events, fades, header, mix, ops, placement, sections, snapping, track_drag, track_headers, tracks
 
-_MODULES = (tracks, mix, header, sections, track_headers, ops, edit_tools, edit_keys, placement, fades, colors, link, mute, rate, duplicate, track_drag)
+_MODULES = (tracks, mix, header, sections, track_headers, ops, edit_tools, edit_keys, placement, fades, colors, link, mute, rate, track_edit, duplicate, track_drag)
 _pending = set()   # scene names waiting for a debounced clips_changed
 
 
