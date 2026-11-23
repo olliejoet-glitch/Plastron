@@ -272,9 +272,12 @@ def _timeline_override():
     return None
 
 
-def _retime(scene, strip, speed):
+def _retime(scene, strip, speed, whole=False):
     """Blender's own speed change (its retiming): strip plays at speed; it
-    keeps its start."""
+    keeps its start. whole: the whole clip, not just one stretch (a trimmed
+    / split clip has retiming keys at its handles too: Blender's speed set
+    then changes only the stretch between two of them), by resetting its
+    retiming first."""
     import bpy
     where = _timeline_override()
     if where is None:
@@ -288,7 +291,10 @@ def _retime(scene, strip, speed):
     sed.active_strip = strip
     try:
         with bpy.context.temp_override(scene=scene, **where):
-            bpy.ops.sequencer.retiming_segment_speed_set(speed=speed * 100.0)
+            if whole and len(strip.retiming_keys):
+                bpy.ops.sequencer.retiming_reset()
+            if abs(speed - 1.0) > 1e-6 or not whole:
+                bpy.ops.sequencer.retiming_segment_speed_set(speed=speed * 100.0)
     except RuntimeError as err:
         print("Plastron: couldn't change the speed:", err)
         return False
@@ -324,7 +330,9 @@ def set_speed(scene, strip, speed):
     for i, g in enumerate(group):                    # retimed out of the way, then back
         home[g] = g.channel
         g.channel = spare + i
-        _retime(scene, g, speed)
+        rate = g.fps / (scene.render.fps / scene.render.fps_base) \
+            if g.type == 'MOVIE' and g.get("plastron_media_s") and g.fps else 1.0
+        _retime(scene, g, speed * rate)          # (a video placed at real speed keeps its frame-rate factor)
         if clips.end(g) > allowed_end:
             g.right_handle = allowed_end
         g["plastron_speed"] = speed

@@ -89,6 +89,8 @@ def draw(self, context):
 
     ts = scene.tool_settings
     layout.prop(ts, "use_snap_sequencer", text="", icon='SNAP_ON' if ts.use_snap_sequencer else 'SNAP_OFF')
+    from . import rate
+    rate.draw_header(layout, context)
     tl = scene.plastron_timeline
     row = layout.row(align=True)
     row.prop(tl, "range_auto", text="Auto" if tl.range_auto else "Range", toggle=True,

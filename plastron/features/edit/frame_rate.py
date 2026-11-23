@@ -167,19 +167,22 @@ def plays_at(scene, strip):
     return media_s * project_fps(scene) / whole / speed_of(strip)
 
 
+def real_speed(scene, strip):
+    """The retiming speed that plays this video at real speed (times any
+    speed set on purpose in the Clip panel): Blender counts a movie in its
+    own frames, so that's its frame rate over the project's."""
+    return strip.fps / project_fps(scene) * speed_of(strip)
+
+
 def match_rate(scene, strip):
     """Make a video play at its real speed in this project (its frame rate
     differs from the project's). Returns True if it changed."""
     if strip.type != 'MOVIE' or not strip.fps:
         return False
     strip[MEDIA_S] = media_seconds(strip)
-    rate = plays_at(scene, strip)
-    if abs(rate - 1.0) < 0.002:
+    if abs(plays_at(scene, strip) - 1.0) < 0.002:
         return False
-    target = speed_of(strip) / rate
-    if not ripple._retime(scene, strip, target):
-        return False
-    return True
+    return ripple._retime(scene, strip, real_speed(scene, strip), whole=True)
 
 
 class PLASTRON_OT_clip_frame_rate(bpy.types.Operator):
@@ -259,11 +262,23 @@ class PLASTRON_OT_clip_real_speed(bpy.types.Operator):
 classes = (PLASTRON_OT_clip_frame_rate, PLASTRON_OT_clip_real_speed)
 
 
+def _retime_after_fps(scene, strip):
+    """The project's frame rate changed: the video plays at real speed again."""
+    if MEDIA_S not in strip:
+        strip[MEDIA_S] = strip.frame_duration / strip.fps if strip.fps and not len(strip.retiming_keys) else media_seconds(strip)
+    match_rate(scene, strip)
+
+
 def register():
     for cls in classes:
         bpy.utils.register_class(cls)
+    from ...timeline import rate
+    rate.RETIME.append(_retime_after_fps)
 
 
 def unregister():
+    from ...timeline import rate
+    if _retime_after_fps in rate.RETIME:
+        rate.RETIME.remove(_retime_after_fps)
     for cls in reversed(classes):
         bpy.utils.unregister_class(cls)

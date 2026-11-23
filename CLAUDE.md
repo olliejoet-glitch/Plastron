@@ -378,6 +378,11 @@ Plastron/
   retimed (then frame_duration is timeline frames); content_end -
   content_start is its whole media in timeline frames either way. Its fps
   is the file's nominal rate (r_frame_rate); VFR frames are fetched by time.
+- Retiming a trimmed / split clip with retiming_segment_speed_set changes
+  only one stretch (keys appear at its handles); the hidden head keeps the
+  old speed. To retime a whole clip: reset its retiming with the clip opened
+  out to all its media (on a spare channel), then set the speed
+  (ripple._retime(whole=True), timeline/rate.py).
 - Clip speed: Blender's retiming_segment_speed_set (speed in %, needs a
   timeline area in context). Moving retiming keys by hand crashed Blender
   on trimmed / split clips (they get extra keys at their handles).
@@ -519,8 +524,19 @@ Plastron/
 - Blender pinned to **5.2.3 LTS** (`install/blender_version.txt`).
 - Install root `C:\Plastron`; shortcuts on desktop and Start menu; Ollie's
   copy updates from `main` at every launch.
-- Frame rate **24 fps** (YouTube keeps the upload's rate; 24 is the animation
-  standard). Project resolution **3840×2160**, previews at **50 %**.
+- Frame rate **24 fps** for new projects (YouTube keeps the upload's rate;
+  24 is the animation standard). Changeable per project (Ollie: phone
+  footage at 30 fps stuttered in a 24 fps project): the timeline header's
+  "24 fps" menu (FPS_CHOICES in config/project_defaults.py) ->
+  timeline/rate.change: everything keeps its time in SECONDS (Blender's own
+  fps change keeps sounds' lengths but leaves every clip's start at the
+  same frame number): clips' starts / ends / content_start, all keys
+  (per-clip cards / cameras / fades), fade lengths, gain curves, markers,
+  range, loop range, playhead, in the main timeline and every info
+  window's. Footage goes to spare channels, is opened out to its whole
+  media, its retiming reset and set to real speed (strip.fps / project fps
+  x its Clip-panel speed; frame_rate.real_speed), then put back at its
+  times. Exports come out at the project's rate. Project resolution **3840×2160**, previews at **50 %**.
 - Colour view transform **Standard** (AgX shifts greys).
 - Layout (Ollie swapped them): tools 12 % | canvas 70 % | script over the
   3D scene over its keyframes 18 %, timeline 30 % high. No status bar (messages show in the top bar).

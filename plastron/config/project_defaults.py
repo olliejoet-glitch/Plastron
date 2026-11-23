@@ -57,3 +57,8 @@ STARTER_PANEL = True
 # Timeline snapping off by default (Ollie): hold Ctrl while dragging / slicing
 # to snap. The header magnet switches it on (then Ctrl stops it snapping).
 SNAPPING = False
+
+# Frame rates offered in the timeline header's fps menu (Ollie: "match my
+# footage": phone video is usually 30). Changing it keeps every clip, key,
+# fade and marker at the same time in seconds (timeline/rate.py).
+FPS_CHOICES = (24, 25, 30, 50, 60)
