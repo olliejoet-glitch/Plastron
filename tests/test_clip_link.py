@@ -43,10 +43,11 @@ def steps():
     right = ripple.split(sc, [video], 240)
     yield 0.2
     h.check("cutting the video cuts its linked sound too", len(right) == 2, [s.name for s in right])
+    gone = [s.name for s in right]           # (deleted clips' Python objects can't be read after)
     ripple.delete(sc, [s for s in right if s.type == 'MOVIE'])
     yield 0.2
     h.check("deleting the video's right half deletes the sound's too",
-            all(n.name not in sc.sequence_editor.strips_all for n in right))
+            all(n not in sc.sequence_editor.strips_all for n in gone), gone)
     for s in clips.top_clips(sc):
         s.select = s in (video, sound)
     h.key('L', ctrl=True, alt=True)
