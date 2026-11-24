@@ -23,6 +23,9 @@ PACKAGES = {
 
 # Transcript bar: the bottom band of each audio track's row.
 BAR_FRACTION = 0.5          # how much of the row the bar takes (the rest shows the waveform)
+# The words in audio clips' bars (Words toggle in the timeline header; remembered).
+# Off: nothing is laid out or drawn (transcripts are still kept for ums / captions).
+WORDS_SHOWN_DEFAULT = False
 WORDS_MIN_CLIP_PX = 18     # clips narrower than this on screen show no words (zoomed far out)
 TRIMMED_SHOWN = 3        # trimmed-off words shown (greyed) either side of a clip's own words
 WORD_GAP_PX = 5             # space between words

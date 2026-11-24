@@ -168,7 +168,37 @@ def build(region, scene):
     return boxes, ellipses, bands
 
 
+SETTING = "transcript_words"
+
+
+def shown():
+    """Are the words in the audio clips' bars on? (Words toggle; Ollie: off,
+    they cost drawing time on long, cut-up takes.)"""
+    from ...core import user_settings
+    return bool(user_settings.get(SETTING, cfg.WORDS_SHOWN_DEFAULT))
+
+
+def _get_shown(_wm):
+    return shown()
+
+
+def _set_shown(_wm, value):
+    from ...core import user_settings
+    user_settings.set(SETTING, bool(value))
+    changed()
+    clear_selection()
+    _hover["box"] = None
+    _cache.clear()
+    wm = bpy.context.window_manager
+    for window in (wm.windows if wm else []):
+        for area in window.screen.areas:
+            if area.type == 'SEQUENCE_EDITOR':
+                area.tag_redraw()
+
+
 def layout_for(region, scene):
+    if not shown():
+        return [], [], []
     key = _key(region, scene)
     cached = _cache.get(region.as_pointer())
     if cached is None or cached[0] != key:
@@ -178,6 +208,8 @@ def layout_for(region, scene):
 
 
 def hit(region, scene, x, y):
+    if not shown():
+        return None
     cached = _cache.get(region.as_pointer())
     if cached is None:
         return None
@@ -211,7 +243,7 @@ def draw():
     if scene is None or not hasattr(scene, "plastron_timeline") or scene.sequence_editor is None:
         return
     from ...core.views import is_timeline
-    if not is_timeline(context.space_data):
+    if not is_timeline(context.space_data) or not shown():
         return
     boxes, ellipses, bands = layout_for(region, scene)
     shader = gpu.shader.from_builtin('UNIFORM_COLOR')
@@ -412,9 +444,13 @@ def register():
     handlers.add("redo_post", _after_undo)
     handlers.on_load(_after_undo)
     _handles.append(bpy.types.SpaceSequenceEditor.draw_handler_add(draw, (), 'WINDOW', 'POST_PIXEL'))
+    bpy.types.WindowManager.plastron_transcript_words = bpy.props.BoolProperty(
+        name="Words", description="Show what's said in the audio clips (off: faster on long, cut-up recordings)",
+        get=_get_shown, set=_set_shown)
 
 
 def unregister():
+    del bpy.types.WindowManager.plastron_transcript_words
     for handle in _handles:
         bpy.types.SpaceSequenceEditor.draw_handler_remove(handle, 'WINDOW')
     _handles.clear()

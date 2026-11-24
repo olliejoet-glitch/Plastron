@@ -323,7 +323,9 @@ class PLASTRON_PT_ums(bpy.types.Panel):
 
 def draw_header(layout, context):
     n = len(found(context.scene)) if _state["show"] else 0
-    layout.popover("PLASTRON_PT_ums", text=f"Ums {n}" if n else "Ums")
+    row = layout.row(align=True)
+    row.prop(context.window_manager, "plastron_transcript_words", text="Words", toggle=True, icon='SYNTAX_OFF')
+    row.popover("PLASTRON_PT_ums", text=f"Ums {n}" if n else "Ums")
 
 
 # --- drawing ------------------------------------------------------------------------------

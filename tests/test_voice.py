@@ -46,6 +46,10 @@ def record_for(seconds):
 
 def steps():
     yield 1.0
+    h.check("the words in audio clips are off at first (the Words toggle)",
+            not bpy.context.window_manager.plastron_transcript_words and not bar.shown())
+    bpy.context.window_manager.plastron_transcript_words = True
+    h.check("...the Words toggle turns them on (remembered)", bar.shown())
     sc = scene()
     tl = h.region(h.area('SEQUENCE_EDITOR'))
     h.move(tl.x + tl.width // 2, tl.y + 20)

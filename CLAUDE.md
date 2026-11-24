@@ -883,6 +883,11 @@ Plastron/
   pieces of an hour's take laid out all 7200 words, ~30 s per redraw;
   now ~0.3 s under Xvfb); word widths are cached, each take's words read
   once per layout; clips narrower than WORDS_MIN_CLIP_PX show no words.
+  Words toggle (timeline header, next to Ums; Ollie: "barely working, no
+  words line up properly", asked if removing them would speed things up):
+  OFF by default (WORDS_SHOWN_DEFAULT in config/voice.py), remembered in
+  user_settings "transcript_words". Off: nothing laid out, drawn or
+  clickable; transcripts are still kept (ums, captions, script linking).
 - Cut by words: click a word (playhead jumps there), Shift+click to extend,
   Delete / Backspace cuts from midway after the previous word to midway
   before the next (follows ripple). Clicking elsewhere clears the selection.
