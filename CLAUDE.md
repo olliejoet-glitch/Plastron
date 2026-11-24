@@ -707,6 +707,14 @@ Plastron/
   strip["plastron_link"] + Blender's connect), or unlinks them if they're
   already linked together (clips.unlink_all: + Blender's disconnect). One
   selected linked clip: unlinks it from its partners. timeline/link.py.
+  Clips cut differently (Ollie separated a recording's ums, THEN linked it
+  to the video: one long video linked to every piece, so ripple delete took
+  the whole video): Ctrl+Alt+L on 3+ clips whose cuts don't match cuts each
+  where the others have cuts and links the pieces over the same stretch
+  (link.link_matching; an um piece's partner gets the um mark too).
+  Separate in the Ums pop-up does the same first for any such link group,
+  and can be run again and again (Ollie): already-cut ums stay, new ones /
+  newly linked pictures are cut to match.
 - Muting clips (Ollie: "any reason why I can't hear the audio?": Blender's
   own clip mute key is stripped, so a muted clip had no way back): H over
   the timeline / the header's speaker button (shown while clips are

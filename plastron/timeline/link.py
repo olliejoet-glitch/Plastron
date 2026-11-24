@@ -5,6 +5,12 @@ Ctrl+Alt+L (Resolve's key) or the header's chain button on the selected
 clips: not all linked together -> linked (they select, move, trim, cut,
 delete and ripple together, like a video and its own sound); already linked
 together -> unlinked.
+
+Clips cut differently (Ollie separated a recording's ums, then linked it to
+its video: one long video was linked to every piece, so deleting an um took
+the whole video along) are linked piece by piece: each clip is cut where the
+others have cuts, then the pieces over the same stretch are linked (an um
+piece's partner is marked as an um too, so Delete takes both).
 """
 
 import bpy
@@ -14,6 +20,54 @@ from . import clips, events
 
 def selected(scene):
     return [s for s in clips.top_clips(scene) if s.select]
+
+
+UM = "plastron_um"
+
+
+def mismatched(strips):
+    """True if the clips are on two or more tracks and not cut the same."""
+    spans = {}
+    for s in strips:
+        spans.setdefault(s.channel, []).append((clips.start(s), clips.end(s)))
+    if len(spans) < 2:
+        return False
+    first, *rest = (sorted(v) for v in spans.values())
+    return any(r != first for r in rest)
+
+
+def link_matching(scene, strips):
+    """Cut each clip at the others' cuts inside it, then link the pieces over
+    the same stretch. Returns how many links were made."""
+    import bisect
+    with events.batch():
+        strips = list(strips)
+        clips.unlink_all(strips)
+        cuts = sorted({f for s in strips for f in (clips.start(s), clips.end(s))})
+        pieces = []
+        for s in strips:
+            a, b = clips.start(s), clips.end(s)
+            inside = cuts[bisect.bisect_right(cuts, a):bisect.bisect_left(cuts, b)]
+            pieces.append(s)
+            for f in reversed(inside):              # (from the right: s stays the left part)
+                right = s.split(frame=f, split_method='SOFT')
+                if right is not None:
+                    events.emit("clip_split", scene, original=s, new=right)
+                    pieces.append(right)
+        groups = {}
+        for s in pieces:
+            groups.setdefault((clips.start(s), clips.end(s)), []).append(s)
+        made = 0
+        for group in groups.values():
+            if len({s.channel for s in group}) < 2:
+                continue
+            clips.link(group)
+            made += 1
+            if any(s.get(UM) for s in group):
+                for s in group:
+                    s[UM] = 1
+        events.clips_changed(scene)
+    return made
 
 
 def linked_together(strips):
@@ -34,7 +88,10 @@ class PLASTRON_OT_clip_link(bpy.types.Operator):
     def execute(self, context):
         scene = context.scene
         strips = selected(scene)
-        if linked_together(strips):
+        if len(strips) > 2 and mismatched(strips):
+            n = link_matching(scene, strips)
+            self.report({'INFO'}, f"Cut to match and linked {n} pair{'s' if n != 1 else ''}")
+        elif linked_together(strips):
             clips.unlink_all(strips)
             self.report({'INFO'}, f"Unlinked {len(strips)} clips")
         elif len(strips) < 2:

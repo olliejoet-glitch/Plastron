@@ -146,7 +146,23 @@ def separate(scene):
         return _separate(scene)
 
 
+def _match_links(scene):
+    """Clips linked after their ums were cut (Ollie: separated, THEN linked
+    the video, all as one): cut to match and linked piece by piece first, so
+    every cut below takes the picture along."""
+    from ...timeline import link
+    groups = {}
+    for s in clips.top_clips(scene):
+        uid = s.get(clips.LINK)
+        if uid:
+            groups.setdefault(uid, []).append(s)
+    for group in groups.values():
+        if len(group) > 2 and link.mismatched(group):
+            link.link_matching(scene, group)
+
+
 def _separate(scene):
+    _match_links(scene)
     pieces = []
     for strip, f0, f1, _i in reversed(find(scene)):          # (latest first: earlier cuts stay put)
         ch = strip.channel
@@ -167,7 +183,7 @@ def _separate(scene):
         s.select = bool(s.get(MARK))
     _dirty()
     events.clips_changed(scene)
-    return pieces
+    return [s for s in clips.top_clips(scene) if s.get(MARK)]
 
 
 def delete(scene):
