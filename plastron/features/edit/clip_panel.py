@@ -106,6 +106,8 @@ class PLASTRON_PT_clip(bpy.types.Panel):
         sub.prop(strip, "mute", text="", icon='MUTE_IPO_ON' if strip.mute else 'OUTLINER_OB_SPEAKER')
         from ...timeline.colors import draw_swatches
         draw_swatches(layout)
+        from .attributes import draw_buttons
+        draw_buttons(layout, context)
         from .windows import is_window_clip
         if is_window_clip(strip):
             layout.operator("plastron.window_toggle", text="Edit Inside (Tab)", icon='WINDOW')

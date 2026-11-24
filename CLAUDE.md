@@ -254,7 +254,8 @@ Plastron/
 │  │                         tracks; Blender's drops re-placed), bin (media bin, preview size),
 │  │                         clip_panel (Clip panel), frame_rate (Check Frame Rate, real speed), frame_box (move / size / turn in the preview),
 │  │                         windows (info windows: a clip with its own timeline in a UI frame),
-│  │                         shorts (Shorts reframing: 9:16 box per shot, the Shorts render)
+│  │                         shorts (Shorts reframing: 9:16 box per shot, the Shorts render),
+│  │                         attributes (copy / paste clip attributes, Ctrl+C / Ctrl+V)
 │  │  └─ audio/              Audio mode: analysis (numpy: LUFS, envelope, beats), loudness
 │  │                         (Normalise), duck (auto-ducking), beats (markers), breaths
 │  │                         (breath remover), creature (voice stacks), fit (music fitting),
@@ -1349,6 +1350,16 @@ Plastron/
   selected clip in the preview: drag inside = move, a corner = size (keeps
   its shape), just outside = turn (Shift: 15° steps); Esc / right-click puts
   it back (FRAME_BOX in config/edit.py). Clicks elsewhere pass on (select).
+- Copy / paste clip attributes (Ollie: "size, position, grading etc."):
+  Ctrl+C over the timeline / preview (or the Clip panel's Copy Attributes)
+  copies the selected clip's position, size, rotation, crop, opacity &
+  blend, flips, grade, fades, speed, volume (a video: its linked sound's),
+  Shorts box; Ctrl+V / Paste... opens a box of what was copied (ticks
+  remembered in user_settings "paste_attributes"; first ticks and order
+  PASTE_ATTRIBUTES in config/edit.py) and pastes onto every selected clip,
+  each taking what it can (one undo step). Panels never take position /
+  size / rotation / crop (their painting fits the frame); script blocks
+  nothing. features/edit/attributes.py.
 - Info windows (Ollie: "little info windows using this UI ... a nested
   timeline ... clips that auto-crop to the UI"): Window (preview header)
   picks a style (presets/windows/*.png + your own folder plastron_windows/:

@@ -55,3 +55,20 @@ SHORTS_DIM = (0.0, 0.0, 0.0, 0.55)   # outside the box
 # Playback meter (video preview header while playing): the fps shows red
 # below this share of the project's rate.
 PLAYBACK_WARN = 0.9
+
+# --- Copy / paste clip attributes (Ctrl+C / Ctrl+V over the timeline / preview) --
+# What can be pasted, in the order the Paste Attributes box lists them;
+# True = ticked the first time (after that the box remembers your ticks).
+PASTE_ATTRIBUTES = (
+    ("position", "Position", True),
+    ("size", "Size", True),
+    ("rotation", "Rotation", True),
+    ("crop", "Crop", True),
+    ("opacity", "Opacity & Blend", True),
+    ("flip", "Flips", True),
+    ("grade", "Grade", True),
+    ("fades", "Fades", False),
+    ("speed", "Speed", False),
+    ("volume", "Volume", False),
+    ("shorts", "Shorts Box", False),
+)
