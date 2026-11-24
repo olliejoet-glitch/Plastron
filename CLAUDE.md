@@ -866,6 +866,11 @@ Plastron/
   far enough, words sit at their exact times. Trimmed words show greyed and
   struck through (wrapped view only). Layout is cached and redone only when
   the view or the clips / transcripts change.
+  Each clip lays out only its own words plus TRIMMED_SHOWN (3) trimmed-off
+  ones either side (Ollie: zooming crawled after Separate: each of ~1200
+  pieces of an hour's take laid out all 7200 words, ~30 s per redraw;
+  now ~0.3 s under Xvfb); word widths are cached, each take's words read
+  once per layout.
 - Cut by words: click a word (playhead jumps there), Shift+click to extend,
   Delete / Backspace cuts from midway after the previous word to midway
   before the next (follows ripple). Clicking elsewhere clears the selection.

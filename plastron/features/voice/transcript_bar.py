@@ -57,9 +57,54 @@ def _key(region, scene):
             region.width, region.height, _ui(1), _version[0], collapse, scene.name)
 
 
+_measured = {}          # (ui scale, word) -> width in px
+
+
 def _widths(texts):
-    blf.size(FONT, _ui(FONT_PX))
-    return [blf.dimensions(FONT, t)[0] for t in texts]
+    ui = _ui(FONT_PX)
+    sized = False
+    out = []
+    for t in texts:
+        w = _measured.get((ui, t))
+        if w is None:
+            if not sized:
+                blf.size(FONT, ui)
+                sized = True
+            w = _measured[(ui, t)] = blf.dimensions(FONT, t)[0]
+        out.append(w)
+    if len(_measured) > 50000:
+        _measured.clear()
+    return out
+
+
+_takes = {}             # words_json -> (words, word middles in s or None if not in order)
+
+
+def _take_words(take):
+    raw = take.words_json
+    got = _takes.get(raw)
+    if got is None:
+        words = takes.words(take)
+        mids = [(s + e) / 2 for _w, s, e in words]
+        ordered = all(a <= b for a, b in zip(mids, mids[1:]))
+        if len(_takes) > 16:
+            _takes.clear()
+        got = _takes[raw] = (words, mids if ordered else None)
+    return got
+
+
+def _span(scene, strip, mids, n):
+    """(first, end) word indices a clip shows: its own words (middle inside
+    it) and a few trimmed-off ones either side. (A piece of a long take
+    split into hundreds used to lay out every word of the whole take.)"""
+    if mids is None:
+        return 0, n
+    import bisect
+    fps = _fps(scene)
+    lo = (clips.start(strip) - strip.content_start) / fps
+    hi = (clips.end(strip) - strip.content_start) / fps
+    k = cfg.TRIMMED_SHOWN
+    return max(0, bisect.bisect_left(mids, lo) - k), min(n, bisect.bisect_left(mids, hi) + k)
 
 
 def build(region, scene):
@@ -70,6 +115,7 @@ def build(region, scene):
     line_h = _ui(FONT_PX) * 1.4
     ell_w = _widths([transcript_layout.ELLIPSIS])[0]
     boxes, ellipses, bands = [], [], []
+    memo = {}
     for i, track in enumerate(tracks.all_tracks(scene)):
         if track.kind != 'AUDIO':
             continue
@@ -82,29 +128,39 @@ def build(region, scene):
         bands.append((y0 + 1, top, y1))
         lines = 1 if track.collapse else max(1, int((top - y0 - 2) // line_h))
         for strip in clips.on_channel(scene, ch):
-            take = takes.active_take(strip) if takes.is_voice(strip) else None
-            word_list = takes.words(take) if take else []
-            if not word_list:
-                continue
             x0 = v2d.view_to_region(clips.start(strip), 0, clip=False)[0]
             x1 = v2d.view_to_region(clips.end(strip), 0, clip=False)[0]
             if x1 < 0 or x0 > region.width:
                 continue
+            take = takes.active_take(strip) if takes.is_voice(strip) else None
+            if take is None:
+                continue
+            got = memo.get(take.uid)               # (pieces of one take: its words read once)
+            if got is None:
+                got = memo[take.uid] = _take_words(take) if take.words_json else ([], None)
+            all_words, mids = got
+            if not all_words:
+                continue
+            first, last = _span(scene, strip, mids, len(all_words))
+            word_list = all_words[first:last]
             widths = _widths([w for w, _s, _e in word_list])
             items = []
+            start, end = clips.start(strip), clips.end(strip)
             for (text, s, e), w in zip(word_list, widths):
                 f0, f1 = word_frame(scene, strip, s), word_frame(scene, strip, e)
                 mid = (f0 + f1) / 2
-                trimmed = not (clips.start(strip) <= mid < clips.end(strip))
+                trimmed = not (start <= mid < end)
                 items.append((v2d.view_to_region(f0, 0, clip=False)[0], w, trimmed))
             _mode, placed, ellipsis = transcript_layout.layout(items, x0, x1, lines, gap, ell_w)
-            for index, x, line in placed:
-                text, s, e = word_list[index]
+            for local, x, line in placed:
+                index = first + local
+                text, s, e = all_words[index]
+                widths_i, trimmed_i = widths[local], items[local][2]
                 baseline = top - line_h * (line + 1) + _ui(3)
                 boxes.append({
                     "strip": strip.name, "take": take.uid, "index": index, "text": text,
-                    "x": x, "y": baseline - _ui(3), "w": widths[index], "h": line_h,
-                    "baseline": baseline, "trimmed": items[index][2],
+                    "x": x, "y": baseline - _ui(3), "w": widths_i, "h": line_h,
+                    "baseline": baseline, "trimmed": trimmed_i,
                     "f0": word_frame(scene, strip, s), "f1": word_frame(scene, strip, e),
                     "wave": (top, y1)})
             if ellipsis:
@@ -175,15 +231,24 @@ def draw():
         wx1 = v2d.view_to_region(hover["f1"], 0, clip=False)[0]
         _rect(shader, wx0, hover["wave"][0], max(wx1, wx0 + 2), hover["wave"][1], _c("hover", 0.4))
     blf.size(FONT, _ui(FONT_PX))
-    for box in boxes:
-        colour = _c("trimmed") if box["trimmed"] else _c("text")
-        blf.color(FONT, *colour)
-        blf.position(FONT, box["x"], box["baseline"], 0)
-        blf.draw(FONT, box["text"])
-        if box["trimmed"]:          # struck through
-            mid = box["baseline"] + _ui(FONT_PX) * 0.35
-            _rect(shader, box["x"], mid, box["x"] + box["w"], mid + max(1, _ui(1)), colour)
-    blf.color(FONT, *_c("text"))
+    text_c, trimmed_c = _c("text"), _c("trimmed")
+    strike = []                   # (one batch for every struck-through word)
+    lift, thick = _ui(FONT_PX) * 0.35, max(1, _ui(1))
+    width = region.width
+    for trimmed in (False, True):
+        blf.color(FONT, *(trimmed_c if trimmed else text_c))
+        for box in boxes:
+            if box["trimmed"] != trimmed or box["x"] > width or box["x"] + box["w"] < 0:
+                continue
+            blf.position(FONT, box["x"], box["baseline"], 0)
+            blf.draw(FONT, box["text"])
+            if trimmed:
+                x0, x1, y0 = box["x"], box["x"] + box["w"], box["baseline"] + lift
+                strike += [(x0, y0), (x1, y0), (x1, y0 + thick), (x0, y0), (x1, y0 + thick), (x0, y0 + thick)]
+    if strike:
+        shader.uniform_float("color", trimmed_c)
+        batch_for_shader(shader, 'TRIS', {"pos": strike}).draw(shader)
+    blf.color(FONT, *text_c)
     for x, baseline in ellipses:
         blf.position(FONT, x, baseline, 0)
         blf.draw(FONT, transcript_layout.ELLIPSIS)
