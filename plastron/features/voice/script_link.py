@@ -32,16 +32,30 @@ def _norm(word):
 
 def spoken(scene):
     """[(normalised word, frame)] of everything heard, in time order."""
+    import bisect
     out = []
+    fps = scene.render.fps / scene.render.fps_base
+    by_words = {}          # (a take's words, their middles), shared by its split pieces
     for i, track in enumerate(tracks.all_tracks(scene)):
         if track.kind != 'AUDIO':
             continue
         for strip in clips.on_channel(scene, tracks.channel(i)):
             take = takes.active_take(strip) if takes.is_voice(strip) else None
-            for w, s, e in takes.words(take) if take else []:
-                mid = transcript_bar.word_frame(scene, strip, (s + e) / 2)
-                if clips.start(strip) <= mid < clips.end(strip) and _norm(w):
-                    out.append((_norm(w), transcript_bar.word_frame(scene, strip, s)))
+            if take is None or not take.words_json:
+                continue
+            mids = by_words.get(take.words_json)
+            if mids is None:           # (word middle s, normalised word, start s), by middle
+                mids = by_words[take.words_json] = sorted(
+                    ((s + e) / 2, n, s) for w, s, e in takes.words(take) if (n := _norm(w)))
+            cs = strip.content_start
+            lo = (clips.start(strip) - cs) / fps          # what this clip shows, in seconds
+            hi = (clips.end(strip) - cs) / fps
+            k = bisect.bisect_left(mids, (lo,))
+            while k < len(mids) and mids[k][0] < hi:
+                _m, n, s = mids[k]
+                if clips.start(strip) <= cs + _m * fps < clips.end(strip):
+                    out.append((n, cs + s * fps))
+                k += 1
     out.sort(key=lambda p: p[1])
     return out
 

@@ -142,6 +142,11 @@ def _dirty(*_args, **_kw):
 def separate(scene):
     """Cut every um into its own clip (with its linked clips); they're marked
     and selected, everything else deselected. Returns the um clips."""
+    with events.batch():
+        return _separate(scene)
+
+
+def _separate(scene):
     pieces = []
     for strip, f0, f1, _i in reversed(find(scene)):          # (latest first: earlier cuts stay put)
         ch = strip.channel
@@ -167,13 +172,14 @@ def separate(scene):
 
 def delete(scene):
     """Remove the um clips (separating them first), following ripple."""
-    if not marked(scene):
-        separate(scene)
-    gone = marked(scene)
-    if gone:
-        ripple.delete(scene, gone)
-    _dirty()
-    events.clips_changed(scene)
+    with events.batch():
+        if not marked(scene):
+            _separate(scene)
+        gone = marked(scene)
+        if gone:
+            ripple.delete(scene, gone)
+        _dirty()
+        events.clips_changed(scene)
     return len(gone)
 
 

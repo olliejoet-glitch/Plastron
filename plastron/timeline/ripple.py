@@ -129,24 +129,52 @@ def trim(scene, strip, side, frame, orig=None):
 
 def delete(scene, strips):
     """Delete clips; ripple tracks close the gap."""
-    sed = clips.editor(scene)
     strips = [s for s in clips.with_linked(strips, clips.top_clips(scene)) if not _locked(scene, s)]
     gaps = []                     # (start, end) of what's removed on ripple tracks
     for strip in sorted(strips, key=clips.start, reverse=True):
-        s, e = clips.start(strip), clips.end(strip)
         if _ripples(scene, strip):
-            gaps.append((s, e))
+            gaps.append((clips.start(strip), clips.end(strip)))
         events.emit("clip_removing", scene, strip=strip)
-        remove(scene, strip)
+    remove_many(scene, strips)
     # Each stretch of time closes once (a video and its linked sound, removed
-    # together on two ripple tracks, used to close the same gap twice).
-    for s, e in reversed(merge_spans(gaps)):
-        orig = snapshot(scene)
-        changes = {}
-        _shift_after(scene, orig, e, -(e - s), changes)
-        clips.apply(scene, changes)
+    # together on two ripple tracks, used to close the same gap twice), all
+    # in one go: a clip moves back by every gap that ends at / before it.
+    gaps = merge_spans(gaps)
+    if gaps:
+        clips.apply(scene, close_gaps(scene, snapshot(scene), gaps))
     events.clips_changed(scene)
     return len(strips)
+
+
+def close_gaps(scene, orig, gaps):
+    """{strip: (start, end)} closing the gaps (merged, in time order) on
+    ripple tracks; a moved clip's linked clips elsewhere go along."""
+    import bisect
+    ends = [e for _s, e in gaps]
+    total = [0]
+    for s, e in gaps:
+        total.append(total[-1] + (e - s))
+    channels = tracks.ripple_channels(scene)
+    changes = {}
+    for strip, (s, e) in orig.items():
+        if strip.channel in channels:
+            d = total[bisect.bisect_right(ends, s)]
+            if d:
+                changes[strip] = (s - d, e - d)
+    by_link = {}
+    for strip in orig:
+        uid = strip.get(clips.LINK)
+        if uid:
+            by_link.setdefault(uid, []).append(strip)
+    for strip in list(changes):
+        uid = strip.get(clips.LINK)
+        d = orig[strip][0] - changes[strip][0]
+        for other in by_link.get(uid, ()) if uid else ():
+            if other in changes or _locked(scene, other):
+                continue
+            s, e = orig[other]
+            changes[other] = (s - d, e - d)
+    return changes
 
 
 def merge_spans(spans):
@@ -166,24 +194,38 @@ def remove(scene, strip):
     and removing a clip it was rendering crashed Blender (an info window
     mid-playback; a big video Blender's own drop had just added, which
     Plastron removes to place again). Use this for every clip removal."""
+    remove_many(scene, [strip])
+
+
+def remove_many(scene, strips):
+    """remove() for several clips at once (one Delete)."""
     import bpy
+    strips = list(strips)
+    if not strips:
+        return
     sed = clips.editor(scene)
     over = _timeline_override()
     if over is None or over["window"].scene != scene:
-        sed.strips.remove(strip)
+        for strip in strips:
+            sed.strips.remove(strip)
         return
-    name = strip.name
-    picked = [s for s in sed.strips_all if s.select and s != strip]
+    names = [s.name for s in strips]
+    gone = set(strips)
+    picked = [s for s in sed.strips_all if s.select and s not in gone]
     for s in sed.strips_all:
-        s.select = s == strip
-    strip.lock = False                         # (Delete skips locked clips)
+        s.select = s in gone
+    links = False
+    for strip in strips:
+        strip.lock = False                     # (Delete skips locked clips)
+        links = links or bool(strip.get(clips.LINK) or len(strip.connections))
     with bpy.context.temp_override(**over, scene=scene):
-        if strip.get(clips.LINK) or len(strip.connections):
+        if links:
             bpy.ops.sequencer.disconnect()     # (Blender's Delete takes connected clips along)
         bpy.ops.sequencer.delete(delete_data=False)
-    left = sed.strips_all.get(name)
-    if left is not None:                       # (the operator couldn't: never leave it behind)
-        sed.strips.remove(left)
+    for name in names:
+        left = sed.strips_all.get(name)
+        if left is not None:                   # (the operator couldn't: never leave it behind)
+            sed.strips.remove(left)
     for s in picked:
         try:
             s.select = True

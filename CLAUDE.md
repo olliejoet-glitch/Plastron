@@ -418,6 +418,12 @@ Plastron/
   Explorer: Plastron re-places drops and removed Blender's clips while the
   thread was reading them). Use timeline/ripple.remove (Blender's Delete;
   unlocks / disconnects first). tests/test_code_rules.py enforces it.
+- Many edits in a row (hundreds of cuts): wrap them in timeline/events.batch()
+  so clips_changed / mix / tracks listeners run once at the end (Ollie's
+  Separate on an hour of audio ran 10+ min: every listener after every cut).
+  Blender's strip.split already connects the right halves of connected
+  clips (clips.link skips its slow connect operator then); ripple.delete
+  removes clips in one Delete and closes every gap in one apply.
 - Window.modal_operators lists running modal operators (placement waits
   while a TRANSFORM_OT_* drag runs).
 - Strip.split copies Plastron's PointerProperties (voice takes, panel data).

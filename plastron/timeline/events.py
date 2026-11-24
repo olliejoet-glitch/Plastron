@@ -14,7 +14,11 @@ Events:
     clip_removing        info: strip (about to be deleted)
 """
 
+from contextlib import contextmanager
+
 _listeners = {}
+_held = None          # [(event, scene)] while batch() runs
+HOLDABLE = {"clips_changed", "tracks_changed", "mix_changed"}
 
 
 def listen(event, func):
@@ -22,6 +26,10 @@ def listen(event, func):
 
 
 def emit(event, scene, **info):
+    if _held is not None and event in HOLDABLE:
+        if (event, scene) not in _held:
+            _held.append((event, scene))
+        return
     for func in _listeners.get(event, ()):
         func(scene, **info)
 
@@ -40,6 +48,24 @@ def mix_changed(scene):
 
 def active_track_changed(scene):
     emit("active_track_changed", scene)
+
+
+@contextmanager
+def batch():
+    """Hold clips_changed / tracks_changed / mix_changed until the end, then
+    send each once (many edits in a row, e.g. hundreds of um cuts: every
+    listener ran after every cut, slower as the clips grew)."""
+    global _held
+    if _held is not None:
+        yield
+        return
+    _held = []
+    try:
+        yield
+    finally:
+        held, _held = _held, None
+        for event, scene in held:
+            emit(event, scene)
 
 
 def clear():

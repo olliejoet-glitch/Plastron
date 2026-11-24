@@ -20,7 +20,18 @@ def link(strips):
     uid = uuid.uuid4().hex[:10]
     for strip in strips:
         strip[LINK] = uid
-    _connect(strips)
+    if not _connected(strips):      # (a split's right halves are: Blender connects them itself)
+        _connect(strips)
+
+
+def _connected(strips):
+    """True if each of these clips is already connected to all the others."""
+    names = {s.name for s in strips}
+    for s in strips:
+        have = {c.name for c in s.connections}
+        if not (names - {s.name}) <= have:
+            return False
+    return True
 
 
 def _connect(strips, op="connect"):
@@ -33,16 +44,20 @@ def _connect(strips, op="connect"):
         if area is None:
             continue
         scene = strips[0].id_data
-        was = {s: s.select for s in scene.sequence_editor.strips_all}
-        for s in was:
-            s.select = s in strips
+        was = [s for s in scene.sequence_editor.strips_all if s.select]
+        for s in was:                       # (only clips whose selection changes are set:
+            s.select = False                #  setting all of them, per link, was slow)
+        for s in strips:
+            s.select = True
         try:
             with bpy.context.temp_override(window=window, area=area, scene=scene):
                 getattr(bpy.ops.sequencer, op)()
         except RuntimeError as err:
             print(f"Plastron: couldn't {op} clips:", err)
-        for s, sel in was.items():
-            s.select = sel
+        for s in strips:
+            s.select = False
+        for s in was:
+            s.select = True
         return
 
 
@@ -71,9 +86,20 @@ def linked(strip, among=None):
 def with_linked(strips, among=None):
     """strips plus everything linked to them (order kept, no repeats)."""
     out = list(strips)
+    if not out:
+        return out
+    pool = among if among is not None else out[0].id_data.sequence_editor.strips_all
+    by_link = {}                     # (one pass: hundreds of um clips at once)
+    for s in pool:
+        uid = s.get(LINK)
+        if uid:
+            by_link.setdefault(uid, []).append(s)
+    seen = set(out)
     for strip in list(out):
-        for other in linked(strip, among):
-            if other not in out:
+        uid = strip.get(LINK)
+        for other in by_link.get(uid, ()) if uid else ():
+            if other not in seen:
+                seen.add(other)
                 out.append(other)
     return out
 
@@ -246,12 +272,36 @@ def apply(scene, changes):
         return len(target) > 2 and target[2] is not None and abs(strip.content_start - target[2]) > 0.5
 
     pending = {s: tuple(t) for s, t in changes.items() if differs(s, t)}
+    if not pending:
+        return
+    # Where every clip is now, per channel, kept in step as clips move (a
+    # free-check per clip read every strip from Blender: slow with hundreds).
+    where = {}
+    for s in top_clips(scene):
+        where.setdefault(s.channel, {})[s] = (start(s), end(s))
+    for s in pending:
+        where.setdefault(s.channel, {}).setdefault(s, (start(s), end(s)))
+
+    def free(strip, a, b):
+        for other, (s, e) in where[strip.channel].items():
+            if other != strip and s < b and a < e:
+                return False
+        return True
+
+    def place(strip, target):
+        _set(strip, *target)
+        where[strip.channel][strip] = (start(strip), end(strip))
+
+    # Leftward moves earliest first, rightward latest first: most settle in one pass.
+    order = sorted(pending, key=lambda s: (pending[s][0] - start(s) > 0,
+                                           start(s) if pending[s][0] <= start(s) else -start(s)))
+    pending = {s: pending[s] for s in order}
     guard = len(pending) + 2
     while pending and guard:
         guard -= 1
         for strip, target in list(pending.items()):
-            if _free(scene, strip, target[0], target[1]):
-                _set(strip, *target)
+            if free(strip, target[0], target[1]):
+                place(strip, target)
                 del pending[strip]
     for strip, target in pending.items():   # cyclic case: shrink, then grow
         _set(strip, target[0], target[0] + 1)

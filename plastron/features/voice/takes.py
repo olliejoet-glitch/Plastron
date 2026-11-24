@@ -47,11 +47,23 @@ def active_take(strip):
     return v.takes[v.active] if 0 <= v.active < len(v.takes) else None
 
 
+_parsed = {}        # words_json -> [(word, start, end)]: split pieces share one take's words
+
+
 def words(take):
-    try:
-        return [tuple(w) for w in json.loads(take.words_json)] if take.words_json else []
-    except ValueError:
+    raw = take.words_json
+    if not raw:
         return []
+    got = _parsed.get(raw)
+    if got is None:
+        try:
+            got = [tuple(w) for w in json.loads(raw)]
+        except ValueError:
+            got = []
+        if len(_parsed) > 16:
+            _parsed.clear()
+        _parsed[raw] = got
+    return list(got)
 
 
 def set_words(take, word_list):
