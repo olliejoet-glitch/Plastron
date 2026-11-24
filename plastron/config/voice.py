@@ -78,7 +78,12 @@ SCRIPT_SEARCH = {
 # The um checker (timeline header "Ums"): words counted as ums / fluffs,
 # how they're shown and how much of the gap around them is cut.
 UMS = {
-    "words": ("um", "umm", "ummm", "uh", "uhh", "uhm", "erm", "er", "hmm", "mm", "ah", "ahh"),
+    "words": ("um", "umm", "ummm", "uh", "uhh", "uhhh", "uhm", "erm", "er", "err", "hmm", "hm", "mm",
+              "mmm", "ah", "ahh", "eh"),
+    # Transcribing: every suspicious spot (voice between words, a word far too
+    # long) is listened to again on its own, expecting fillers (slower: a few
+    # seconds per minute of recording).
+    "second_pass": True,
     "color": "#e0503c",      # (palette name or "#rrggbb")
     "alpha": 0.35,           # the um's stretch over the clip
     "word_alpha": 0.6,       # the word in the transcript bar

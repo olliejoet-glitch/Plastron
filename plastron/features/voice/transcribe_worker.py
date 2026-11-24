@@ -97,7 +97,124 @@ def whisper(path, model_name, prompt, out_path):
             text = w.word.strip()
             if text:
                 out.append([text, round(w.start, 3), round(w.end, 3)])
+    fillers = fillers_wanted()
+    if fillers:
+        audio = load_audio(path)
+
+        def listen(snippet):
+            segs, _info = model.transcribe(snippet, word_timestamps=True, initial_prompt=FILLER_PROMPT,
+                                           vad_filter=False, condition_on_previous_text=False,
+                                           language="en", without_timestamps=False)
+            return [(w.word.strip(), w.start, w.end) for seg in segs for w in (seg.words or [])]
+        out = second_pass(out, audio, 16000, listen, fillers, out_path)
     return out
+
+
+# --- Second pass: ums Whisper tidied away -----------------------------------------------------
+# Whisper leaves many fillers out of a long transcript (and stretches the word
+# next to one over it). Every suspicious spot is listened to again on its own,
+# with Whisper told to expect fillers: voice in a gap between words, and words
+# far longer than their letters need. Fillers it hears there are added.
+
+FILLER_PROMPT = "Um, uh, umm, er, hmm. Uh, um, so, uh, yeah."
+
+
+def _clean(word):
+    return word.strip(" ,.!?;:-\u2026\"'").lower()
+
+
+def _envelope(audio, rate, hop=0.02):
+    import numpy as np
+    n = int(hop * rate)
+    m = len(audio) // n
+    if m == 0:
+        return np.zeros(0)
+    rms = np.sqrt(np.mean(audio[:m * n].reshape(m, n) ** 2, axis=1))
+    return 20 * np.log10(np.maximum(rms, 1e-6))
+
+
+def filler_candidates(words, audio, rate, hop=0.02):
+    """Pure: [(start s, end s, kind, word index)] to listen to again:
+    'gap' (voice between two words) and 'long' (a word much longer than its
+    letters need: an um swallowed into it)."""
+    import numpy as np
+    env = _envelope(audio, rate, hop)
+    if not len(env):
+        return []
+    loud = float(np.percentile(env, 95))
+    voiced = env >= loud - 25
+    total = len(env) * hop
+    out = []
+    bounds = [(None, 0.0)] + [(i, w[2]) for i, w in enumerate(words)]
+    starts = [w[1] for w in words] + [total]
+    for (i, g0), g1 in zip(bounds, starts):
+        if g1 - g0 < 0.15:
+            continue
+        a, b = int(g0 / hop), int(g1 / hop)
+        if voiced[a:b].sum() * hop >= 0.12:
+            out.append((max(0.0, g0 - 0.05), min(total, g1 + 0.05), "gap", i))
+    for i, (word, s, e) in enumerate(words):
+        letters = sum(ch.isalpha() for ch in word)
+        if e - s > max(0.9, 0.35 + 0.08 * letters):
+            out.append((max(0.0, s - 0.05), min(total, e + 0.05), "long", i))
+    return out
+
+
+def merge_fillers(words, heard, fillers):
+    """Pure: words with the fillers heard in candidates added.
+    heard: [((start, end, kind, index), [(word, s, e) in the transcript's time])].
+    A long word gives up the part its filler took."""
+    words = [list(w) for w in words]
+    added = []
+    for (a, b, kind, index), got in heard:
+        found = [(w, s, e) for w, s, e in got if _clean(w) in fillers]
+        if not found:
+            continue
+        for w, s, e in found:
+            s, e = max(a, s), min(b, e)
+            if e - s < 0.05:
+                continue
+            if kind == "long" and index is not None:
+                word = words[index]
+                if s - word[1] >= e - word[2] or abs(s - word[1]) > abs(e - word[2]):
+                    word[2] = min(word[2], max(word[1] + 0.05, s))      # (the filler came after)
+                else:
+                    word[1] = max(word[1], min(word[2] - 0.05, e))      # (before)
+            added.append([w.strip(), round(s, 3), round(e, 3)])
+    existing = [(s, e) for w, s, e in words if _clean(w) in fillers]
+    for f in sorted(added, key=lambda x: x[1]):
+        if not any(s < f[2] and f[1] < e for s, e in existing):
+            words.append(f)
+            existing.append((f[1], f[2]))
+    words.sort(key=lambda w: w[1])
+    return words
+
+
+def second_pass(words, audio, rate, listen, fillers, out_path=None):
+    """listen(snippet) -> [(word, s, e)] in the snippet's time."""
+    cands = filler_candidates(words, audio, rate)
+    heard = []
+    for k, c in enumerate(cands):
+        if out_path and k % 10 == 0:
+            status(out_path, f"Listening for ums {k}/{len(cands)}")
+        a, b = c[0], c[1]
+        snippet = audio[int(a * rate):int(b * rate)]
+        if len(snippet) < int(0.1 * rate):
+            continue
+        try:
+            got = [(w, a + s, a + e) for w, s, e in listen(snippet)]
+        except Exception as err:          # (one snippet failing never stops the transcript)
+            print("Plastron: um pass skipped a spot:", err)
+            continue
+        heard.append((c, got))
+    return merge_fillers(words, heard, fillers)
+
+
+def fillers_wanted():
+    try:
+        return set(json.loads(os.environ.get("PLASTRON_FILLERS", "[]")))
+    except ValueError:
+        return set()
 
 
 def main(argv):

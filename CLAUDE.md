@@ -882,6 +882,16 @@ Plastron/
   95th percentile, 0.18-1.6 s) in a gap between words (>= 0.3 s) with no
   word of its own (ums.gap_sounds, UMS gap_* in config/voice.py), cut
   0.15 s wider. Transcribe Selected Again (Ums pop-up) redoes old transcripts.
+  Then (Ollie: "still missing quite a few"): a second listen in the
+  transcriber (transcribe_worker.second_pass, UMS "second_pass"; filler words
+  passed in env PLASTRON_FILLERS): every suspicious spot is transcribed again
+  ON ITS OWN with a filler-full prompt: voice in a gap between words
+  (>= 0.15 s, >= 0.12 s voiced within 25 dB of the voice's 95th percentile)
+  and words far longer than their letters need (> max(0.9, 0.35 + 0.08 /
+  letter) s: Whisper stretches the word next to a filler it drops). Fillers
+  heard there become words (a long word gives up the part its filler took).
+  Pure parts (filler_candidates, merge_fillers) tested in tests/test_um_pass.py;
+  the real Whisper call only runs on Ollie's machine.
 - ripple.delete closes each stretch of time once (merge_spans): a video and
   its linked sound on two ripple tracks used to close the same gap twice.
 - Script linking: words matched with difflib (fluffs skipped). Clicking a

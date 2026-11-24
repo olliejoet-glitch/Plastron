@@ -108,6 +108,8 @@ def _start(uid, wav):
     out = wav + ".json"
     env = dict(os.environ)
     env["PYTHONPATH"] = deps.folder()
+    if cfg.UMS.get("second_pass"):                 # (listen again for ums Whisper left out)
+        env["PLASTRON_FILLERS"] = json.dumps(list(cfg.UMS["words"]))
     env.setdefault("HF_HOME", os.path.join(bpy.utils.user_resource('CONFIG'), "plastron_models"))
     python = deps.python()
     if python is None:
