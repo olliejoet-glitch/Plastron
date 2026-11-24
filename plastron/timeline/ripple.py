@@ -129,6 +129,11 @@ def trim(scene, strip, side, frame, orig=None):
 
 def delete(scene, strips):
     """Delete clips; ripple tracks close the gap."""
+    with events.batch():
+        return _delete(scene, strips)
+
+
+def _delete(scene, strips):
     strips = [s for s in clips.with_linked(strips, clips.top_clips(scene)) if not _locked(scene, s)]
     gaps = []                     # (start, end) of what's removed on ripple tracks
     for strip in sorted(strips, key=clips.start, reverse=True):
@@ -264,6 +269,11 @@ def make_room(scene, channel, frame, length):
 def split(scene, strips, frame):
     """Cut each clip covering frame in two (linked clips too). Returns the
     new right halves."""
+    with events.batch():               # (each half's fades etc. set: the timeline refreshed once)
+        return _split(scene, strips, frame)
+
+
+def _split(scene, strips, frame):
     before = set(clips.top_clips(scene))
     pairs = []
     for strip in clips.with_linked(strips, before):

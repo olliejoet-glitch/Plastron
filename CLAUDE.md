@@ -207,7 +207,7 @@ Plastron/
 │  │                         ripple (pure planners), snapping, mix, track_headers, sections,
 │  │                         header, ops, view (framing), edit_tools (Move / Slice),
 │  │                         edit_keys (Q / W, Up / Down, J / K / L), placement (which
-│  │                         clips may go on which track), link (link / unlink by hand), ripple_move (ripple for clip drags), fades (fade in / out, dips),
+│  │                         clips may go on which track), link (link / unlink by hand), gaps (ripple delete a gap), ripple_move (ripple for clip drags), fades (fade in / out, dips),
 │  │                         events (features listen; timeline knows no features)
 │  ├─ layers/                Photoshop-style layer stacks on materials (from CaraPainter):
 │  │                         props, blend_lib, layer_trees, compiler (node trees),
@@ -425,6 +425,11 @@ Plastron/
   Blender's strip.split already connects the right halves of connected
   clips (clips.link skips its slow connect operator then); ripple.delete
   removes clips in one Delete and closes every gap in one apply.
+- Placement rules run for every clip after every edit: a rule reading a
+  whole channel must count it once per check (placement.round_token();
+  Edit's footage_rule: ~4.5 s per cut with ~1200 clips before). ripple.split
+  / delete run inside events.batch (setting each half's fades fired a
+  timeline refresh per property).
 - Window.modal_operators lists running modal operators (placement waits
   while a TRANSFORM_OT_* drag runs).
 - Strip.split copies Plastron's PointerProperties (voice takes, panel data).
@@ -735,6 +740,13 @@ Plastron/
   start after the end pushes the end along) or Shift+I / Shift+O over the
   timeline (plastron.range_set, at the playhead). Clicking Auto again
   follows the clips. Separate from the Loop range (I / O).
+- Ripple delete a gap (Ollie: "like in DaVinci Resolve"): click an empty
+  stretch of a track (between clips, or before the first) to select it
+  (orange tint; GAP_COLOR in config/timeline.py); Delete / Backspace closes
+  it. GAP_ALL_TRACKS: later clips on every unlocked track move up by the
+  same amount, as far as all have room (sync kept); a track with no room:
+  only the clicked track closes up, the moved clips' linked clips going
+  along. Clicking a clip / filling the gap lets it go. timeline/gaps.py.
 - Split (Ctrl+K): selected clips under the playhead, else the active track's.
   Delete: selected clips. Loop: I / O set Blender's preview range; header
   "Loop" toggles it.
@@ -870,7 +882,7 @@ Plastron/
   ones either side (Ollie: zooming crawled after Separate: each of ~1200
   pieces of an hour's take laid out all 7200 words, ~30 s per redraw;
   now ~0.3 s under Xvfb); word widths are cached, each take's words read
-  once per layout.
+  once per layout; clips narrower than WORDS_MIN_CLIP_PX show no words.
 - Cut by words: click a word (playhead jumps there), Shift+click to extend,
   Delete / Backspace cuts from midway after the previous word to midway
   before the next (follows ripple). Clicking elsewhere clears the selection.

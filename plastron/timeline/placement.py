@@ -14,6 +14,14 @@ from . import clips, events, tracks
 
 RULES = []      # func(scene, strip, track) -> False if strip may not go on track
 _last = {}      # scene name -> {strip name: (channel, start, end)} after the last check
+_round = [None]  # while check runs: a token rules may cache by (what's on a channel doesn't change)
+
+
+def round_token():
+    """A token that stays the same while nothing moves during one check
+    (None outside a check): rules can count a channel's clips once, not
+    once per clip (hundreds of clips made every edit crawl)."""
+    return _round[0]
 
 
 SCRIPT_BLOCK = "plastron_line"      # a script line's block (features/storyboard/script_lane)
@@ -67,6 +75,14 @@ def check(scene, **_info):
             _pending.add(name)
             bpy.app.timers.register(_retry, first_interval=0.2)
         return
+    _round[0] = object()
+    try:
+        _check(scene)
+    finally:
+        _round[0] = None
+
+
+def _check(scene):
     last = _last.get(scene.name, {})
     # Only clips that moved (a panel isn't wrong because footage landed next to it).
     bad = [s for s in clips.top_clips(scene)
@@ -80,10 +96,12 @@ def check(scene, **_info):
         group = [s for s in clips.with_linked([strip], clips.top_clips(scene)) if s.name in last]
         done.update(group)
         _put_back(scene, group, last)
+        _round[0] = object()                     # (clips moved: counts are stale)
         moved = True
     if not moved and last:
         from . import ripple_move               # (a whole-clip drag on a ripple track)
         moved = ripple_move.apply_drag(scene, last)
+        _round[0] = object()
     _last[scene.name] = {s.name: (s.channel, clips.start(s), clips.end(s)) for s in clips.top_clips(scene)
                          if allowed(scene, s, tracks.track_of_channel(scene, s.channel))}
     if moved:

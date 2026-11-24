@@ -107,3 +107,11 @@ FADE_RAMP_BOTTOM = 0.12       # where the drawn ramp starts at the clip's edge
 FADE_MIN_CLIP_PX = 28         # clips narrower than this on screen show no handles
 FADE_COLOR = "#ffffffcc"
 DIP_SECONDS = 0.5             # Ctrl+D: a dip on the cut (half out, half in)
+
+# --- Ripple delete a gap (click an empty stretch on a track, Delete) -------
+GAP_COLOR = "orange"          # the selected gap's tint (a theme colour name)
+GAP_ALPHA = 0.25
+# True: later clips on EVERY unlocked track move up (as far as all have room,
+# so picture and sound stay in step); a track with no room: only the
+# clicked track (and the moved clips' linked clips) closes up.
+GAP_ALL_TRACKS = True

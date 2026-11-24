@@ -65,8 +65,25 @@ def is_footage(strip):
     return strip.type in FOOTAGE_TYPES and not is_panel(strip)
 
 
+_counts = {"round": None}       # during one placement check: (scene, channel, test) -> how many
+
+
 def _holds(scene, track, test, besides=None):
-    return any(test(s) and s != besides for s in clips.on_channel(scene, tracks.channel_of(scene, track)))
+    from ...timeline import placement
+    ch = tracks.channel_of(scene, track)
+    token = placement.round_token()
+    if token is None:
+        return any(test(s) and s != besides for s in clips.on_channel(scene, ch))
+    if _counts["round"] is not token:
+        _counts.clear()
+        _counts["round"] = token
+    key = (scene.name, ch, test.__name__)
+    n = _counts.get(key)
+    if n is None:
+        n = _counts[key] = sum(1 for s in clips.on_channel(scene, ch) if test(s))
+    if besides is not None and besides.channel == ch and test(besides):
+        n -= 1
+    return n > 0
 
 
 def footage_rule(scene, strip, track):

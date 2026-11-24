@@ -130,8 +130,8 @@ def build(region, scene):
         for strip in clips.on_channel(scene, ch):
             x0 = v2d.view_to_region(clips.start(strip), 0, clip=False)[0]
             x1 = v2d.view_to_region(clips.end(strip), 0, clip=False)[0]
-            if x1 < 0 or x0 > region.width:
-                continue
+            if x1 < 0 or x0 > region.width or x1 - x0 < _ui(cfg.WORDS_MIN_CLIP_PX):
+                continue                        # (off screen, or too narrow for a word)
             take = takes.active_take(strip) if takes.is_voice(strip) else None
             if take is None:
                 continue

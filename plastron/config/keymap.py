@@ -134,6 +134,7 @@ SHORTCUTS = [
     ("timeline",     "Alt+LMB",          "plastron.clip_duplicate_drag", "Alt+drag a clip: drag a copy of it"),
     ("timeline",     "LMB click",        "plastron.clip_click_select",   "Click one of several selected clips: just that one (a drag moves them all)"),
     # (after the edge drag: of two actions on one key, the later line is tried first)
+    ("timeline",     "LMB",              "plastron.gap_select",          "Click an empty stretch of a track: select the gap (Delete closes it up)"),
     ("timeline",     "LMB",              "plastron.transcript_click",    "Click a transcript word: playhead there, select it"),
     ("timeline",     "Shift+LMB",        "plastron.transcript_click",    "Select words up to this one", {"extend": True}),
     ("timeline",     "N",                "plastron.panel_new",           "New panel at playhead"),
@@ -192,7 +193,7 @@ SHORTCUTS = [
 # item on the same key keeps working (e.g. the script click still places
 # the text cursor). board_click only runs while the Board view is on (its
 # poll), so the timeline's own clicks work normally otherwise.
-PASSES_ON = {"plastron.board_click", "plastron.board_scroll", "plastron.shorts_drag", "plastron.preview_transform", "plastron.fade_drag", "plastron.view_focus", "plastron.camera_pad", "plastron.drag_scroll", "plastron.clip_click_select", "plastron.script_click", "plastron.transcript_click", "plastron.transcript_hover"}
+PASSES_ON = {"plastron.gap_select", "plastron.board_click", "plastron.board_scroll", "plastron.shorts_drag", "plastron.preview_transform", "plastron.fade_drag", "plastron.view_focus", "plastron.camera_pad", "plastron.drag_scroll", "plastron.clip_click_select", "plastron.script_click", "plastron.transcript_click", "plastron.transcript_hover"}
 
 # Blender items switched off even though BLENDER_KEEP keeps their keymap.
 BLENDER_DROP = {
