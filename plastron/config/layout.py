@@ -180,6 +180,15 @@ AREAS["scope_vector"] = dict(AREAS["preview_plain"], header=False,
                              settings=dict(AREAS["preview"]["settings"], display_mode='VECTOR_SCOPE'))
 
 # Whole-window options.
+# A kept layout (core/layout_memory) is only used if it still has these areas
+# (a layout half rebuilt, e.g. all canvases, must never be kept and come back).
+KEPT_NEEDS = {
+    "Storyboard": ("canvas", "timeline"),
+    "Edit": ("preview", "timeline"),
+    "Grade": ("preview", "timeline"),
+    "Audio": ("timeline_sound",),
+}
+
 WINDOW = {
     "status_bar": False,
 }

@@ -129,6 +129,34 @@ def same_layout(a, b, tol=0.01):
                for x, y in zip(a[kind], b[kind]))
 
 
+def usable(mode, tree):
+    """A kept layout still has the mode's must-have areas (a layout left half
+    rebuilt, every area a copy of the canvas, was kept and came back at
+    every start)."""
+    if not tree or mode not in cfg.MODES:
+        return False
+    names = _leaves(tree)
+    needs = cfg.KEPT_NEEDS.get(mode, ())
+    return all(n in names for n in needs) and \
+        not any(n.split("#", 1)[0] in needs for n in names if "#" in n)    # (no second canvas...)
+
+
+def built_right(placed):
+    """Every area rebuilt ({name: area}) is the editor (and kind) it should be."""
+    from . import layout as builder
+    for name, area in placed.items():
+        want = builder.spec(name)
+        if not want.get("editor"):
+            return False
+        base = name.split("#", 1)[0]
+        if base in cfg.AREAS:
+            if _signature(area)[:2] != _config_signature(base)[:2]:
+                return False
+        elif area.type != want["editor"]:
+            return False
+    return True
+
+
 def _mode_screen(mode):
     ws = bpy.data.workspaces.get(mode)
     return ws.screens[0] if ws and ws.screens else None
@@ -154,7 +182,7 @@ def save():
         if tree is None:
             if mode in before:
                 out[mode] = before[mode]
-        elif not same_layout(tree, cfg.MODES[mode]):
+        elif not same_layout(tree, cfg.MODES[mode]) and usable(mode, tree):
             out[mode] = tree
     if out != before:
         user_settings.set(KEY, out)
@@ -180,38 +208,65 @@ def _leave_paint_mode(window):
         bpy.ops.object.mode_set(mode='OBJECT')
 
 
+def _rebuild(window, mode, tree):
+    from . import layout as builder
+    _leave_paint_mode(window)       # (closing the canvas mid-Texture Paint crashed Blender)
+    yield
+    placed = {}
+    yield from builder.split_mode(window, mode, placed, tree)
+    yield
+    builder.set_view_types(placed)
+    yield
+    yield
+    builder.configure_mode(placed)
+    yield
+    builder.hide_navigation_bars(window, placed)
+    yield
+    return placed
+
+
 def restore_steps(window, layouts):
     """Generator: each mode to the layouts given ({mode: tree}), rebuilt
     by splitting, as tools/build_startup.py does (Blender's edge move and
     area swap can't run from Python while the pointer is over an area). The
-    timeline keeps its track-header width through it."""
-    from . import layout as builder
+    timeline keeps its track-header width through it. A layout that can't
+    be kept (lost its must-have areas) or doesn't build right: Plastron's
+    own, and it's no longer kept."""
     _busy[0] = True
     try:
         start = window.workspace
+        failed = []
         for mode, tree in layouts.items():
             ws = bpy.data.workspaces.get(mode)
             if ws is None:
                 continue
+            if not usable(mode, tree):
+                failed.append(mode)
+                tree = cfg.MODES[mode]
             window.workspace = ws
             yield
             yield
-            screen = window.screen
-            current = capture(screen, mode)
-            if current is None or not same_layout(current, tree, tol=0.005):
-                _leave_paint_mode(window)       # (closing the canvas mid-Texture Paint crashed Blender)
-                yield
-                placed = {}
-                yield from builder.split_mode(window, mode, placed, tree)
-                yield
-                builder.set_view_types(placed)
-                yield
-                yield
-                builder.configure_mode(placed)
-                yield
-                builder.hide_navigation_bars(window, placed)
+            own = cfg.MODES[mode]
+            for attempt in ([tree] if tree is own else [tree, own]):    # (didn't work: Plastron's own)
+                current = capture(window.screen, mode)
+                if current is not None and same_layout(current, attempt, tol=0.005):
+                    break                           # (same kinds of area in the same places)
+                try:
+                    placed = yield from _rebuild(window, mode, attempt)
+                    ok = built_right(placed)
+                except Exception as err:            # (never leave a mode half built)
+                    print(f"Plastron layout: couldn't rebuild {mode}:", err)
+                    ok = False
+                if ok:
+                    break
+                if mode not in failed:
+                    failed.append(mode)
             yield
         window.workspace = start
+        if failed:                      # (not kept: Plastron's own comes back next time too)
+            kept = dict(user_settings.get(KEY) or {})
+            if any(kept.pop(m, None) is not None for m in failed):
+                user_settings.set(KEY, kept)
         yield 0.6                       # (new areas settle before they're set up / framed)
     finally:
         _busy[0] = False

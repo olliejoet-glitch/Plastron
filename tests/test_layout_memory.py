@@ -95,6 +95,49 @@ def steps():
             (channels_width(edit), width))
     h.check("...and is back on the mode it started in", win.workspace.name == "Storyboard", win.workspace.name)
 
+    # Ollie's Storyboard came back as three canvases: a rebuild left half
+    # done was measured and kept. Such a layout is never kept nor used.
+    broken = {"rows": [{"size": 0.75, "columns": [{"size": 0.25, "area": "canvas"},
+                                                   {"size": 0.75, "area": "canvas#2"}]},
+                       {"size": 0.25, "area": "canvas#3"}]}
+    h.check("a layout without its timeline can't be kept", not mem.usable("Storyboard", broken))
+    settings.set(mem.KEY, {"Storyboard": broken, "Edit": other})
+    yield from run(mem.restore_steps(win, {"Storyboard": broken}))
+    yield 0.3
+    h.check("...one kept from before: Plastron's own comes up instead",
+            mem.same_layout(mem.capture(win.screen, "Storyboard"), cfg.MODES["Storyboard"], tol=0.02),
+            mem.capture(win.screen, "Storyboard"))
+    h.check("...and it's no longer kept (others are)",
+            "Storyboard" not in settings.get(mem.KEY) and "Edit" in settings.get(mem.KEY), settings.get(mem.KEY))
+    builder = h.module("core.layout")
+    h.check("a second area of a kind ('timeline#2') gets that kind's editor",
+            builder.spec("timeline#2").get("editor") == 'SEQUENCE_EDITOR')
+    # A rebuild that goes wrong half way: Plastron's own, not kept.
+    two = {"rows": [{"size": 0.6, "columns": [{"size": 0.3, "area": "tools"}, {"size": 0.7, "area": "canvas"}]},
+                    {"size": 0.4, "area": "timeline"}]}
+    real = builder.set_view_types
+
+    def broken_step(placed):
+        builder.set_view_types = real           # (fails once: the layout kept)
+        raise RuntimeError("test: rebuild fails")
+    builder.set_view_types = broken_step
+    settings.set(mem.KEY, {"Storyboard": two})
+    try:
+        yield from run(mem.restore_steps(win, {"Storyboard": two}))
+    finally:
+        builder.set_view_types = real
+    yield 0.3
+    now = mem.capture(win.screen, "Storyboard")
+    h.check("a rebuild that fails half way: Plastron's own layout, every area right",
+            now is not None and mem.same_layout(now, cfg.MODES["Storyboard"], tol=0.02)
+            and h.area('VIEW_3D').spaces.active.show_region_tool_header
+            and mem._timeline_area(win.screen) is not None, now)
+    h.check("...and that layout isn't kept", "Storyboard" not in (settings.get(mem.KEY) or {}),
+            settings.get(mem.KEY))
+    mem.save()
+    h.check("...nor measured and kept again", "Storyboard" not in (settings.get(mem.KEY) or {}),
+            settings.get(mem.KEY))
+
     # At start (first load): restore() does it by itself from the settings.
     settings.set(mem.KEY, {"Edit": cfg.MODES["Edit"]})
     mem.restore()

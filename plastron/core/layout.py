@@ -66,6 +66,9 @@ def spec(name):
     to another editor, e.g. "editor:OUTLINER") just that editor."""
     if name in cfg.AREAS:
         return cfg.AREAS[name]
+    base = name.split("#", 1)[0]          # (a second area of a kind: "timeline#2")
+    if base in cfg.AREAS:
+        return cfg.AREAS[base]
     return {"editor": name.split(":", 1)[1].split("#", 1)[0]} if name.startswith("editor:") else {}
 
 

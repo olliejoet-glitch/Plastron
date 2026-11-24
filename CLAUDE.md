@@ -946,6 +946,14 @@ Plastron/
   then every on_load runs again. File > Reset Layout = config's again.
   Timeline framing now also makes rows SHORTER when they're too tall for
   the tracks (a new timeline area had 64 px rows that hid the top track).
+  Ollie's Storyboard came up as three canvases: a rebuild left half done
+  (areas split but not yet made into their editors) was measured and kept,
+  so it came back at every start; names like "timeline#2" also got no
+  editor. Now: a kept layout must have its mode's must-haves, once each
+  (KEPT_NEEDS in config/layout.py), or it's never kept / used; a rebuild
+  is checked (each area the editor it should be) and, if it fails,
+  Plastron's own layout is built and that mode is no longer kept; "<kind>#n"
+  gets that kind's settings.
 - Theme: dark teal, orange (selection/active) and blue (playhead/secondary),
   sampled from Ollie's Blender theme.
 - Camera moves (stage 6): the scene camera never moves (no keyframes, no
