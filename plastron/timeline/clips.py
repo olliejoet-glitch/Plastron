@@ -292,23 +292,48 @@ def apply(scene, changes):
     pending = {s: tuple(t) for s, t in changes.items() if differs(s, t)}
     if not pending:
         return
-    # Where every clip is now, per channel, kept in step as clips move (a
-    # free-check per clip read every strip from Blender: slow with hundreds).
-    where = {}
+    # Where every clip is now, per channel, kept in step as clips move, in
+    # start order: clips on a channel never overlap, so a free-check only
+    # looks at the neighbours around the spot (was: every clip on the
+    # channel, for every clip moved: slow with hundreds).
+    import bisect
+    rows = {}                      # channel -> ([starts], [(start, end, strip)])
     for s in top_clips(scene):
-        where.setdefault(s.channel, {})[s] = (start(s), end(s))
+        rows.setdefault(s.channel, []).append((start(s), end(s), s))
+    seen = {s for items in rows.values() for _a, _b, s in items}
     for s in pending:
-        where.setdefault(s.channel, {}).setdefault(s, (start(s), end(s)))
+        if s not in seen:
+            rows.setdefault(s.channel, []).append((start(s), end(s), s))
+    for ch, items in list(rows.items()):
+        items.sort(key=lambda t: t[0])
+        rows[ch] = ([t[0] for t in items], items)
 
     def free(strip, a, b):
-        for other, (s, e) in where[strip.channel].items():
-            if other != strip and s < b and a < e:
+        starts, items = rows[strip.channel]
+        i = max(0, bisect.bisect_right(starts, a) - 1)
+        while i < len(items) and items[i][0] < b:
+            s0, e0, other = items[i]
+            if e0 > a and other != strip:
                 return False
+            i += 1
         return True
 
     def place(strip, target):
+        starts, items = rows[strip.channel]
+        old = start(strip)
+        i = bisect.bisect_left(starts, old)
+        while i < len(items) and items[i][0] == old and items[i][2] != strip:
+            i += 1
+        if i >= len(items) or items[i][2] != strip:     # (not where expected: look everywhere)
+            i = next((k for k, t in enumerate(items) if t[2] == strip), len(items))
+        if i < len(items):
+            del starts[i]
+            del items[i]
         _set(strip, *target)
-        where[strip.channel][strip] = (start(strip), end(strip))
+        a, b = start(strip), end(strip)
+        j = bisect.bisect_left(starts, a)
+        starts.insert(j, a)
+        items.insert(j, (a, b, strip))
 
     # Leftward moves earliest first, rightward latest first: most settle in one pass.
     order = sorted(pending, key=lambda s: (pending[s][0] - start(s) > 0,

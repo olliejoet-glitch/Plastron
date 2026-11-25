@@ -159,12 +159,15 @@ class PLASTRON_OT_clip_trim(bpy.types.Operator):
         if snapping.enabled(scene) != event.ctrl:      # Ctrl flips snapping while held
             frame = snapping.snap(frame, self.targets,
                                   cfg.SNAP_PX * snapping.frames_per_pixel(region))
+        if frame == getattr(self, "_last_frame", None):
+            return                     # (same frame: nothing to redo; hundreds of clips are slow to move)
+        self._last_frame = frame
         plan = ripple.resolve(ripple.plan_trim(scene, self.orig, self.strip, self.side, frame, self.content),
                               self.content)
         clips.apply(scene, {s: plan.get(s, (*se, self.content[s])) for s, se in self.orig.items()})
 
     def modal(self, context, event):
-        if event.type in {'MOUSEMOVE', 'INBETWEEN_MOUSEMOVE'}:
+        if event.type == 'MOUSEMOVE':  # (a pen's in-between moves skipped: only where it is now)
             self._update(context, event)
         elif event.type == 'LEFTMOUSE' and event.value == 'RELEASE':
             events.clips_changed(context.scene)

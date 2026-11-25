@@ -433,6 +433,10 @@ Plastron/
 - Never call clips.linked() per clip in a loop over the timeline (it scans
   every clip): build clips.link_index(pool) once and use linked_in (ripple
   edge drags took ~0.45 s per mouse move with ~1200 clips, now ~0.07 s).
+  clips.apply checks overlaps against the neighbours only (each channel's
+  clips kept in start order), and edge drags skip a pen's in-between moves
+  and moves that land on the same frame (~0.05 s per step; the rest is
+  Blender moving each clip).
 - Window.modal_operators lists running modal operators (placement waits
   while a TRANSFORM_OT_* drag runs).
 - Strip.split copies Plastron's PointerProperties (voice takes, panel data).
