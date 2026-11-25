@@ -438,6 +438,12 @@ Plastron/
   clips kept in start order), and edge drags skip a pen's in-between moves
   and moves that land on the same frame (~0.05 s per step; the rest is
   Blender moving each clip).
+- The timeline's depsgraph handler refreshes (clips_changed) 0.1 s after a
+  scene change, but NOT while a drag (any modal operator) runs: once when it
+  ends (HOLD_MAX 30 s cap; timeline/__init__.py). Dragging a title / picture
+  in the preview changed the scene on every move and refreshed the whole
+  timeline ~10x a second (Ollie: "dragging the text and images is really
+  slow").
 - Window.modal_operators lists running modal operators (placement waits
   while a TRANSFORM_OT_* drag runs).
 - Strip.split copies Plastron's PointerProperties (voice takes, panel data).

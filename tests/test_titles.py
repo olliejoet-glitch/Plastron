@@ -97,8 +97,25 @@ def steps():
         x0, y0, x1, y1 = titles._region_rect(region, r)
     loc, size = tuple(t.location), t.font_size
     cx, cy = region.x + (x0 + x1) / 2, region.y + (y0 + y1) / 2
-    yield from h.drag((cx, cy), (cx + 120, cy + 60))
+    events = h.module("timeline.events")
+    refreshes = []
+    counter = lambda scene, **_i: refreshes.append(1)       # noqa: E731
+    events.listen("clips_changed", counter)
     yield 0.3
+    refreshes.clear()
+    h.move(cx, cy)                                          # (a slow drag: 12 moves, 0.15 s apart)
+    yield 0.1
+    h._event('LEFTMOUSE', 'PRESS')
+    yield 0.1
+    for i in range(1, 13):
+        h.move(cx + 10 * i, cy + 5 * i)
+        yield 0.15
+    during = len(refreshes)
+    h._event('LEFTMOUSE', 'RELEASE')
+    yield 0.5
+    events._listeners["clips_changed"].remove(counter)
+    h.check("dragging a title doesn't refresh the whole timeline on every move (once at the end)",
+            during <= 1 and len(refreshes) <= 2, (during, len(refreshes)))
     t = title_now()
     h.check("dragging inside a title's box moves it", t.location[0] > loc[0] + 0.01 and t.location[1] > loc[1] + 0.01,
             (loc, tuple(t.location)))

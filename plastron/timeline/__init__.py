@@ -54,7 +54,27 @@ def _on_load(scene):
     events.clips_changed(scene)
 
 
+_held = {"since": None}
+HOLD_MAX = 30.0          # s: never hold a refresh back longer than this
+
+
+def dragging():
+    """Is a drag running (Blender's or one of Plastron's boxes)?"""
+    wm = bpy.context.window_manager
+    return any(len(w.modal_operators) for w in (wm.windows if wm else []))
+
+
 def _flush():
+    # A drag (a title / picture moved in the preview, an edge...) changes the
+    # scene on every mouse move: the timeline is refreshed once, when it ends
+    # (Ollie: dragging titles and pictures was slow on a big project).
+    import time
+    if dragging():
+        now = time.monotonic()
+        _held["since"] = _held["since"] or now
+        if now - _held["since"] < HOLD_MAX:
+            return 0.1
+    _held["since"] = None
     for scene in bpy.data.scenes:
         if scene.name in _pending:
             events.clips_changed(scene)
