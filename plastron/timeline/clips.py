@@ -83,6 +83,24 @@ def linked(strip, among=None):
     return [s for s in pool if s != strip and s.get(LINK) == uid]
 
 
+def link_index(pool):
+    """{link id: [clips]} of pool, for looking up many clips' partners at
+    once (linked() searches the whole pool each time: slow per clip with
+    hundreds of clips)."""
+    out = {}
+    for s in pool:
+        uid = s.get(LINK)
+        if uid:
+            out.setdefault(uid, []).append(s)
+    return out
+
+
+def linked_in(index, strip):
+    """linked(), from a link_index."""
+    uid = strip.get(LINK)
+    return [o for o in index.get(uid, ()) if o != strip] if uid else []
+
+
 def with_linked(strips, among=None):
     """strips plus everything linked to them (order kept, no repeats)."""
     out = list(strips)

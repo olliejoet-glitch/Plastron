@@ -158,9 +158,10 @@ def apply_drag(scene, last):
     if not moved or (dx == 0 and dy == 0):
         return False
     names = {s.name for s in moved}
+    index = clips.link_index(strips.values())     # (partners looked up once, not per clip)
     mains, followers = {}, {}
     for s in moved:
-        partner = next((o for o in clips.linked(s, list(strips.values()))
+        partner = next((o for o in clips.linked_in(index, s)
                         if o.name in names and o.type != 'SOUND'), None)
         if s.type == 'SOUND' and partner is not None:
             followers[s.name] = (partner.name, s.channel)
@@ -173,7 +174,7 @@ def apply_drag(scene, last):
     ripple = set(tracks.ripple_channels(scene))
     sed = clips.editor(scene)
     locked = {c for c in {v[0] for v in old.values()} if sed.channels[c].lock}
-    links = {n: [o.name for o in clips.linked(s, list(strips.values()))] for n, s in strips.items()}
+    links = {n: [o.name for o in clips.linked_in(index, s)] for n, s in strips.items()}
     fresh = set(copies) & set(old)
     out = plan(old, mains, followers, ripple, locked, links, fresh)
     # Tracks without ripple: the clip goes exactly where it was dropped and

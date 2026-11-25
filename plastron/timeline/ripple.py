@@ -53,8 +53,9 @@ def _shift_after(scene, orig, frame, delta, changes, exclude=()):
         changes[strip] = (cs + delta, ce + delta)
         moved.append(strip)
     # A moved clip's linked clips (its sound on a track without ripple) go along.
+    index = clips.link_index(orig) if moved else {}
     for strip in moved:
-        for other in clips.linked(strip, orig):
+        for other in clips.linked_in(index, strip):
             if other in changes or other in exclude or _locked(scene, other):
                 continue
             s, e = orig[other]

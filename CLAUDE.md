@@ -430,6 +430,9 @@ Plastron/
   Edit's footage_rule: ~4.5 s per cut with ~1200 clips before). ripple.split
   / delete run inside events.batch (setting each half's fades fired a
   timeline refresh per property).
+- Never call clips.linked() per clip in a loop over the timeline (it scans
+  every clip): build clips.link_index(pool) once and use linked_in (ripple
+  edge drags took ~0.45 s per mouse move with ~1200 clips, now ~0.07 s).
 - Window.modal_operators lists running modal operators (placement waits
   while a TRANSFORM_OT_* drag runs).
 - Strip.split copies Plastron's PointerProperties (voice takes, panel data).
