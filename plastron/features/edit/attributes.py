@@ -9,6 +9,11 @@ speed, a picture position / size / grade...). One undo step. The list and
 first ticks: PASTE_ATTRIBUTES in config/edit.py; ticks remembered in
 user_settings "paste_attributes".
 
+A picture copied on the computer AFTER that (a screenshot, a frame from a
+browser) wins: Ctrl+V then puts it on the timeline at the playhead as a
+picture clip (like one from the media bin), saved as a PNG next to the
+project (<project>_cache/pasted/; untitled: Plastron's plastron_pasted/).
+
 A video's linked sound counts with it: copying a video copies its sound's
 volume too. Panels keep their own size / place (their painting is fitted
 to the frame), so they never take position / size / rotation / crop.
@@ -243,6 +248,56 @@ def ticked():
     return {name: bool(saved.get(name, on)) for name, _label, on in cfg.PASTE_ATTRIBUTES}
 
 
+def _pasted_folder():
+    import os
+    if bpy.data.filepath:
+        from ..storyboard.panel_cache import cache_dir
+        return os.path.join(cache_dir(), "pasted")
+    return os.path.join(bpy.utils.user_resource('CONFIG'), "plastron_pasted")
+
+
+def save_picture(picture, folder=None):
+    """A clipboard picture (RGBA floats, rows bottom-up) as a new PNG. Returns its path."""
+    import os
+    import time
+    folder = folder or _pasted_folder()
+    os.makedirs(folder, exist_ok=True)
+    name = time.strftime("Pasted %Y-%m-%d %H%M%S")
+    path, n = os.path.join(folder, name + ".png"), 2
+    while os.path.exists(path):
+        path, n = os.path.join(folder, f"{name} {n}.png"), n + 1
+    h, w = picture.shape[:2]
+    img = bpy.data.images.new("plastron_pasted", w, h, alpha=True)
+    try:
+        img.pixels.foreach_set(picture.astype("float32").ravel())
+        img.filepath_raw = path
+        img.file_format = 'PNG'
+        img.save()
+    finally:
+        bpy.data.images.remove(img)
+    return path
+
+
+def paste_picture(context):
+    """The computer's clipboard picture on the timeline at the playhead, if
+    there is one copied after Plastron's own Ctrl+C. Returns the clip, a
+    message, or None (no picture: paste attributes instead)."""
+    from ..canvas_edit import image_paste
+    from . import media
+    if not image_paste.clipboard_is_newer(bool(_clipboard)):
+        return None
+    picture = image_paste.read_system(context.window)
+    if picture is None:
+        return None
+    made = media.place(context.scene, save_picture(picture))
+    if isinstance(made, str):
+        return made
+    for s in clips.top_clips(context.scene):
+        s.select = s in made
+    context.scene.sequence_editor.active_strip = made[0]
+    return made[0]
+
+
 class PLASTRON_OT_attributes_copy(bpy.types.Operator):
     """Copy the selected clip's attributes (position, size, grade, fades...)"""
     bl_idname = "plastron.attributes_copy"
@@ -258,6 +313,8 @@ class PLASTRON_OT_attributes_copy(bpy.types.Operator):
         _clipboard.clear()
         _clipboard.update(values)
         _clipboard["_from"] = strip.name
+        from ..canvas_edit import image_paste
+        image_paste.mark_copied()             # (a picture copied after this wins Ctrl+V)
         names = ", ".join(LABELS[n] for n in GROUPS if n in values)
         self.report({'INFO'}, f"Copied from {strip.name}: {names}")
         return {'FINISHED'}
@@ -277,9 +334,21 @@ class PLASTRON_OT_attributes_paste(bpy.types.Operator):
 
     @classmethod
     def poll(cls, context):
-        return bool(_clipboard) and context.scene is not None and context.scene.sequence_editor is not None
+        return context.scene is not None and context.scene.sequence_editor is not None
 
     def invoke(self, context, _event):
+        got = paste_picture(context)
+        if isinstance(got, str):
+            self.report({'WARNING'}, got)
+            return {'CANCELLED'}
+        if got is not None:
+            self.report({'INFO'}, f"Pasted the picture: {got.name}")
+            for area in context.screen.areas:
+                area.tag_redraw()
+            return {'FINISHED'}
+        if not _clipboard:
+            self.report({'INFO'}, "Nothing to paste: copy a clip (Ctrl+C) or a picture first")
+            return {'CANCELLED'}
         if not _targets(context):
             self.report({'INFO'}, "Select the clips to paste onto")
             return {'CANCELLED'}

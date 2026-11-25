@@ -118,5 +118,54 @@ def steps():
     h.key('ESC')
     yield 0.2
 
+    # A picture copied on the computer (a screenshot): Ctrl+V over the
+    # timeline puts it at the playhead (stand-in for the clipboard: X11
+    # Blender can't read clipboard pictures).
+    import numpy as np
+    ip = h.module("features.canvas_edit.image_paste")
+    pic = np.zeros((90, 160, 4), np.float32)
+    pic[..., 0], pic[..., 3] = 1.0, 1.0                  # (red)
+    real_read, real_seq = ip.read_system, ip.sequence
+    ip.read_system = lambda window=None: pic
+    try:
+        ip.sequence = lambda: 7                          # (copied in Plastron at clipboard change 7...)
+        with h.override('SEQUENCE_EDITOR'):
+            bpy.ops.plastron.attributes_copy()
+        sc = bpy.context.scene
+        before = {s.name for s in clips.top_clips(sc)}
+        h.move(reg.x + reg.width // 2, reg.y + reg.height // 2)
+        yield 0.2
+        h.key('V', ctrl=True)                            # (...nothing newer: the attributes box)
+        yield 0.4
+        h.key('ESC')
+        yield 0.3
+        sc = bpy.context.scene
+        h.check("a picture copied BEFORE Plastron's Ctrl+C doesn't paste (the attributes box opens)",
+                {s.name for s in clips.top_clips(sc)} == before)
+        with h.override('SEQUENCE_EDITOR'):
+            bpy.ops.ed.undo_push(message="before the picture")   # (clips above made from Python: no undo step)
+        ip.sequence = lambda: 8                          # (then a screenshot was copied)
+        sc.frame_current = 900
+        h.key('V', ctrl=True)
+        yield 0.5
+        sc = bpy.context.scene
+        new = [s for s in clips.top_clips(sc) if s.name not in before]
+        h.check("Ctrl+V with a newer picture on the computer's clipboard puts it on the timeline at the playhead",
+                len(new) == 1 and new[0].type == 'IMAGE' and clips.start(new[0]) == 900,
+                [(s.name, s.type, clips.start(s)) for s in new])
+        if new:
+            path = bpy.path.abspath(os.path.join(new[0].directory, new[0].elements[0].filename))
+            h.check("...saved as a PNG that stays (Plastron's settings folder while untitled)",
+                    os.path.exists(path) and path.endswith(".png") and "plastron_pasted" in path, path)
+            h.check("...on a video track, selected", new[0].select and h.module("timeline.tracks")
+                    .track_of_channel(sc, new[0].channel).kind == 'VIDEO')
+        h.key('Z', ctrl=True)
+        yield 0.4
+        sc = bpy.context.scene
+        h.check("...one Ctrl+Z takes it away", {s.name for s in clips.top_clips(sc)} == before,
+                [s.name for s in clips.top_clips(sc) if s.name not in before])
+    finally:
+        ip.read_system, ip.sequence = real_read, real_seq
+
 
 h.run(steps())

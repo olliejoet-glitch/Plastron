@@ -1397,6 +1397,14 @@ Plastron/
   each taking what it can (one undo step). Panels never take position /
   size / rotation / crop (their painting fits the frame); script blocks
   nothing. features/edit/attributes.py.
+  Pictures from the computer's clipboard (Ollie: "copy and paste images
+  from my clipboard onto the timeline"): Ctrl+V over the timeline / preview
+  with a picture copied AFTER Plastron's last clip Ctrl+C (Windows'
+  clipboard change number, as the canvas paste) saves it as a PNG
+  (<project>_cache/pasted/, untitled: <config>/plastron_pasted/, so it
+  survives) and places it at the playhead like a media-bin picture
+  (media.place: active video track, STILL_SECONDS, room made by ripple);
+  else the attributes box. One undo step.
 - Info windows (Ollie: "little info windows using this UI ... a nested
   timeline ... clips that auto-crop to the UI"): Window (preview header)
   picks a style (presets/windows/*.png + your own folder plastron_windows/:
