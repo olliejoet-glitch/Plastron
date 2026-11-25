@@ -145,6 +145,9 @@ AREAS = {
         "settings": {
             "view_type": 'PREVIEW',
             "show_overlays": True,
+            # Plastron draws its own boxes round a selected clip / title (Blender's
+            # outline of a title lagged behind where it was).
+            "preview_overlay.show_image_outline": False,
         },
     },
     "tools": {

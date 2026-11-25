@@ -255,7 +255,8 @@ Plastron/
 │  │                         clip_panel (Clip panel), frame_rate (Check Frame Rate, real speed), frame_box (move / size / turn in the preview),
 │  │                         windows (info windows: a clip with its own timeline in a UI frame),
 │  │                         shorts (Shorts reframing: 9:16 box per shot, the Shorts render),
-│  │                         attributes (copy / paste clip attributes, Ctrl+C / Ctrl+V)
+│  │                         attributes (copy / paste clip attributes, Ctrl+C / Ctrl+V),
+│  │                         titles (text over the picture: typed in the preview, styles, box)
 │  │  └─ audio/              Audio mode: analysis (numpy: LUFS, envelope, beats), loudness
 │  │                         (Normalise), duck (auto-ducking), beats (markers), breaths
 │  │                         (breath remover), creature (voice stacks), fit (music fitting),
@@ -264,7 +265,7 @@ Plastron/
 │  │                         copy / paste, Grade Everything), panel (Grade panel)
 │  │  └─ values/             value group editor: groups (the four greys, sampling), view
 │  │                         (Values view: compositor on canvas + preview), ui (swatches)
-│  ├─ presets/               ★ preset files, one folder per kind (brushes/, motion/, windows/, export/, grades/); README
+│  ├─ presets/               ★ preset files, one folder per kind (brushes/, motion/, windows/, export/, grades/, titles/); README
 │  │                         lists the fields. Store code: core/presets.py
 │  └─ assets/                icon_256.png, plastron.ico
 ├─ tools/
@@ -1405,6 +1406,26 @@ Plastron/
   survives) and places it at the playhead like a media-bin picture
   (media.place: active video track, STILL_SECONDS, room made by ripple);
   else the attributes box. One undo step.
+- Titles (Ollie: "an add text tool", video titles): Text in the preview
+  header / T over the timeline or preview adds a title at the playhead on a
+  "Titles" video track (made on top if missing), TITLE_SECONDS long, styled
+  TITLE_STYLE, font Inter (Blender's own sans; text clips default to a
+  monospace one) (config/edit.py), and starts typing IN THE PICTURE
+  (Blender's own preview text editing: sequencer.text_* kept in the
+  "Preview" keymap; started from a timer once the preview has drawn the
+  new title, as Blender's toggle needs that). Esc / Tab finish; Tab or a
+  double-click on a selected title types again (window_toggle hands Tab to
+  titles). While typing, Plastron's preview keys stand aside
+  (core/views.typing = sequencer.text_insert.poll(); J / K / L, Ctrl+C / V,
+  clicks; those are PASSES_ON so Blender's text keys stay). A box round a
+  selected title (measured with its own font via blf): drag inside = move
+  (location), a corner = size (font size). Clip panel Text section: words,
+  Style menu (presets/titles/: Big Title, Lower Third, Caption; sizes in %
+  of the frame height; save your own), size, bold / italic, font (Load
+  Font...), colour, alignment, wrap, outline / shadow / box. Copy / paste
+  attributes has "Text Style". Blender's own outline of selected clips in
+  the preview is off (it lagged behind titles; Plastron draws its boxes).
+  features/edit/titles.py.
 - Info windows (Ollie: "little info windows using this UI ... a nested
   timeline ... clips that auto-crop to the UI"): Window (preview header)
   picks a style (presets/windows/*.png + your own folder plastron_windows/:

@@ -36,12 +36,14 @@ def key_value(text):
         return 'CLICK_DRAG'
     if text.endswith(" click"):
         return 'CLICK'
+    if text.endswith(" double"):
+        return 'DOUBLE_CLICK'
     return 'PRESS'
 
 
 def parse_key(text):
     """"Ctrl+Shift+Z" -> ('Z', {"ctrl": True, "shift": True})."""
-    for suffix in (" drag", " click"):
+    for suffix in (" drag", " click", " double"):
         text = text[:-len(suffix)] if text.endswith(suffix) else text
     *mods, key = text.split("+")
     flags = {}

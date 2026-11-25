@@ -140,7 +140,8 @@ class PLASTRON_OT_preview_transform(bpy.types.Operator):
 
     @classmethod
     def poll(cls, context):
-        return is_preview(context.space_data) and context.region is not None
+        from ...core.views import typing
+        return is_preview(context.space_data) and context.region is not None and not typing(context)
 
     def invoke(self, context, event):
         strip = boxed_clip(context)

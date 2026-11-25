@@ -108,6 +108,9 @@ class PLASTRON_PT_clip(bpy.types.Panel):
         draw_swatches(layout)
         from .attributes import draw_buttons
         draw_buttons(layout, context)
+        from .titles import is_title, draw_panel
+        if is_title(strip):
+            draw_panel(layout, context, strip)
         from .windows import is_window_clip
         if is_window_clip(strip):
             layout.operator("plastron.window_toggle", text="Edit Inside (Tab)", icon='WINDOW')

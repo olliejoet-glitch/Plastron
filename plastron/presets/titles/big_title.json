@@ -1,0 +1,3 @@
+{"name": "Big Title", "order": 1, "size": 9.0, "color": [1, 1, 1, 1], "use_bold": true, "use_italic": false,
+ "use_outline": false, "use_shadow": true, "shadow_color": [0, 0, 0, 0.6], "use_box": false,
+ "alignment_x": "CENTER", "anchor_x": "CENTER", "anchor_y": "CENTER", "location": [0.5, 0.5], "wrap_width": 0.9}

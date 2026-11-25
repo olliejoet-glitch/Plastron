@@ -98,7 +98,8 @@ class PLASTRON_OT_shorts_drag(bpy.types.Operator):
 
     @classmethod
     def poll(cls, context):
-        return on(context) and is_preview(context.space_data)
+        from ...core.views import typing
+        return on(context) and is_preview(context.space_data) and not typing(context)
 
     def invoke(self, context, event):
         scene = context.scene

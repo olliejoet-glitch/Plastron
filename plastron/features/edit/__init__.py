@@ -10,12 +10,13 @@
     frame_box   move / size / turn the selected clip by hand in the preview
     windows     info windows: a clip with its own timeline inside a UI frame
     shorts      Shorts reframing (a 9:16 box per shot; the Shorts export)
+    titles      text over the picture (Text / T): typed in the preview, styles, move / size box
     attributes  copy / paste clip attributes (Ctrl+C / Ctrl+V: position, size, grade...)
 """
 
-from . import attributes, bin, clip_panel, frame_box, frame_rate, media, playback_meter, proxies, shorts, windows
+from . import attributes, bin, titles, clip_panel, frame_box, frame_rate, media, playback_meter, proxies, shorts, windows
 
-_MODULES = (media, proxies, playback_meter, bin, clip_panel, frame_rate, frame_box, windows, shorts, attributes)
+_MODULES = (media, proxies, playback_meter, bin, clip_panel, frame_rate, frame_box, windows, shorts, attributes, titles)
 
 
 def register():

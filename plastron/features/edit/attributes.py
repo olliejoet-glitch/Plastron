@@ -132,6 +132,19 @@ def _write_grade(_scene, s, v):
     return True
 
 
+def _read_title(s):
+    from .titles import is_title, style_of
+    return style_of(bpy.context.scene, s) if is_title(s) else None
+
+
+def _write_title(scene, s, v):
+    from .titles import is_title, apply_style
+    if not is_title(s):
+        return False
+    apply_style(scene, s, v)
+    return True
+
+
 def _read_fades(s):
     return None if _is_block(s) else (s.plastron.fade_in, s.plastron.fade_out)
 
@@ -305,7 +318,8 @@ class PLASTRON_OT_attributes_copy(bpy.types.Operator):
 
     @classmethod
     def poll(cls, context):
-        return _source(context) is not None
+        from ...core.views import typing
+        return _source(context) is not None and not typing(context)     # (typing a title: its own copy)
 
     def execute(self, context):
         strip = _source(context)
@@ -334,7 +348,8 @@ class PLASTRON_OT_attributes_paste(bpy.types.Operator):
 
     @classmethod
     def poll(cls, context):
-        return context.scene is not None and context.scene.sequence_editor is not None
+        from ...core.views import typing
+        return context.scene is not None and context.scene.sequence_editor is not None and not typing(context)
 
     def invoke(self, context, _event):
         got = paste_picture(context)

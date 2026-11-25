@@ -67,8 +67,19 @@ PASTE_ATTRIBUTES = (
     ("opacity", "Opacity & Blend", True),
     ("flip", "Flips", True),
     ("grade", "Grade", True),
+    ("title", "Text Style", True),
     ("fades", "Fades", False),
     ("speed", "Speed", False),
     ("volume", "Volume", False),
     ("shorts", "Shorts Box", False),
 )
+
+# --- Titles (Text in the preview header / T: text clips over the picture) ----
+TITLE_TRACK = "Titles"            # made on top of the video tracks if missing
+TITLE_SECONDS = 4.0               # a new title's length
+TITLE_TEXT = "Title"              # what a new title says (selected, so typing replaces it)
+TITLE_STYLE = "Big Title"
+TITLE_FONT = "Inter.woff2"        # Blender's own sans font (its text clips default to a monospace one)         # the style a new title starts with (presets/titles/)
+TITLE_BOX = {                     # the move / size box around a selected title in the preview
+    "color": "orange", "alpha": 0.9, "handle_px": 7, "grab_px": 10, "margin_px": 6,
+}

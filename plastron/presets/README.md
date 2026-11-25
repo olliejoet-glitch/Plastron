@@ -53,3 +53,20 @@ Export Video presets (File > Export Video).
 | quality        | HIGH, MEDIUM, LOW, PERC_LOSSLESS, LOSSLESS                  |
 | audio          | audio codec (AAC, ...)                                      |
 | audio_bitrate  | kbit/s                                                      |
+
+## titles/
+
+Title styles (Edit mode: the Clip panel's Style menu on a selected title).
+
+| field        | meaning                                                         |
+|--------------|-----------------------------------------------------------------|
+| size         | text height in % of the frame's height (so it fits any project size) |
+| color        | text colour [r, g, b, a]                                        |
+| use_bold / use_italic | bold / italic                                          |
+| use_outline, outline_color, outline_width | an outline round the letters       |
+| use_shadow, shadow_color | a drop shadow                                       |
+| use_box, box_color, box_margin | a box behind the text                         |
+| alignment_x  | LEFT / CENTER / RIGHT: how lines line up                        |
+| anchor_x / anchor_y | which side of the text sits at its place                 |
+| location     | where in the frame [x, y], 0-1 from the bottom left             |
+| wrap_width   | lines wrap at this share of the frame's width (0: no wrap)      |

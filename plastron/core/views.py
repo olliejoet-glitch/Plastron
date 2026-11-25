@@ -32,3 +32,13 @@ def is_preview(space):
     """A video preview showing the picture (not a scope)."""
     return space is not None and getattr(space, "type", "") == 'SEQUENCE_EDITOR' and \
         getattr(space, "view_type", '') == 'PREVIEW' and getattr(space, "display_mode", 'IMAGE') == 'IMAGE'
+
+
+def typing(context=None):
+    """Is a title (text clip) being typed in, in the preview? Plastron's own
+    preview keys stand aside then (J / K / L, Ctrl+C / V, clicks...)."""
+    import bpy
+    try:
+        return bool(bpy.ops.sequencer.text_insert.poll())
+    except Exception:
+        return False

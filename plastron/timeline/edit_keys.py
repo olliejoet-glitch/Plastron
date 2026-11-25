@@ -97,6 +97,11 @@ class PLASTRON_OT_shuttle(bpy.types.Operator):
     bl_label = "Play / Stop"
     direction: bpy.props.IntProperty(default=1)
 
+    @classmethod
+    def poll(cls, context):
+        from ..core.views import typing
+        return not typing(context)                   # (typing a title: J / K / L are letters)
+
     def execute(self, context):
         playing = context.screen.is_animation_playing
         backwards = _state["backwards"] if playing else False    # (Space plays forwards)

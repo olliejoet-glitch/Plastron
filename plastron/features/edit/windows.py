@@ -323,6 +323,13 @@ class PLASTRON_OT_window_toggle(bpy.types.Operator):
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
+        from .titles import active_title, start_typing, stop_typing
+        from ...core.views import typing
+        if typing(context):                          # (a title: Tab finishes typing...)
+            return {'FINISHED'} if stop_typing(context) else {'CANCELLED'}
+        title = active_title(context)
+        if title is not None:                        # (...and types in it again)
+            return {'FINISHED'} if start_typing(context, title) else {'CANCELLED'}
         if is_window_scene(context.scene):
             close_window(context)
             return {'FINISHED'}

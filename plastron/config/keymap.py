@@ -164,7 +164,12 @@ SHORTCUTS = [
     ("preview",      "Shift+LMB",        "plastron.preview_transform",   "...turning in 15° steps"),
     ("preview",      "LMB",              "plastron.shorts_drag",         "Shorts on: drag the 9:16 box left / right for this shot"),
     ("timeline",     "Tab",              "plastron.window_toggle",       "Edit inside the selected info window / back out"),
-    ("preview",      "Tab",              "plastron.window_toggle",       "Edit inside the selected info window / back out"),
+    ("preview",      "Tab",              "plastron.window_toggle",       "Edit inside the selected info window / back out (a title: type in it / finish)"),
+    ("preview",      "T",                "plastron.title_add",           "Add a title (text over the picture) at the playhead and type it"),
+    ("timeline",     "T",                "plastron.title_add",           "Add a title (text over the picture) at the playhead and type it"),
+    ("preview",      "Esc",              "plastron.title_finish",        "Finish typing a title"),
+    ("preview",      "LMB",              "plastron.title_box",           "Drag a selected title: inside moves it, a corner sizes it"),
+    ("preview",      "LMB double",       "plastron.title_double_click",  "Double-click a title: type in it"),
     ("preview",      "J",                "plastron.shuttle",             "Play backwards", {"direction": -1}),
     ("preview",      "K",                "plastron.shuttle",             "Stop", {"direction": 0}),
     ("preview",      "L",                "plastron.shuttle",             "Play"),
@@ -193,7 +198,8 @@ SHORTCUTS = [
 # item on the same key keeps working (e.g. the script click still places
 # the text cursor). board_click only runs while the Board view is on (its
 # poll), so the timeline's own clicks work normally otherwise.
-PASSES_ON = {"plastron.gap_select", "plastron.board_click", "plastron.board_scroll", "plastron.shorts_drag", "plastron.preview_transform", "plastron.fade_drag", "plastron.view_focus", "plastron.camera_pad", "plastron.drag_scroll", "plastron.clip_click_select", "plastron.script_click", "plastron.transcript_click", "plastron.transcript_hover"}
+PASSES_ON = {"plastron.title_box", "plastron.title_double_click", "plastron.attributes_copy",
+             "plastron.attributes_paste", "plastron.window_toggle", "plastron.shuttle", "plastron.gap_select", "plastron.board_click", "plastron.board_scroll", "plastron.shorts_drag", "plastron.preview_transform", "plastron.fade_drag", "plastron.view_focus", "plastron.camera_pad", "plastron.drag_scroll", "plastron.clip_click_select", "plastron.script_click", "plastron.transcript_click", "plastron.transcript_hover"}
 
 # Blender items switched off even though BLENDER_KEEP keeps their keymap.
 BLENDER_DROP = {
@@ -231,7 +237,8 @@ BLENDER_KEEP = {
     "3D View Tool: *":       ["*"],
     "Sequencer Tool: *":     ["*"],
     "Preview Tool: *":       ["*"],                       # Edit mode's preview: move / size / turn clips
-    "Preview":               ["sequencer.select", "sequencer.view_all_preview"],
+    "Preview":               ["sequencer.select", "sequencer.view_all_preview",
+                              "sequencer.text_*"],         # typing in a title (Plastron's keys stand aside)
     "File Browser*":         ["*"],                       # Open / Save / Import dialogs
     "Sequence Editor Tool: Sequencer, Slice": ["*"],      # Plastron's Slice tool
     "Generic Gizmo*":        ["*"],
