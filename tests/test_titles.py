@@ -149,4 +149,30 @@ def steps():
             and tuple(other.location) == tuple(t.location), (other.font_size, t.font_size, other.use_box))
 
 
+    # A downloaded font is kept in Plastron's fonts folder and packed.
+    import shutil
+    src_dir = os.path.join(bpy.app.tempdir, "downloads")
+    os.makedirs(src_dir, exist_ok=True)
+    src = os.path.join(src_dir, "MyMono.woff2")
+    shutil.copy(os.path.join(bpy.utils.system_resource('DATAFILES'), "fonts", "DejaVuSansMono.woff2"), src)
+    sc = bpy.context.scene
+    for s in clips.top_clips(sc):
+        s.select = s == other
+    sc.sequence_editor.active_strip = other
+    with h.override('SEQUENCE_EDITOR'):
+        bpy.ops.plastron.title_font('EXEC_DEFAULT', filepath=src)
+    kept = os.path.join(titles.fonts_folder(), "MyMono.woff2")
+    h.check("Load Font copies the font into Plastron's fonts folder",
+            os.path.exists(kept) and ("MyMono", kept) in titles.your_fonts(), titles.your_fonts())
+    h.check("...the title uses it, packed into the project (so it survives the download going)",
+            other.font is not None and other.font.packed_file is not None
+            and os.path.basename(other.font.filepath) == "MyMono.woff2", other.font and other.font.filepath)
+    os.remove(src)
+    for s in clips.top_clips(sc):
+        s.select = s == t
+    with h.override('SEQUENCE_EDITOR'):
+        bpy.ops.plastron.title_font_pick(filepath=kept)
+    h.check("Your Fonts: one click gives another title the same font", t.font == other.font)
+
+
 h.run(steps())

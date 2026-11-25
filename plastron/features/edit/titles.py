@@ -444,14 +444,57 @@ class PLASTRON_MT_title_styles(bpy.types.Menu):
         presets.draw_menu(self.layout, KIND)
 
 
+FONTS_FOLDER = "plastron_fonts"     # in Plastron's settings folder: fonts you've loaded
+
+
+def fonts_folder():
+    import os
+    return os.path.join(bpy.utils.user_resource('CONFIG'), FONTS_FOLDER)
+
+
+def your_fonts():
+    """[(name, path)] of the font files in Plastron's fonts folder."""
+    import os
+    folder = fonts_folder()
+    if not os.path.isdir(folder):
+        return []
+    return sorted(((os.path.splitext(n)[0], os.path.join(folder, n)) for n in os.listdir(folder)
+                   if n.lower().endswith((".ttf", ".otf", ".ttc", ".woff", ".woff2"))), key=lambda t: t[0].lower())
+
+
+def keep_font(path):
+    """Copy a font file into Plastron's fonts folder (if it isn't there) and
+    load it, packed into the project, so titles keep it if the file moves."""
+    import os
+    import shutil
+    folder = fonts_folder()
+    os.makedirs(folder, exist_ok=True)
+    kept = os.path.join(folder, os.path.basename(path))
+    if os.path.abspath(path) != os.path.abspath(kept) and not os.path.exists(kept):
+        shutil.copy2(path, kept)
+    font = bpy.data.fonts.load(kept, check_existing=True)
+    if font.packed_file is None:
+        try:
+            font.pack()
+        except RuntimeError as err:
+            print("Plastron titles: couldn't pack the font:", err)
+    return font
+
+
+def _use_font(context, font):
+    for s in clips.top_clips(context.scene):
+        if s.select and is_title(s):
+            s.font = font
+
+
 class PLASTRON_OT_title_font(bpy.types.Operator):
-    """Use a font file (.ttf / .otf) for the selected titles"""
+    """Use a font file (.ttf / .otf) for the selected titles (kept in Plastron's fonts folder)"""
     bl_idname = "plastron.title_font"
     bl_label = "Load Font..."
     bl_options = {'REGISTER', 'UNDO'}
 
     filepath: bpy.props.StringProperty(subtype='FILE_PATH')
-    filter_glob: bpy.props.StringProperty(default="*.ttf;*.otf;*.ttc", options={'HIDDEN'})
+    filter_glob: bpy.props.StringProperty(default="*.ttf;*.otf;*.ttc;*.woff;*.woff2", options={'HIDDEN'})
 
     @classmethod
     def poll(cls, context):
@@ -463,14 +506,59 @@ class PLASTRON_OT_title_font(bpy.types.Operator):
 
     def execute(self, context):
         try:
-            font = bpy.data.fonts.load(self.filepath, check_existing=True)
-        except RuntimeError as err:
+            font = keep_font(self.filepath)
+        except (RuntimeError, OSError) as err:
             self.report({'WARNING'}, f"Couldn't use that font: {err}")
             return {'CANCELLED'}
-        for s in clips.top_clips(context.scene):
-            if s.select and is_title(s):
-                s.font = font
+        _use_font(context, font)
+        self.report({'INFO'}, f"Font kept in {fonts_folder()}")
         return {'FINISHED'}
+
+
+class PLASTRON_OT_title_font_pick(bpy.types.Operator):
+    """Use one of your fonts for the selected titles"""
+    bl_idname = "plastron.title_font_pick"
+    bl_label = "Use Font"
+    bl_options = {'REGISTER', 'UNDO', 'INTERNAL'}
+
+    filepath: bpy.props.StringProperty()
+
+    def execute(self, context):
+        try:
+            font = keep_font(self.filepath)
+        except (RuntimeError, OSError) as err:
+            self.report({'WARNING'}, f"Couldn't use that font: {err}")
+            return {'CANCELLED'}
+        _use_font(context, font)
+        return {'FINISHED'}
+
+
+class PLASTRON_OT_title_fonts_folder(bpy.types.Operator):
+    """Open your fonts folder (font files put there show in the list)"""
+    bl_idname = "plastron.title_fonts_folder"
+    bl_label = "Open Fonts Folder"
+
+    def execute(self, context):
+        import os
+        os.makedirs(fonts_folder(), exist_ok=True)
+        bpy.ops.wm.path_open(filepath=fonts_folder())
+        return {'FINISHED'}
+
+
+class PLASTRON_MT_title_fonts(bpy.types.Menu):
+    bl_idname = "PLASTRON_MT_title_fonts"
+    bl_label = "Your Fonts"
+
+    def draw(self, _context):
+        layout = self.layout
+        fonts = your_fonts()
+        if not fonts:
+            layout.label(text="No fonts yet: Load Font... keeps them here")
+        for name, path in fonts:
+            layout.operator("plastron.title_font_pick", text=name).filepath = path
+        layout.separator()
+        layout.operator("plastron.title_font", text="Load Font...", icon='FILEBROWSER')
+        layout.operator("plastron.title_fonts_folder", icon='FILE_FOLDER')
 
 
 def draw_panel(layout, context, strip):
@@ -486,8 +574,8 @@ def draw_panel(layout, context, strip):
     row.prop(strip, "use_bold", text="", icon='BOLD', toggle=True)
     row.prop(strip, "use_italic", text="", icon='ITALIC', toggle=True)
     row = box.row(align=True)
-    row.template_ID(strip, "font", open="font.open")
-    row.operator("plastron.title_font", text="", icon='FILEBROWSER')
+    row.label(text=strip.font.name if strip.font else "Default", icon='FONT_DATA')
+    row.menu("PLASTRON_MT_title_fonts", text="Your Fonts")
     box.prop(strip, "color", text="")
     box.row().prop(strip, "alignment_x", expand=True)
     box.prop(strip, "wrap_width", text="Wrap Width", slider=True)
@@ -508,7 +596,8 @@ def draw_preview_button(layout, context):
 
 
 classes = (PLASTRON_OT_title_add, PLASTRON_OT_title_type, PLASTRON_OT_title_finish, PLASTRON_OT_title_box,
-           PLASTRON_OT_title_double_click, PLASTRON_MT_title_styles, PLASTRON_OT_title_font)
+           PLASTRON_OT_title_double_click, PLASTRON_MT_title_styles, PLASTRON_OT_title_font,
+           PLASTRON_OT_title_font_pick, PLASTRON_OT_title_fonts_folder, PLASTRON_MT_title_fonts)
 _handles = []
 
 
