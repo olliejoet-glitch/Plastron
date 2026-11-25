@@ -81,6 +81,22 @@ def steps():
     h.key('K')
     yield 0.3
 
+    # Lines in the Clip panel: one field each, + Line adds one, x removes one.
+    sc = bpy.context.scene
+    t = title_now()
+    for s in clips.top_clips(sc):
+        s.select = s == t
+    sc.sequence_editor.active_strip = t
+    wm.plastron_title_line_0 = "First line"
+    with h.override('SEQUENCE_EDITOR'):
+        bpy.ops.plastron.title_line(remove=-1)
+    h.check("+ Line adds a line", t.text.count("\n") == 2, repr(t.text))
+    wm.plastron_title_line_2 = "Third line"
+    h.check("...each line has its own field", t.text == "First line\njkl\nThird line", repr(t.text))
+    with h.override('SEQUENCE_EDITOR'):
+        bpy.ops.plastron.title_line(remove=1)
+    h.check("x removes a line", t.text == "First line\nThird line", repr(t.text))
+
     # Styles.
     sc = bpy.context.scene
     t = title_now()
@@ -133,7 +149,7 @@ def steps():
     other = titles.add(sc, text="Second")
     yield 0.2
     sc = bpy.context.scene
-    t = next(s for s in clips.top_clips(sc) if titles.is_title(s) and s.text.startswith("Hello"))
+    t = next(s for s in clips.top_clips(sc) if titles.is_title(s) and s.text.startswith("First line"))
     other = next(s for s in clips.top_clips(sc) if titles.is_title(s) and s.text == "Second")
     for s in clips.top_clips(sc):
         s.select = s == t

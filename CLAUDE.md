@@ -1447,7 +1447,11 @@ Plastron/
   Font...), colour, alignment, wrap, outline / shadow / box. Copy / paste
   attributes has "Text Style". Blender's own outline of selected clips in
   the preview is off (it lagged behind titles; Plastron draws its boxes).
-  features/edit/titles.py.
+  features/edit/titles.py. Lines (Ollie: "easily add new lines"): a
+  Blender text field holds one line, so the Clip panel shows one field per
+  line (WindowManager plastron_title_line_0..N, get / set on the active
+  title's text split at newlines), + Line adds one, x removes one
+  (TITLE_MAX_LINES); in the picture Enter makes a new line.
 - Info windows (Ollie: "little info windows using this UI ... a nested
   timeline ... clips that auto-crop to the UI"): Window (preview header)
   picks a style (presets/windows/*.png + your own folder plastron_windows/:

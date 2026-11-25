@@ -567,8 +567,18 @@ def draw_panel(layout, context, strip):
     row = box.row(align=True)
     row.label(text="Text", icon='FONT_DATA')
     row.menu("PLASTRON_MT_title_styles", text="Style", icon='PRESET')
-    box.prop(strip, "text", text="")
-    box.operator("plastron.title_type", text="Type in the Picture (Tab)", icon='GREASEPENCIL')
+    wm = context.window_manager
+    lines = strip.text.split("\n")
+    col = box.column(align=True)
+    for i in range(min(len(lines), cfg.TITLE_MAX_LINES)):     # (a Blender field holds one line: one each)
+        row = col.row(align=True)
+        row.prop(wm, f"plastron_title_line_{i}", text="")
+        if len(lines) > 1:
+            row.operator("plastron.title_line", text="", icon='X').remove = i
+    row = box.row(align=True)
+    add = row.operator("plastron.title_line", text="Line", icon='ADD')
+    add.remove = -1
+    row.operator("plastron.title_type", text="Type in the Picture (Tab)", icon='GREASEPENCIL')
     row = box.row(align=True)
     row.prop(strip, "font_size", text="Size")
     row.prop(strip, "use_bold", text="", icon='BOLD', toggle=True)
@@ -591,19 +601,72 @@ def draw_panel(layout, context, strip):
         sub.prop(strip, extra, text="")
 
 
+def _line_get(i):
+    def get(wm):
+        strip = active_title(bpy.context)
+        lines = strip.text.split("\n") if strip else []
+        return lines[i] if i < len(lines) else ""
+    return get
+
+
+def _line_set(i):
+    def set_(wm, value):
+        strip = active_title(bpy.context)
+        if strip is None:
+            return
+        lines = strip.text.split("\n")
+        while len(lines) <= i:
+            lines.append("")
+        lines[i] = value.replace("\n", " ")
+        strip.text = "\n".join(lines)
+    return set_
+
+
+class PLASTRON_OT_title_line(bpy.types.Operator):
+    """Add a line to the title (or remove this one)"""
+    bl_idname = "plastron.title_line"
+    bl_label = "Title Line"
+    bl_options = {'REGISTER', 'UNDO', 'INTERNAL'}
+
+    remove: bpy.props.IntProperty(default=-1)
+
+    @classmethod
+    def description(cls, _context, props):
+        return "Remove this line" if props.remove >= 0 else "Add a new line under the others"
+
+    def execute(self, context):
+        strip = active_title(context)
+        if strip is None:
+            return {'CANCELLED'}
+        lines = strip.text.split("\n")
+        if self.remove >= 0:
+            if len(lines) > 1 and self.remove < len(lines):
+                del lines[self.remove]
+        elif len(lines) < cfg.TITLE_MAX_LINES:
+            lines.append("")
+        strip.text = "\n".join(lines)
+        for area in context.screen.areas:
+            area.tag_redraw()
+        return {'FINISHED'}
+
+
 def draw_preview_button(layout, context):
     layout.operator("plastron.title_add", text="Text", icon='FONT_DATA')
 
 
 classes = (PLASTRON_OT_title_add, PLASTRON_OT_title_type, PLASTRON_OT_title_finish, PLASTRON_OT_title_box,
            PLASTRON_OT_title_double_click, PLASTRON_MT_title_styles, PLASTRON_OT_title_font,
-           PLASTRON_OT_title_font_pick, PLASTRON_OT_title_fonts_folder, PLASTRON_MT_title_fonts)
+           PLASTRON_OT_title_font_pick, PLASTRON_OT_title_fonts_folder, PLASTRON_MT_title_fonts,
+           PLASTRON_OT_title_line)
 _handles = []
 
 
 def register():
     for cls in classes:
         bpy.utils.register_class(cls)
+    for i in range(cfg.TITLE_MAX_LINES):
+        setattr(bpy.types.WindowManager, f"plastron_title_line_{i}", bpy.props.StringProperty(
+            name=f"Line {i + 1}", description="A line of the title's words", get=_line_get(i), set=_line_set(i)))
     presets.register_kind(KIND, apply=_preset_apply, capture=_preset_capture)
     from ...timeline import header
     header.add_preview_section(draw_preview_button)
@@ -611,6 +674,8 @@ def register():
 
 
 def unregister():
+    for i in range(cfg.TITLE_MAX_LINES):
+        delattr(bpy.types.WindowManager, f"plastron_title_line_{i}")
     while _handles:
         bpy.types.SpaceSequenceEditor.draw_handler_remove(_handles.pop(), 'PREVIEW')
     for cls in reversed(classes):
