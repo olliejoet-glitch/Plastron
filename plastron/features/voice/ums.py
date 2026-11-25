@@ -37,7 +37,8 @@ _state = {"show": False, "found": None}
 
 
 def is_um(word):
-    return word.strip(" ,.!?;:-…\"'").lower() in cfg.UMS["words"]
+    # (the Verbatim model writes fillers as "[UM]" / "[UH]")
+    return word.strip(" ,.!?;:-…\"'[]()").lower() in cfg.UMS["words"]
 
 
 HOP = 0.02            # s: loudness steps for finding unworded sounds
@@ -325,6 +326,9 @@ class PLASTRON_PT_ums(bpy.types.Panel):
             layout.operator("plastron.ums", text="Transcribe Selected Again", icon='FILE_REFRESH').action = 'AGAIN'
         if transcribe.busy():
             layout.label(text=transcribe.status() or "Transcribing...", icon='SORTTIME')
+        col = layout.column(align=True)
+        col.prop(context.window_manager, "plastron_speech_model", text="Speech")
+        col.label(text="New choice: Transcribe Selected Again to redo old clips", icon='INFO')
         n, m = len(found(scene)), len([s for s in marked(scene) if s.type == 'SOUND'])
         row = layout.row(align=True)
         if _state["show"]:
@@ -391,7 +395,25 @@ _handles = []
 classes = (PLASTRON_OT_ums, PLASTRON_PT_ums)
 
 
+def _model_items(_self, _context):
+    return [(key, m["label"], f"{m['model']} ({m['size']} the first time)")
+            for key, m in cfg.TRANSCRIBE_MODELS.items()]
+
+
+def _get_model(_wm):
+    keys = list(cfg.TRANSCRIBE_MODELS)
+    return keys.index(transcribe.model_choice())
+
+
+def _set_model(_wm, value):
+    from ...core import user_settings
+    user_settings.set(transcribe.SETTING, list(cfg.TRANSCRIBE_MODELS)[value])
+
+
 def register():
+    bpy.types.WindowManager.plastron_speech_model = bpy.props.EnumProperty(
+        name="Speech Model", description="Which speech model writes the transcripts (Verbatim keeps every um)",
+        items=_model_items, get=_get_model, set=_set_model)
     for cls in classes:
         bpy.utils.register_class(cls)
     header.add_section(draw_header)
@@ -401,6 +423,7 @@ def register():
 
 
 def unregister():
+    del bpy.types.WindowManager.plastron_speech_model
     while _handles:
         bpy.types.SpaceSequenceEditor.draw_handler_remove(_handles.pop(), 'WINDOW')
     for cls in reversed(classes):

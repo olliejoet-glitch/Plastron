@@ -12,6 +12,18 @@ AUDIO_FOLDER_SUFFIX = "_audio"     # recordings live in "<project>_audio/"
 
 # Transcription (runs on your computer, once per take, after recording)
 TRANSCRIBE_MODEL = "small.en"      # faster-whisper model: tiny.en, base.en, small.en, medium.en
+# Speech models to choose from (Ums pop-up: Speech Model; the choice is remembered).
+# Verbatim = CrisperWhisper (nyrahealth): Whisper retrained to write down every
+# "um" / "uh" (as [UM] / [UH]) with accurate word timings. Free for
+# non-commercial use (CC BY-NC 4.0). ~3 GB the first time; runs on the NVIDIA
+# card where it can (else the processor: much slower).
+TRANSCRIBE_MODELS = {
+    "VERBATIM": {"label": "Verbatim (finds ums)", "model": "nyrahealth/faster_CrisperWhisper",
+                 "prompt": False, "second_pass": False, "size": "about 3 GB"},
+    "STANDARD": {"label": "Standard (quicker)", "model": TRANSCRIBE_MODEL,
+                 "prompt": True, "second_pass": True, "size": "a few hundred MB"},
+}
+TRANSCRIBE_MODEL_DEFAULT = "VERBATIM"
 # Whisper tidies away "um"s and false starts unless its prompt shows them.
 TRANSCRIBE_PROMPT = "Umm, so, uh, I mean, like... let me, let me start again. Hmm, okay."
 
@@ -19,6 +31,11 @@ TRANSCRIBE_PROMPT = "Umm, so, uh, I mean, like... let me, let me start again. Hm
 PACKAGES = {
     "sounddevice": "sounddevice",          # module name: pip name
     "faster_whisper": "faster-whisper",
+}
+# Windows only: NVIDIA's libraries so the speech model can run on the graphics card.
+GPU_PACKAGES = {
+    "nvidia.cublas": "nvidia-cublas-cu12",
+    "nvidia.cudnn": "nvidia-cudnn-cu12",
 }
 
 # Transcript bar: the bottom band of each audio track's row.

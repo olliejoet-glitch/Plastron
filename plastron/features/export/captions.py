@@ -24,7 +24,7 @@ def timeline_words(scene):
             fa, fb = strip.content_start + a * fps, strip.content_start + b * fps
             if fa < s or fb > e:
                 continue                                   # (trimmed off)
-            if word.strip(" ,.!?;:-…").lower() in cfg.CAPTION_FLUFFS:
+            if word.strip(" ,.!?;:-…[]()").lower() in cfg.CAPTION_FLUFFS:
                 continue
             out.append((word.strip(), (fa - scene.frame_start) / fps, (fb - scene.frame_start) / fps))
     return sorted(out, key=lambda w: w[1])

@@ -943,6 +943,22 @@ Plastron/
   heard there become words (a long word gives up the part its filler took).
   Pure parts (filler_candidates, merge_fillers) tested in tests/test_um_pass.py;
   the real Whisper call only runs on Ollie's machine.
+  Then (Ollie: "still missing A LOT of ums"): a Speech Model choice in the
+  Ums pop-up (TRANSCRIBE_MODELS in config/voice.py, remembered in
+  user_settings "transcribe_model"): Verbatim (default) = CrisperWhisper
+  (nyrahealth/faster_CrisperWhisper: Whisper large retrained to keep every
+  filler, written [UM] / [UH], with accurate word timings; CC BY-NC 4.0,
+  Ollie: "just for my own youtube"; ~3 GB first time) without the um
+  prompt / second pass; Standard = small.en with them. The worker tries
+  the NVIDIA card first (float16; on Windows the pip NVIDIA cuBLAS / cuDNN
+  libraries, GPU_PACKAGES, are installed and their DLL folders added),
+  checked with a 1 s try, else the processor (int8). is_um / captions
+  accept bracketed fillers. Old clips need Transcribe Selected Again.
+  Untested here (Hugging Face blocked): only the plumbing is tested.
+- Title fonts: Load Font... / Your Fonts (Clip panel Text section) copy the
+  font file into <config>/plastron_fonts/ (C:\Plastron\blender\portable\
+  config\plastron_fonts) and pack it into the project; Your Fonts lists
+  that folder (Open Fonts Folder to drop files in).
 - ripple.delete closes each stretch of time once (merge_spans): a video and
   its linked sound on two ripple tracks used to close the same gap twice.
 - Script linking: words matched with difflib (fluffs skipped). Clicking a

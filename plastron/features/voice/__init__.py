@@ -61,7 +61,8 @@ def draw_header(layout, context):
 def _setup():
     """Install the recording / transcription packages in the background,
     the first time Plastron starts (or after a failed try)."""
-    deps.ensure(cfg.PACKAGES, "voice recording and transcripts")
+    from .transcribe import packages
+    deps.ensure(packages(), "voice recording and transcripts")
     return None
 
 

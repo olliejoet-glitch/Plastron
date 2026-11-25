@@ -71,17 +71,50 @@ def _model_cached(model_name):
     return os.path.isdir(hub) and any(model_name in d for d in os.listdir(hub))
 
 
+def _nvidia_dlls():
+    """Windows: put the pip-installed NVIDIA libraries (cuBLAS, cuDNN) where
+    the speech model's GPU code finds them."""
+    if sys.platform != "win32":
+        return
+    import glob
+    for base in list(sys.path):
+        for bin_dir in glob.glob(os.path.join(base, "nvidia", "*", "bin")):
+            try:
+                os.add_dll_directory(bin_dir)
+            except (OSError, AttributeError):
+                pass
+            os.environ["PATH"] = bin_dir + os.pathsep + os.environ.get("PATH", "")
+
+
+def load_model(model_name, out_path):
+    """The model on the NVIDIA card if it works there (much faster), else on
+    the processor. A one-second try catches missing GPU libraries."""
+    from faster_whisper import WhisperModel
+    import numpy as np
+    if os.environ.get("PLASTRON_CPU_ONLY") is None:
+        _nvidia_dlls()
+        try:
+            model = WhisperModel(model_name, device="cuda", compute_type="float16")
+            list(model.transcribe(np.zeros(16000, np.float32), language="en")[0])
+            print("Speech model on the graphics card")
+            return model
+        except Exception as err:                 # (no NVIDIA card / libraries: the processor)
+            print("Speech model on the processor:", type(err).__name__, err)
+    status(out_path, "Loading the speech model (on the processor: slower)...")
+    return WhisperModel(model_name, device="cpu", compute_type="int8")
+
+
 def whisper(path, model_name, prompt, out_path):
     status(out_path, "Starting the transcriber...")
-    from faster_whisper import WhisperModel
-    if not _model_cached(model_name):
-        status(out_path, "Getting the speech model (first time only, a few hundred MB)...")
+    if not _model_cached(model_name.split("/")[-1]):
+        size = os.environ.get("PLASTRON_MODEL_SIZE", "a few hundred MB")
+        status(out_path, f"Getting the speech model (first time only, {size})...")
     else:
         status(out_path, "Loading the speech model...")
-    model = WhisperModel(model_name, device="cpu", compute_type="int8")
+    model = load_model(model_name, out_path)
     status(out_path, "Transcribing 0%")
     kw = dict(word_timestamps=True, initial_prompt=prompt or None, vad_filter=False,
-              condition_on_previous_text=False)
+              condition_on_previous_text=False, language="en")
     # The prompt (full of "um"s) only reaches Whisper's first 30 s window; after
     # that it tidied the ums away (Ollie: "missing 90% of them"). Hotwords go
     # into every window.

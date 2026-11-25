@@ -104,18 +104,34 @@ def time_limit(wav):
     return max(TIMEOUT, seconds * 4 + 600)
 
 
+SETTING = "transcribe_model"
+
+
+def model_choice():
+    from ...core import user_settings
+    key = user_settings.get(SETTING, cfg.TRANSCRIBE_MODEL_DEFAULT)
+    return key if key in cfg.TRANSCRIBE_MODELS else cfg.TRANSCRIBE_MODEL_DEFAULT
+
+
+def packages():
+    """The packages transcription needs (on Windows also the GPU libraries)."""
+    return dict(cfg.PACKAGES, **(cfg.GPU_PACKAGES if sys.platform == "win32" else {}))
+
+
 def _start(uid, wav):
     out = wav + ".json"
     env = dict(os.environ)
     env["PYTHONPATH"] = deps.folder()
-    if cfg.UMS.get("second_pass"):                 # (listen again for ums Whisper left out)
+    model = cfg.TRANSCRIBE_MODELS[model_choice()]
+    if cfg.UMS.get("second_pass") and model["second_pass"]:   # (listen again for ums Whisper left out)
         env["PLASTRON_FILLERS"] = json.dumps(list(cfg.UMS["words"]))
+    env["PLASTRON_MODEL_SIZE"] = model["size"]
     env.setdefault("HF_HOME", os.path.join(bpy.utils.user_resource('CONFIG'), "plastron_models"))
     python = deps.python()
     if python is None:
         _fail(uid, "Blender's Python wasn't found")
         return
-    args = [python, WORKER, wav, out, cfg.TRANSCRIBE_MODEL, cfg.TRANSCRIBE_PROMPT]
+    args = [python, WORKER, wav, out, model["model"], cfg.TRANSCRIBE_PROMPT if model["prompt"] else ""]
     if fake():
         args.append("--fake")
     for stale in (out, out + ".status"):
@@ -185,7 +201,7 @@ def _step():
         _finish()
     if not _queue:
         return None
-    if not fake() and not deps.ensure(cfg.PACKAGES, "transcription"):
+    if not fake() and not deps.ensure(packages(), "transcription"):
         return 2.0                       # waiting for the one-time install
     uid, wav = _queue.pop(0)
     _start(uid, wav)

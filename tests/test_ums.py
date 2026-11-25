@@ -102,5 +102,37 @@ def steps():
     h.check("...picture and sound still line up", pics == snds and len(pics) == 6, (pics, snds))
     h.check("...and no ums are left to find", ums.find(sc) == [], ums.find(sc))
 
+    # The Verbatim speech model (CrisperWhisper) writes fillers as [UM] / [UH].
+    h.check("fillers written [UM] / [UH] count as ums", ums.is_um("[UM]") and ums.is_um("[uh]") and not ums.is_um("[music]"))
+    tr = h.module("features.voice.transcribe")
+    cfg = h.module("config.voice")
+    h.check("Verbatim is the speech model at first",
+            tr.model_choice() == "VERBATIM" and bpy.context.window_manager.plastron_speech_model == "VERBATIM")
+    bpy.context.window_manager.plastron_speech_model = "STANDARD"
+    h.check("...the choice is remembered", h.module("core.user_settings").get("transcribe_model") == "STANDARD")
+    bpy.context.window_manager.plastron_speech_model = "VERBATIM"
+    started = []
+    real_popen = tr.subprocess.Popen
+    tr.subprocess.Popen = lambda args, **kw: started.append((args, kw.get("env", {}))) or real_popen(
+        args, **kw)
+    try:
+        wav = os.path.join(bpy.app.tempdir, "model_check.wav")
+        import wave as _wave
+        with _wave.open(wav, "w") as w:
+            w.setnchannels(1)
+            w.setsampwidth(2)
+            w.setframerate(16000)
+            w.writeframes(b"\0\0" * 16000)
+        tr._start("model_check", wav)
+        yield 1.0
+    finally:
+        tr.subprocess.Popen = real_popen
+    args, env = started[0] if started else ([], {})
+    h.check("a transcription job is given the Verbatim model, no um prompt, no second pass",
+            cfg.TRANSCRIBE_MODELS["VERBATIM"]["model"] in args and args[5] == ""
+            and "PLASTRON_FILLERS" not in env, (args[3:6], "PLASTRON_FILLERS" in env))
+    captions = h.module("features.export.captions")
+    h.check("captions leave [UM] out too", "[um]".strip(" ,.!?;:-…[]()") in h.module("config.export").CAPTION_FLUFFS)
+
 
 h.run(steps())
