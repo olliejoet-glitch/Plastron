@@ -91,7 +91,7 @@ def steps():
         ("3D View", "view3d.rotate"),                       # orbit
         ("Image Paint", "paint.sample_color"),               # S (Plastron: Alt+click)
         ("Image Paint", "paint.brush_colors_flip"),          # X
-        ("Frames", "screen.frame_offset"),
+        ("Frames", "screen.keyframe_jump"),                 # (Up / Down are Plastron's cut jumps; Left / Right are frame_offset on purpose)
         ("Markers", "marker.add"),
         ("Region Context Menu", "screen.region_context_menu"),  # right-click menus
     ]
