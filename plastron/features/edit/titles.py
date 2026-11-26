@@ -166,7 +166,8 @@ def add(scene, frame=None, text=None):
 
 
 def _preview_area(context):
-    window = context.window or bpy.context.window
+    wm = bpy.context.window_manager
+    window = context.window or bpy.context.window or (wm.windows[0] if wm and wm.windows else None)   # (timers: no window)
     for area in (window.screen.areas if window else []):
         if area.type == 'SEQUENCE_EDITOR' and is_preview(area.spaces.active):
             region = next((r for r in area.regions if r.type == 'PREVIEW'), None)
@@ -524,10 +525,37 @@ class PLASTRON_OT_title_double_click(bpy.types.Operator):
         return {'FINISHED'}
 
 
+_outline_want = {}        # area pointer -> show Blender's outline (typing in a title there)
+
+
+def _fix_outline():
+    for window in bpy.context.window_manager.windows:
+        for area in window.screen.areas:
+            want = _outline_want.pop(area.as_pointer(), None)
+            if want is not None and area.type == 'SEQUENCE_EDITOR':
+                area.spaces.active.preview_overlay.show_image_outline = want
+                area.tag_redraw()
+    _outline_want.clear()
+    return None
+
+
+def _sync_outline(context):
+    """Blender draws its text cursor (and the box being typed in) only with
+    its outline of selected clips on, which Plastron keeps off (it lagged
+    behind titles being dragged): on while typing, off again after (Ollie:
+    "there's no cursor suggesting any editing is going on")."""
+    want = typing(context)
+    if context.space_data.preview_overlay.show_image_outline != want:
+        _outline_want[context.area.as_pointer()] = want
+        if not bpy.app.timers.is_registered(_fix_outline):
+            bpy.app.timers.register(_fix_outline, first_interval=0.0)    # (not from inside a draw)
+
+
 def draw():
     context = bpy.context
     if not is_preview(context.space_data):
         return
+    _sync_outline(context)
     strip = boxed(context)
     if strip is None:
         return
@@ -727,6 +755,8 @@ def register():
 
 
 def unregister():
+    if bpy.app.timers.is_registered(_fix_outline):
+        bpy.app.timers.unregister(_fix_outline)
     while _handles:
         bpy.types.SpaceSequenceEditor.draw_handler_remove(_handles.pop(), 'PREVIEW')
     for cls in reversed(classes):

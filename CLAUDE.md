@@ -499,6 +499,8 @@ Plastron/
   button is let go: started after a click it waits forever and swallows
   keys and drags; from EXEC it ignores the mouse. Place the caret with
   text_cursor_move (TEXT_BEGIN, then NEXT_CHARACTER n times).
+- The preview's text-editing caret is drawn only with preview_overlay.
+  show_image_outline on (with it off, typing shows no cursor at all).
 - `animation_playback_post` exists (fires once when playback stops).
 - Setting `scene.frame_current` from Python runs frame_change handlers only
   on the next event loop: yield before checking their effect in tests.
@@ -1521,6 +1523,12 @@ Plastron/
   there, the caret at the clicked letter (titles.char_at from Plastron's
   own layout, then Blender's caret keys: text_cursor_set needs a held
   button, see gotchas); double-click / Tab type too; Enter = new line.
+  The text cursor (Ollie: "hard to tell, there's no cursor suggesting any
+  editing is going on"): Blender draws its caret and the box being typed
+  in only with its outline of selected clips on (preview_overlay.
+  show_image_outline), which Plastron keeps off (it lagged behind dragged
+  titles): titles' preview draw turns it on while typing and off after
+  (from a timer, titles._sync_outline).
   Text boxes (Ollie: "proper text boxes with text wrapping"): a selected
   title's box is its wrap width wide (wrap_width x frame width; its words
   if 0) and as tall as its wrapped lines (titles.wrapped_lines: greedy

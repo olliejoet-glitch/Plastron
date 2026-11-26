@@ -60,6 +60,10 @@ def steps():
             track is not None and tracks.name(sc, track) == "Titles" and track.kind == 'VIDEO'
             and t.channel == max(tracks.channel_of(sc, x) for x in tracks.video_tracks(sc)))
     h.check("...typing straight away", is_typing())
+    h.redraw()
+    yield 0.3
+    h.check("...with Blender's text cursor showing (its outline is on while typing)",
+            area.spaces.active.preview_overlay.show_image_outline)
     h.type_text("Hello")
     yield 0.3
     t = title_now()
@@ -73,6 +77,10 @@ def steps():
     h.key('ESC')
     yield 0.3
     h.check("Esc finishes typing", not is_typing())
+    h.redraw()
+    yield 0.3
+    h.check("...and the outline goes off again (it lagged behind dragged titles)",
+            not area.spaces.active.preview_overlay.show_image_outline)
     h.key('TAB')
     yield 0.3
     h.check("Tab on the selected title types in it again", is_typing())
