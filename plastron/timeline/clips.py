@@ -241,11 +241,18 @@ def _shift_keys(strip, delta):
             fc.update()
 
 
+# Hooks: func(strip, d) -> a clip's content slid by d frames under it (a ripple
+# trim of its start). features/scene3d/shots: a still picture's keys slide too.
+SLIDE_HOOKS = []
+
+
 def _slide(strip, d):
     """Slide the content by d frames under the clip, which stays where it is."""
     d = round(d)
     if not d:
         return
+    for func in SLIDE_HOOKS:
+        func(strip, d)
     s, e = start(strip), end(strip)
     if d < 0:
         # The content moves left (later content shows): trim the head first

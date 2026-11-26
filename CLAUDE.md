@@ -490,6 +490,11 @@ Plastron/
   new file name (panel_cache.render).
 - Undo / loading frees images Python still holds: a cached bpy Image in a
   module dict raises ReferenceError on use; check it (selection._alive).
+- Blender 5 Actions not assigned to anything work as key stores: action.
+  slots.new(id_type='SCENE'), layers.new, strips.new(type='KEYFRAME'),
+  channelbags.new(slot), fcurves.new / .find; fcurve.evaluate(t). A
+  PointerProperty to it on a strip counts as a user (kept on save). An
+  image strip with one picture has content_start = its left edge always.
 - `animation_playback_post` exists (fires once when playback stops).
 - Setting `scene.frame_current` from Python runs frame_change handlers only
   on the next event loop: yield before checking their effect in tests.
@@ -804,6 +809,11 @@ Plastron/
   "<project>_autosave/" (untitled: Plastron's settings folder). A marker file
   detects a crash and offers the newest autosave at the next start. Recovering
   into a saved project keeps the old file as "<project>_before_recover.blend".
+- Arrow keys (Ollie: "like in normal Blender"): Left / Right step the
+  playhead one frame (held: repeat), Shift+Left / Right to the start / end
+  (Blender's frame_offset / frame_jump, "Frames" keymap: over the canvas and
+  timeline; the script / title typing keep their own arrows). Up / Down stay
+  Plastron's previous / next cut.
 - Keys: Space = play/pause (types a space in the script panel). Pan =
   Alt+Shift+drag (also middle-mouse drag), zoom = Ctrl+Alt+drag (also wheel,
   Ctrl+= / Ctrl+-). Ctrl+0 fit (frame fills 90 %), Ctrl+1 100 % (preview
@@ -1265,6 +1275,30 @@ Plastron/
   (shots.migrate, scene flag plastron_clip_anim); the per-track place_*
   props stay registered only to read them. (Replaced: per-track cards +
   one camera timeline, then "Generated" fence keys at clip edges.)
+  CLIP TIME (Ollie: keyed moves "keep jumping around and disappearing when
+  I ripple edit stuff ... the current solution is fundamentally not fit"):
+  the keys above lived in the scene's action at TIMELINE frames under each
+  clip's NAME and were shifted by hand on moves (left trims shifted them
+  wrongly; renames / reused names lost or swapped them). Now each clip owns
+  an Action (strip.plastron_anim, its own copy after split / Alt+drag) with
+  keys in CLIP time: frames from the clip's origin. Origin = content_start
+  for footage / sound / scenes (Blender keeps it with the media); still
+  pictures (panels, titles...) have content_start = left edge, so they keep
+  their own anchor (plastron_anim_at + the edges last seen,
+  plastron_anim_seen): on clips_changed (shots.track) both edges moved by
+  the same amount = a move (anchor follows), one edge = trim / split (stays);
+  a ripple trim of the start slides it like footage's content
+  (clips.SLIDE_HOOKS). A frame-rate change scales them (rate.TIME_SCALERS).
+  Plastron evaluates them itself (fcurve.evaluate; card_place(clip, frame),
+  camera_pose). The keyframe view shows a COPY of the current clip's keys
+  in the scene action at timeline frames (shots.mirror, on refit / edits /
+  undo); a change there is copied back ONLY after a keyframe-view operator
+  ran by hand (ACTION_OT_* / ANIM_OT_* / GRAPH_OT_* / TRANSFORM_OT_transform,
+  the last of wm.operators, once each) and only for the same clip, file
+  and scene (pointers); anything else rewriting the copy just re-makes it
+  (an empty copy read back once wiped a clip's keys on save). Older
+  projects' timeline keys move into clip time once (shots.migrate_local,
+  scene flag plastron_clip_local; mirror runs it first).
   Keyframe view (Ollie: "an editable keyframe view"): a Dope Sheet area under
   the 3D scene view (layout "keys": script 40 % / 3D 38 % / keys 22 %), its
   keymaps kept (Dopesheet, Dopesheet Generic, Animation Channels): select,

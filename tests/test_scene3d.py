@@ -203,7 +203,9 @@ def steps():
             keys.spaces.active.dopesheet.filter_text == f"({first.name})", keys.spaces.active.dopesheet.filter_text)
 
     def key_frames():
-        return {(fc.data_path, round(k.co[0])) for fc in shots.scene_fcurves(sc) for k in fc.keyframe_points}
+        # (every clip's own keys, at timeline frames)
+        return {(f"{c.name}.{p}", round(k.co[0] + shots.origin(c))) for c in sc.sequence_editor.strips_all
+                for (p, _i), fc in shots.curves(c).items() for k in fc.keyframe_points}
 
     # Each clip owns its animation (Ollie: "the animation isn't actually stored per clip").
     a0, a1 = clips_mod.start(first), clips_mod.end(first)

@@ -4,8 +4,10 @@ the clip"). The keyframe view (Dope Sheet under the 3D scene) is framed on
 the clip being drawn on, start to end; outside it is dimmed, and the
 clip's name and length show at the top. When the playhead moves to another
 clip (scrubbing, playing) or the clip's length changes, it re-frames.
-It lists only that clip's own channels (each clip owns its keys, shots.py;
-Blender names them "... (<clip name>)", so the view's search filters by it).
+It lists only that clip's own channels: each clip owns its keys in its own
+time (shots.py), copied here at timeline frames for this clip only; edits
+made here are copied back. Blender names them "... (<clip name>)", so the
+view's search filters by it.
 
 Cost: the view's draw only compares the clip's (name, start, end) with the
 last framed; re-framing (Blender's zoom_border) runs from a timer.
@@ -60,6 +62,9 @@ def frame_on(window, area, start, end):
 
 def _refit():
     scene = bpy.context.scene
+    from . import shots
+    if not bpy.context.screen or not bpy.context.screen.is_animation_playing:
+        shots.mirror(scene)                  # (the keys shown are this clip's own)
     clip = current_clip(scene)
     if clip is None:
         return None

@@ -287,7 +287,7 @@ def _clip_place(scene, track):
     from ...timeline import clips, tracks
     if scene is None or track is None:
         return shots.card_place(None)
-    return shots.card_place(clips.at(scene, tracks.channel_of(scene, track), scene.frame_current))
+    return shots.card_place(clips.at(scene, tracks.channel_of(scene, track), scene.frame_current), scene.frame_current)
 
 
 def _clip_moves(scene, clip):
@@ -318,9 +318,9 @@ def remember_pose(cam):
 
 
 def shot_pose(scene):
-    clip = shot_clip(scene)
-    if clip is not None and clip.plastron_cam_set:
-        return tuple(clip.plastron_cam_location), tuple(clip.plastron_cam_rotation), clip.plastron_cam_lens
+    pose = shots.camera_pose(shot_clip(scene), scene.frame_current)
+    if pose is not None:
+        return pose
     loc, rot = rest_pose()
     return tuple(loc), tuple(rot), cfg.CAMERA_LENS
 
@@ -395,7 +395,7 @@ def _on_edit(scene, depsgraph):
     # Edits only (depsgraph_update_post doesn't run during playback): a card
     # moved in the scene view moves its track; the 3D camera moved is keyed.
     if _busy[0] or _held[0] or not (depsgraph.id_type_updated('OBJECT') or depsgraph.id_type_updated('CAMERA')
-                                    or depsgraph.id_type_updated('SCENE')):
+                                    or depsgraph.id_type_updated('SCENE') or depsgraph.id_type_updated('ACTION')):
         return
     if scene is None or not hasattr(scene, "plastron_timeline") or _playing() or _dragging_keys():
         return
@@ -416,8 +416,10 @@ def _on_edit(scene, depsgraph):
                 track = canvas_sync.sheet_track(scene, obj)
                 if track is not None and canvas_sync.moved_by_hand(obj):
                     _place_from(track, obj, scene)
-        if not moved_camera and depsgraph.id_type_updated('SCENE'):
-            # Keys edited (keyframe view): the camera / cards show the clips' new values.
+        if not moved_camera and (depsgraph.id_type_updated('SCENE') or depsgraph.id_type_updated('ACTION')):
+            # Keys edited (keyframe view): back into the clip's own keys; the
+            # camera / cards show the clips' new values.
+            shots.check_mirror(scene)
             _forget_shot()
             apply_camera(scene)
             canvas_sync.apply_places(scene)
@@ -576,8 +578,16 @@ def _draw_cards():
 classes = (PLASTRON_OT_view_focus, PLASTRON_OT_scene_select_camera, PLASTRON_OT_shot_reset, PLASTRON_MT_shot_reset)
 
 
+def _clips_changed(scene, **_info):
+    shots.track(scene)                   # (still pictures' clip time follows whole-clip moves)
+    shots.check_mirror(scene)
+
+
 def _after_undo(scene, *_args):
     _forget_shot()
+    shots.forget_mirror()
+    if scene is not None and hasattr(scene, "plastron_timeline"):
+        shots.mirror(scene, force=True)
     if scene is not None and hasattr(scene, "plastron_timeline"):
         _camera_frame(scene)
 
@@ -597,6 +607,8 @@ def _on_load(scene):
     if scene is not None and hasattr(scene, "plastron_timeline"):
         loc, rot = rest_pose()
         shots.migrate(scene, loc, rot, _shot_clip_at)
+        shots.migrate_local(scene)
+        shots.forget_mirror()
         from ..storyboard import canvas_sync
         canvas_sync.invalidate(scene)
         _camera_frame(scene)
@@ -638,6 +650,7 @@ def register():
     events.listen("project_created", ensure)
     for event in ("clips_changed", "tracks_changed", "active_track_changed"):
         events.listen(event, _forget_shot)
+    events.listen("clips_changed", _clips_changed)
 
 
 def unregister():

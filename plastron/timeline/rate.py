@@ -47,6 +47,11 @@ def _gain_keys(strip):
     return [k for k in strip.keys() if k.startswith("plastron_gain")]
 
 
+# Hooks: func(scene, k) -> times kept in frames elsewhere scaled by k (new / old rate)
+# (features/scene3d/shots: clips' own keys).
+TIME_SCALERS = []
+
+
 def change(scene, new_fps):
     """Set the project's frame rate, keeping everything at the same time.
     Returns False if it's already that rate."""
@@ -114,6 +119,8 @@ def _change_one(scene, r1):
             fc.update()
         except ReferenceError:
             pass
+    for func in TIME_SCALERS:
+        func(scene, k)
     for s, (fi, fo) in fade.items():
         if fi or fo:
             s.plastron.fade_in, s.plastron.fade_out = round(fi * k), round(fo * k)
