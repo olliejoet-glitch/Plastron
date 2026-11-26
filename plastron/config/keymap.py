@@ -157,6 +157,11 @@ SHORTCUTS = [
      {"side": 'RIGHT'}),
     ("playback",     "Up",               "plastron.jump_cut",            "Playhead to the previous cut", {"direction": -1}),
     ("playback",     "Down",             "plastron.jump_cut",            "Playhead to the next cut", {"direction": 1}),
+    # Blender's frame keys (Ollie: "the arrow keys need to move the playhead like in normal Blender").
+    ("playback",     "Left",             "screen.frame_offset",          "Playhead back one frame", {"delta": -1}),
+    ("playback",     "Right",            "screen.frame_offset",          "Playhead on one frame", {"delta": 1}),
+    ("playback",     "Shift+Left",       "screen.frame_jump",            "Playhead to the start", {"end": False}),
+    ("playback",     "Shift+Right",      "screen.frame_jump",            "Playhead to the end", {"end": True}),
     ("timeline",     "J",                "plastron.shuttle",             "Play backwards", {"direction": -1}),
     ("timeline",     "K",                "plastron.shuttle",             "Stop", {"direction": 0}),
     ("timeline",     "L",                "plastron.shuttle",             "Play"),
@@ -213,7 +218,7 @@ BLENDER_DROP = {
 }
 
 # Keys that keep firing while held down (like holding a key in a text box).
-REPEAT = {"Q", "W", "Ctrl+Z", "Ctrl+Shift+Z", "Ctrl+=", "Ctrl+-"}
+REPEAT = {"Q", "W", "Left", "Right", "Ctrl+Z", "Ctrl+Shift+Z", "Ctrl+=", "Ctrl+-"}
 
 
 # Blender shortcuts that stay switched on. Everything else is turned off.
