@@ -495,6 +495,10 @@ Plastron/
   channelbags.new(slot), fcurves.new / .find; fcurve.evaluate(t). A
   PointerProperty to it on a strip counts as a user (kept on save). An
   image strip with one picture has content_start = its left edge always.
+- sequencer.text_cursor_set (preview text) runs modal until the mouse
+  button is let go: started after a click it waits forever and swallows
+  keys and drags; from EXEC it ignores the mouse. Place the caret with
+  text_cursor_move (TEXT_BEGIN, then NEXT_CHARACTER n times).
 - `animation_playback_post` exists (fires once when playback stops).
 - Setting `scene.frame_current` from Python runs frame_change handlers only
   on the next event loop: yield before checking their effect in tests.
@@ -1507,11 +1511,14 @@ Plastron/
   Font...), colour, alignment, wrap, outline / shadow / box. Copy / paste
   attributes has "Text Style". Blender's own outline of selected clips in
   the preview is off (it lagged behind titles; Plastron draws its boxes).
-  features/edit/titles.py. Lines (Ollie: "easily add new lines"): a
-  Blender text field holds one line, so the Clip panel shows one field per
-  line (WindowManager plastron_title_line_0..N, get / set on the active
-  title's text split at newlines), + Line adds one, x removes one
-  (TITLE_MAX_LINES); in the picture Enter makes a new line.
+  features/edit/titles.py. Words are edited ONLY in the picture (Ollie:
+  "I really don't want text editing to be in side menus, just let me edit
+  the text directly in the text box"; the Clip panel's per-line fields are
+  gone, it keeps the look: style, font, size, colour...): click a title to
+  select it, click its text again (moving under TITLE_CLICK_PX) to type
+  there, the caret at the clicked letter (titles.char_at from Plastron's
+  own layout, then Blender's caret keys: text_cursor_set needs a held
+  button, see gotchas); double-click / Tab type too; Enter = new line.
   Text boxes (Ollie: "proper text boxes with text wrapping"): a selected
   title's box is its wrap width wide (wrap_width x frame width; its words
   if 0) and as tall as its wrapped lines (titles.wrapped_lines: greedy

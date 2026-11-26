@@ -85,21 +85,39 @@ def steps():
     h.key('K')
     yield 0.3
 
-    # Lines in the Clip panel: one field each, + Line adds one, x removes one.
+    # Clicking a selected title's text (without moving) types in it; the words
+    # are never edited in a side panel.
     sc = bpy.context.scene
     t = title_now()
-    for s in clips.top_clips(sc):
-        s.select = s == t
+    for s_ in clips.top_clips(sc):
+        s_.select = s_ == t
     sc.sequence_editor.active_strip = t
-    wm.plastron_title_line_0 = "First line"
-    with h.override('SEQUENCE_EDITOR'):
-        bpy.ops.plastron.title_line(remove=-1)
-    h.check("+ Line adds a line", t.text.count("\n") == 2, repr(t.text))
-    wm.plastron_title_line_2 = "Third line"
-    h.check("...each line has its own field", t.text == "First line\njkl\nThird line", repr(t.text))
-    with h.override('SEQUENCE_EDITOR'):
-        bpy.ops.plastron.title_line(remove=1)
-    h.check("x removes a line", t.text == "First line\nThird line", repr(t.text))
+    with bpy.context.temp_override(window=h.window(), area=area, region=region):
+        h.redraw()
+        x0, y0, x1, y1 = titles._region_rect(region, titles.rect(sc, t))
+    loc = tuple(t.location)
+    cx, cy = region.x + x0 + 0.2 * (x1 - x0), region.y + y1 - 0.3 * (y1 - y0)   # (early in the first line)
+    h.move(cx, cy)
+    yield 0.2
+    h._event('LEFTMOUSE', 'PRESS')
+    h.move(cx + 2, cy + 1)                                                  # (a pen's wobble)
+    h._event('LEFTMOUSE', 'RELEASE')
+    for _ in range(20):
+        yield 0.1
+        if is_typing():
+            break
+    t = title_now()
+    h.check("clicking the selected title's text types in it (a wobble doesn't move it)",
+            is_typing() and tuple(t.location) == loc, (is_typing(), loc, tuple(t.location)))
+    h.type_text("Z")
+    yield 0.3
+    first = title_now().text.split("\n")[0]
+    h.check("...the letters go where you clicked (early in the first line)",
+            "Z" in first and first.index("Z") <= 3, title_now().text)
+    h.key('ESC')
+    yield 0.3
+    h.check("the Clip panel has no fields for the words",
+            not hasattr(bpy.types.WindowManager, "plastron_title_line_0"))
 
     # Styles.
     sc = bpy.context.scene

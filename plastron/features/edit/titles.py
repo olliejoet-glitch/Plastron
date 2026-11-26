@@ -6,12 +6,16 @@ at the playhead on a "Titles" track (made on top of the video tracks if
 missing), TITLE_SECONDS long, and starts typing in it right away: the words
 are typed in the picture itself (Blender's text editing in the preview:
 arrows, Home / End, Shift to select, Ctrl+A / C / V / X, Enter = new line).
-Tab or Esc finishes; Tab on a selected title (or double-clicking it in the
-preview) types in it again. While typing, Plastron's own preview keys stand
-aside (core/views.typing).
+Tab or Esc finishes. Editing the words is only ever done in the picture
+(Ollie: "I really don't want text editing to be in side menus, just let me
+edit the text directly in the text box"): click a title to select it, click
+its text again to type there (the caret goes where you clicked); double-click
+or Tab work too. While typing, Plastron's own preview keys stand aside
+(core/views.typing).
 
-A selected title has a box in the preview: drag inside to move it, a corner
-to size it (the font grows / shrinks). Its look (font, size, colour,
+A selected title has a box in the preview: drag inside to move it (a click
+without moving types instead), a corner to size it (the font grows /
+shrinks), a side to set where it wraps. Its look (font, size, colour,
 outline, shadow, box behind it, alignment) is in the Clip panel, with
 styles (presets/titles/: Big Title, Lower Third, Caption, + your own).
 Titles are clips like any other: fades, cuts, ripple, copy / paste
@@ -171,7 +175,7 @@ def _preview_area(context):
     return None
 
 
-def start_typing(context, strip, select_all=False):
+def start_typing(context, strip, select_all=False, caret=None):
     """Type in the title in the preview (Blender's text editing). False if
     there's no preview to type in."""
     where = _preview_area(context)
@@ -204,6 +208,8 @@ def start_typing(context, strip, select_all=False):
                 bpy.ops.sequencer.text_edit_mode_toggle()
                 if select_all and typing(bpy.context):
                     bpy.ops.sequencer.text_select_all()
+                elif caret is not None and typing(bpy.context):
+                    place_caret(caret)                  # (the caret where you clicked)
                 area.tag_redraw()
                 return None
         tries[0] += 1
@@ -244,7 +250,7 @@ class PLASTRON_OT_title_add(bpy.types.Operator):
             self.report({'WARNING'}, got)
             return {'CANCELLED'}
         if not start_typing(context, got, select_all=True):
-            self.report({'INFO'}, "Title added: type its words in the Clip panel (no preview open)")
+            self.report({'INFO'}, "Title added: open a video preview to type its words")
         for area in context.screen.areas:
             area.tag_redraw()
         return {'FINISHED'}
@@ -332,6 +338,50 @@ def rect(scene, strip):
     return x0 - m, y0 - m, x0 + width + m, y0 + height + m
 
 
+def char_at(scene, strip, vx, vy):
+    """Index in strip.text of the letter gap nearest preview point (vx, vy):
+    where a click in the picture puts the caret (laid out as rect() does)."""
+    size = strip.font_size
+    fid = _blf_id(strip)
+    blf.size(fid, size)
+    bold = 1.06 if strip.use_bold else 1.0
+    x0, _y0, x1, y1 = rect(scene, strip)
+    m = strip.box_margin * scene.render.resolution_x if strip.use_box else 0
+    x0, x1, y1 = x0 + m, x1 - m, y1 - m
+    wrap = strip.wrap_width * scene.render.resolution_x if strip.wrap_width > 0 else 0
+    # Visual lines with where each starts in the text (a wrap eats its space).
+    rows, offset = [], 0
+    for para in strip.text.split("\n"):
+        pieces = wrapped_lines(_Para(para, strip), fid, wrap / bold if wrap else 0)
+        for k, piece in enumerate(pieces):
+            rows.append((offset, piece))
+            offset += len(piece) + (1 if k < len(pieces) - 1 else 0)
+        offset += 1                                    # (the newline)
+    row = min(len(rows) - 1, max(0, int((y1 - vy) / (size * 1.2))))
+    start, line = rows[row]
+    lw = blf.dimensions(fid, line)[0] * bold if line else 0
+    lx = {"LEFT": x0, "RIGHT": x1 - lw}.get(strip.alignment_x, (x0 + x1 - lw) / 2)
+    best, best_d = 0, abs(vx - lx)
+    for i in range(1, len(line) + 1):
+        d = abs(vx - (lx + blf.dimensions(fid, line[:i])[0] * bold))
+        if d < best_d:
+            best, best_d = i, d
+    return start + best
+
+
+class _Para:
+    """One paragraph as wrapped_lines reads a title (its .text)."""
+    def __init__(self, text, strip):
+        self.text = text
+
+
+def place_caret(index):
+    """While typing in a title: the caret to index (Blender's caret keys)."""
+    bpy.ops.sequencer.text_cursor_move(type='TEXT_BEGIN')
+    for _ in range(index):
+        bpy.ops.sequencer.text_cursor_move(type='NEXT_CHARACTER')
+
+
 def boxed(context):
     """The selected title shown in the picture now (not while typing)."""
     strip = active_title(context)
@@ -400,6 +450,8 @@ class PLASTRON_OT_title_box(bpy.types.Operator):
         self.centre = ((r[0] + r[2]) / 2, (r[1] + r[3]) / 2)
         self.box = r
         self.last_xy = None
+        self.press_xy = (event.mouse_region_x, event.mouse_region_y)
+        self.moved = False
         from ... import timeline as _timeline
         _timeline.pause_prefetch(context.scene)       # (frames-ahead off while dragging)
         context.window_manager.modal_handler_add(self)
@@ -410,6 +462,12 @@ class PLASTRON_OT_title_box(bpy.types.Operator):
         if event.type == 'MOUSEMOVE':
             if (event.mouse_region_x, event.mouse_region_y) == self.last_xy:
                 return {'RUNNING_MODAL'}
+            if not self.moved:              # (a pen wobbles: a click is still a click)
+                dx = event.mouse_region_x - self.press_xy[0]
+                dy = event.mouse_region_y - self.press_xy[1]
+                if dx * dx + dy * dy < cfg.TITLE_CLICK_PX ** 2:
+                    return {'RUNNING_MODAL'}
+                self.moved = True
             self.last_xy = (event.mouse_region_x, event.mouse_region_y)
             vx, vy = context.region.view2d.region_to_view(event.mouse_region_x, event.mouse_region_y)
             r = scene.render
@@ -437,7 +495,11 @@ class PLASTRON_OT_title_box(bpy.types.Operator):
                 self.strip.font_size = max(4.0, self.size * now / was)
             context.area.tag_redraw()
         elif event.type == 'LEFTMOUSE' and event.value == 'RELEASE':
-            return {'FINISHED'}
+            if not self.moved and self.part == 'MOVE':
+                vx, vy = context.region.view2d.region_to_view(*self.press_xy)
+                start_typing(context, self.strip, caret=char_at(scene, self.strip, vx, vy))   # (type where clicked)
+                return {'CANCELLED'}                             # (no undo step: nothing changed)
+            return {'FINISHED'} if self.moved else {'CANCELLED'}
         elif event.type in {'ESC', 'RIGHTMOUSE'} and event.value == 'PRESS':
             self.strip.location = self.loc
             self.strip.font_size = self.size
@@ -457,7 +519,8 @@ class PLASTRON_OT_title_double_click(bpy.types.Operator):
         strip = boxed(context)
         if strip is None or hit(context, event.mouse_region_x, event.mouse_region_y) is None:
             return {'PASS_THROUGH'}
-        start_typing(context, strip)
+        vx, vy = context.region.view2d.region_to_view(event.mouse_region_x, event.mouse_region_y)
+        start_typing(context, strip, caret=char_at(context.scene, strip, vx, vy))
         return {'FINISHED'}
 
 
@@ -621,18 +684,7 @@ def draw_panel(layout, context, strip):
     row = box.row(align=True)
     row.label(text="Text", icon='FONT_DATA')
     row.menu("PLASTRON_MT_title_styles", text="Style", icon='PRESET')
-    wm = context.window_manager
-    lines = strip.text.split("\n")
-    col = box.column(align=True)
-    for i in range(min(len(lines), cfg.TITLE_MAX_LINES)):     # (a Blender field holds one line: one each)
-        row = col.row(align=True)
-        row.prop(wm, f"plastron_title_line_{i}", text="")
-        if len(lines) > 1:
-            row.operator("plastron.title_line", text="", icon='X').remove = i
-    row = box.row(align=True)
-    add = row.operator("plastron.title_line", text="Line", icon='ADD')
-    add.remove = -1
-    row.operator("plastron.title_type", text="Type in the Picture (Tab)", icon='GREASEPENCIL')
+    box.label(text="Click its text in the picture to edit it", icon='INFO')
     row = box.row(align=True)
     row.prop(strip, "font_size", text="Size")
     row.prop(strip, "use_bold", text="", icon='BOLD', toggle=True)
@@ -655,72 +707,19 @@ def draw_panel(layout, context, strip):
         sub.prop(strip, extra, text="")
 
 
-def _line_get(i):
-    def get(wm):
-        strip = active_title(bpy.context)
-        lines = strip.text.split("\n") if strip else []
-        return lines[i] if i < len(lines) else ""
-    return get
-
-
-def _line_set(i):
-    def set_(wm, value):
-        strip = active_title(bpy.context)
-        if strip is None:
-            return
-        lines = strip.text.split("\n")
-        while len(lines) <= i:
-            lines.append("")
-        lines[i] = value.replace("\n", " ")
-        strip.text = "\n".join(lines)
-    return set_
-
-
-class PLASTRON_OT_title_line(bpy.types.Operator):
-    """Add a line to the title (or remove this one)"""
-    bl_idname = "plastron.title_line"
-    bl_label = "Title Line"
-    bl_options = {'REGISTER', 'UNDO', 'INTERNAL'}
-
-    remove: bpy.props.IntProperty(default=-1)
-
-    @classmethod
-    def description(cls, _context, props):
-        return "Remove this line" if props.remove >= 0 else "Add a new line under the others"
-
-    def execute(self, context):
-        strip = active_title(context)
-        if strip is None:
-            return {'CANCELLED'}
-        lines = strip.text.split("\n")
-        if self.remove >= 0:
-            if len(lines) > 1 and self.remove < len(lines):
-                del lines[self.remove]
-        elif len(lines) < cfg.TITLE_MAX_LINES:
-            lines.append("")
-        strip.text = "\n".join(lines)
-        for area in context.screen.areas:
-            area.tag_redraw()
-        return {'FINISHED'}
-
-
 def draw_preview_button(layout, context):
     layout.operator("plastron.title_add", text="Text", icon='FONT_DATA')
 
 
 classes = (PLASTRON_OT_title_add, PLASTRON_OT_title_type, PLASTRON_OT_title_finish, PLASTRON_OT_title_box,
            PLASTRON_OT_title_double_click, PLASTRON_MT_title_styles, PLASTRON_OT_title_font,
-           PLASTRON_OT_title_font_pick, PLASTRON_OT_title_fonts_folder, PLASTRON_MT_title_fonts,
-           PLASTRON_OT_title_line)
+           PLASTRON_OT_title_font_pick, PLASTRON_OT_title_fonts_folder, PLASTRON_MT_title_fonts)
 _handles = []
 
 
 def register():
     for cls in classes:
         bpy.utils.register_class(cls)
-    for i in range(cfg.TITLE_MAX_LINES):
-        setattr(bpy.types.WindowManager, f"plastron_title_line_{i}", bpy.props.StringProperty(
-            name=f"Line {i + 1}", description="A line of the title's words", get=_line_get(i), set=_line_set(i)))
     presets.register_kind(KIND, apply=_preset_apply, capture=_preset_capture)
     from ...timeline import header
     header.add_preview_section(draw_preview_button)
@@ -728,8 +727,6 @@ def register():
 
 
 def unregister():
-    for i in range(cfg.TITLE_MAX_LINES):
-        delattr(bpy.types.WindowManager, f"plastron_title_line_{i}")
     while _handles:
         bpy.types.SpaceSequenceEditor.draw_handler_remove(_handles.pop(), 'PREVIEW')
     for cls in reversed(classes):

@@ -83,4 +83,4 @@ TITLE_FONT = "Inter.woff2"        # Blender's own sans font (its text clips defa
 TITLE_BOX = {                     # the move / size box around a selected title in the preview
     "color": "orange", "alpha": 0.9, "handle_px": 7, "grab_px": 10, "margin_px": 6,
 }
-TITLE_MAX_LINES = 12              # lines a title can have in the Clip panel (one field each)
+TITLE_CLICK_PX = 4                # a click on a title's text that moves less than this types instead of moving
