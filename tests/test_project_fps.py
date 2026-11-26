@@ -20,7 +20,8 @@ def snapshot(sc):
     out = {}
     for s in clips.all_clips(sc):
         out[s.name] = (clips.start(s) / r, clips.end(s) / r, s.content_start / r)
-    keys = sorted([round(k.co[0] / r, 2) for fc in shots.scene_fcurves(sc) for k in fc.keyframe_points]
+    keys = sorted([round(k.co[0] / r, 2) for fc in shots.scene_fcurves(sc) for k in fc.keyframe_points
+                   if not fc.data_path.endswith(shots.ANIM_PROPS)]      # (not the keyframe view's copy)
                   + [round((k.co[0] + shots.origin(c)) / r, 2) for c in sc.sequence_editor.strips_all
                      for fc in shots.curves(c).values() for k in fc.keyframe_points])     # (clips' own keys)
     marks = sorted(round(m.frame / r, 2) for m in sc.timeline_markers)
