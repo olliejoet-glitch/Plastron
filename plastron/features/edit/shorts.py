@@ -109,6 +109,8 @@ class PLASTRON_OT_shorts_drag(bpy.types.Operator):
         self.strip_name = strip.name
         self.x0 = context.region.view2d.region_to_view(event.mouse_region_x, 0)[0]
         self.orig = short_x(strip)
+        from ... import timeline as _timeline
+        _timeline.pause_prefetch(context.scene)       # (frames-ahead off while dragging)
         context.window_manager.modal_handler_add(self)
         return {'RUNNING_MODAL'}
 
@@ -117,7 +119,7 @@ class PLASTRON_OT_shorts_drag(bpy.types.Operator):
         strip = scene.sequence_editor.strips_all.get(self.strip_name)
         if strip is None:
             return {'CANCELLED'}
-        if event.type in {'MOUSEMOVE', 'INBETWEEN_MOUSEMOVE'}:
+        if event.type == 'MOUSEMOVE':
             x = context.region.view2d.region_to_view(event.mouse_region_x, 0)[0]
             strip[KEY] = max(-1.0, min(1.0, self.orig + (x - self.x0) / travel(scene)))
             context.area.tag_redraw()

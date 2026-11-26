@@ -323,6 +323,8 @@ class PLASTRON_OT_fade_drag(bpy.types.Operator):
         strip, self.side = found
         self.strip_name = strip.name
         self.orig = strip.plastron.fade_in if self.side == 'IN' else strip.plastron.fade_out
+        from .. import timeline as _timeline
+        _timeline.pause_prefetch(context.scene)       # (frames-ahead off while dragging)
         context.window_manager.modal_handler_add(self)
         return {'RUNNING_MODAL'}
 
@@ -331,7 +333,7 @@ class PLASTRON_OT_fade_drag(bpy.types.Operator):
         strip = scene.sequence_editor.strips_all.get(self.strip_name)
         if strip is None:
             return {'CANCELLED'}
-        if event.type in {'MOUSEMOVE', 'INBETWEEN_MOUSEMOVE'}:
+        if event.type == 'MOUSEMOVE':
             f = round(context.region.view2d.region_to_view(event.mouse_region_x, 0)[0])
             other = strip.plastron.fade_out if self.side == 'IN' else strip.plastron.fade_in
             room = clips.length(strip) - other

@@ -168,7 +168,7 @@ SHORTCUTS = [
     ("preview",      "T",                "plastron.title_add",           "Add a title (text over the picture) at the playhead and type it"),
     ("timeline",     "T",                "plastron.title_add",           "Add a title (text over the picture) at the playhead and type it"),
     ("preview",      "Esc",              "plastron.title_finish",        "Finish typing a title"),
-    ("preview",      "LMB",              "plastron.title_box",           "Drag a selected title: inside moves it, a corner sizes it"),
+    ("preview",      "LMB",              "plastron.title_box",           "Drag a selected title: inside moves it, a corner sizes the text, a side sets where it wraps"),
     ("preview",      "LMB double",       "plastron.title_double_click",  "Double-click a title: type in it"),
     ("preview",      "J",                "plastron.shuttle",             "Play backwards", {"direction": -1}),
     ("preview",      "K",                "plastron.shuttle",             "Stop", {"direction": 0}),

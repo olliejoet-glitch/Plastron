@@ -64,6 +64,44 @@ def dragging():
     return any(len(w.modal_operators) for w in (wm.windows if wm else []))
 
 
+_paused = {}             # scene name -> was prefetch on (paused for a drag)
+
+
+def pause_prefetch(scene):
+    """For a drag: switch off Blender's frames-ahead (prefetch) thread until
+    it ends. Every change to a clip makes Blender stop that thread first (it
+    may be decoding 4K footage), which made each pen move slow (Ollie:
+    "moving images has become very slow")."""
+    sed = scene.sequence_editor if scene else None
+    if sed is None or scene.name in _paused:
+        return
+    _paused[scene.name] = sed.use_prefetch
+    if sed.use_prefetch:
+        sed.use_prefetch = False
+    if not bpy.app.timers.is_registered(_resume_prefetch):
+        bpy.app.timers.register(_resume_prefetch, first_interval=0.2)
+
+
+def _resume_prefetch():
+    if dragging():
+        return 0.2
+    for name, was in _paused.items():
+        scene = bpy.data.scenes.get(name)
+        if was and scene is not None and scene.sequence_editor is not None:
+            scene.sequence_editor.use_prefetch = True
+    _paused.clear()
+    return None
+
+
+def _prefetch_back(*_args):
+    """After undo / redo (a step saved mid-drag holds prefetch off)."""
+    if _paused:
+        return
+    for scene in bpy.data.scenes:
+        if scene.sequence_editor is not None and not scene.sequence_editor.use_prefetch:
+            scene.sequence_editor.use_prefetch = True
+
+
 def _flush():
     # A drag (a title / picture moved in the preview, an edge...) changes the
     # scene on every mouse move: the timeline is refreshed once, when it ends
@@ -97,6 +135,8 @@ def register():
     events.listen("clips_changed", _update_frame_range)
     handlers.on_load(_on_load)
     handlers.add("depsgraph_update_post", _on_depsgraph)
+    handlers.add("undo_post", _prefetch_back)
+    handlers.add("redo_post", _prefetch_back)
 
 
 def unregister():

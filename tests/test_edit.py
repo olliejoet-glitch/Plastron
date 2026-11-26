@@ -271,7 +271,18 @@ def steps():
     corners = fb.corners_view(clip)
     centre = (corners[0] + corners[2]) / 2
     start = at(centre + (corners[1] - centre) * 0.3)
-    yield from h.drag(start, (start[0] + 60, start[1] + 20), steps=10)
+    sed_ = bpy.context.scene.sequence_editor
+    sed_.use_prefetch = True
+    seen = []
+
+    def drag_watching():
+        for step in h.drag(start, (start[0] + 60, start[1] + 20), steps=10):
+            seen.append(sed_.use_prefetch)
+            yield step
+    yield from drag_watching()
+    yield 0.6
+    h.check("while dragging in the preview Blender's frames-ahead thread is off (each move waited for it), back on after",
+            False in seen[3:-1] and bpy.context.scene.sequence_editor.use_prefetch, (seen, sed_.use_prefetch))
     yield 0.3
     h.check("dragging inside the clip's box moves it", t.offset_x > 100 and t.offset_y > 20, (t.offset_x, t.offset_y))
     sx0 = t.scale_x

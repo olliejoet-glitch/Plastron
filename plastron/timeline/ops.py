@@ -150,6 +150,8 @@ class PLASTRON_OT_clip_trim(bpy.types.Operator):
         self.orig = ripple.snapshot(scene)
         self.content = ripple.content_snapshot(scene)
         self.targets = snapping.targets(scene, exclude={self.strip})
+        from .. import timeline as _timeline
+        _timeline.pause_prefetch(scene)                  # (frames-ahead off while dragging)
         context.window_manager.modal_handler_add(self)
         return {'RUNNING_MODAL'}
 

@@ -444,6 +444,11 @@ Plastron/
   in the preview changed the scene on every move and refreshed the whole
   timeline ~10x a second (Ollie: "dragging the text and images is really
   slow").
+- Every change to a clip makes Blender stop its frames-ahead (prefetch)
+  thread first (it may be decoding 4K footage): drags pause prefetch
+  (timeline.pause_prefetch at the drag's start; back on from a timer once no
+  drag runs, and after undo / redo) and skip a pen's in-between moves
+  (Ollie: "moving images has become very slow in the viewport").
 - Window.modal_operators lists running modal operators (placement waits
   while a TRANSFORM_OT_* drag runs).
 - Strip.split copies Plastron's PointerProperties (voice takes, panel data).
@@ -1452,6 +1457,13 @@ Plastron/
   line (WindowManager plastron_title_line_0..N, get / set on the active
   title's text split at newlines), + Line adds one, x removes one
   (TITLE_MAX_LINES); in the picture Enter makes a new line.
+  Text boxes (Ollie: "proper text boxes with text wrapping"): a selected
+  title's box is its wrap width wide (wrap_width x frame width; its words
+  if 0) and as tall as its wrapped lines (titles.wrapped_lines: greedy
+  word wrap measured with blf in the title's font); side handles set the
+  wrap width (anchored side stays; centre-anchored: both move), corners
+  size the text, inside moves it. Blender's own background box (use_box)
+  still hugs the words, not the wrap width.
 - Info windows (Ollie: "little info windows using this UI ... a nested
   timeline ... clips that auto-crop to the UI"): Window (preview header)
   picks a style (presets/windows/*.png + your own folder plastron_windows/:

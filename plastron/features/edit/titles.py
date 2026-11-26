@@ -287,21 +287,42 @@ class PLASTRON_OT_title_finish(bpy.types.Operator):
 
 # --- The box: move / size a title in the preview ------------------------------------------------
 
+def wrapped_lines(strip, fid, width):
+    """The title's lines as Blender wraps them at width (px; 0: no wrap)."""
+    out = []
+    for para in strip.text.split("\n"):
+        if width <= 0:
+            out.append(para)
+            continue
+        line = ""
+        for word in para.split(" "):
+            test = (line + " " + word) if line else word
+            if line and blf.dimensions(fid, test)[0] > width:
+                out.append(line)
+                line = word
+            else:
+                line = test
+        out.append(line)
+    return out or [""]
+
+
 def rect(scene, strip):
-    """(x0, y0, x1, y1) of the title's words in preview (project pixel)
-    coordinates, (0, 0) at the frame's middle. Measured with Blender's font
-    at the title's size: close enough to grab."""
+    """(x0, y0, x1, y1) of the title's text box in preview (project pixel)
+    coordinates, (0, 0) at the frame's middle: as wide as its wrap width
+    (else its words), as tall as its wrapped lines. Measured with the
+    title's own font: close enough to grab."""
     r = scene.render
     w_px, h_px = r.resolution_x, r.resolution_y
     size = strip.font_size
     fid = _blf_id(strip)
     blf.size(fid, size)
-    lines = strip.text.split("\n") or [""]
-    width = max([blf.dimensions(fid, line or " ")[0] for line in lines] + [size * 0.6])
-    if strip.use_bold:
-        width *= 1.06                                  # (Blender makes bold by thickening)
-    if strip.wrap_width > 0:
-        width = min(width, strip.wrap_width * w_px)
+    bold = 1.06 if strip.use_bold else 1.0                 # (Blender makes bold by thickening)
+    wrap = strip.wrap_width * w_px if strip.wrap_width > 0 else 0
+    lines = wrapped_lines(strip, fid, wrap / bold if wrap else 0)
+    if wrap:
+        width = wrap
+    else:
+        width = max([blf.dimensions(fid, line or " ")[0] for line in lines] + [size * 0.6]) * bold
     height = size * (1.2 * (len(lines) - 1) + 1.0)
     lx = (strip.location[0] - 0.5) * w_px + strip.transform.offset_x
     ly = (strip.location[1] - 0.5) * h_px + strip.transform.offset_y
@@ -335,7 +356,8 @@ def _ui(px):
 
 def hit(context, x, y):
     """'MOVE', a corner index (0-3: bottom-left, bottom-right, top-right,
-    top-left), or None."""
+    top-left), 'LEFT' / 'RIGHT' (a side: the box's width = where the words
+    wrap), or None."""
     strip = boxed(context)
     if strip is None:
         return None
@@ -344,13 +366,18 @@ def hit(context, x, y):
     for i, (cx, cy) in enumerate(((x0, y0), (x1, y0), (x1, y1), (x0, y1))):
         if abs(x - cx) <= grab and abs(y - cy) <= grab:
             return i
+    if y0 <= y <= y1:
+        if abs(x - x0) <= grab:
+            return 'LEFT'
+        if abs(x - x1) <= grab:
+            return 'RIGHT'
     if x0 - grab <= x <= x1 + grab and y0 - grab <= y <= y1 + grab:
         return 'MOVE'
     return None
 
 
 class PLASTRON_OT_title_box(bpy.types.Operator):
-    """Drag the selected title: inside moves it, a corner sizes it"""
+    """Drag the selected title: inside moves it, a corner sizes the text, a side sets where it wraps"""
     bl_idname = "plastron.title_box"
     bl_label = "Move / Size Title"
     bl_options = {'REGISTER', 'UNDO', 'GRAB_CURSOR', 'BLOCKING'}
@@ -368,17 +395,38 @@ class PLASTRON_OT_title_box(bpy.types.Operator):
         self.start_view = context.region.view2d.region_to_view(event.mouse_region_x, event.mouse_region_y)
         self.loc = tuple(self.strip.location)
         self.size = self.strip.font_size
+        self.wrap = self.strip.wrap_width
         r = rect(context.scene, self.strip)
         self.centre = ((r[0] + r[2]) / 2, (r[1] + r[3]) / 2)
+        self.box = r
+        self.last_xy = None
+        from ... import timeline as _timeline
+        _timeline.pause_prefetch(context.scene)       # (frames-ahead off while dragging)
         context.window_manager.modal_handler_add(self)
         return {'RUNNING_MODAL'}
 
     def modal(self, context, event):
         scene = context.scene
         if event.type == 'MOUSEMOVE':
+            if (event.mouse_region_x, event.mouse_region_y) == self.last_xy:
+                return {'RUNNING_MODAL'}
+            self.last_xy = (event.mouse_region_x, event.mouse_region_y)
             vx, vy = context.region.view2d.region_to_view(event.mouse_region_x, event.mouse_region_y)
             r = scene.render
-            if self.part == 'MOVE':
+            if self.part in ('LEFT', 'RIGHT'):
+                # The box's width = where the words wrap. Anchored in the
+                # middle: both sides move; else the anchored side stays.
+                x0, _y0, x1, _y1 = self.box
+                m = self.strip.box_margin * r.resolution_x if self.strip.use_box else 0
+                if self.strip.anchor_x == 'CENTER':
+                    width = 2 * abs(vx - (x0 + x1) / 2)
+                elif self.strip.anchor_x == 'LEFT':
+                    width = vx - x0 if self.part == 'RIGHT' else x1 - vx
+                else:
+                    width = x1 - vx if self.part == 'LEFT' else vx - x0
+                width -= 2 * m
+                self.strip.wrap_width = min(1.0, max(0.03, width / r.resolution_x))
+            elif self.part == 'MOVE':
                 dx = (vx - self.start_view[0]) / r.resolution_x
                 dy = (vy - self.start_view[1]) / r.resolution_y
                 self.strip.location = (self.loc[0] + dx, self.loc[1] + dy)
@@ -393,6 +441,7 @@ class PLASTRON_OT_title_box(bpy.types.Operator):
         elif event.type in {'ESC', 'RIGHTMOUSE'} and event.value == 'PRESS':
             self.strip.location = self.loc
             self.strip.font_size = self.size
+            self.strip.wrap_width = self.wrap
             context.area.tag_redraw()
             return {'CANCELLED'}
         return {'RUNNING_MODAL'}
@@ -430,6 +479,11 @@ def draw():
     tris = []
     for cx, cy in ((x0, y0), (x1, y0), (x1, y1), (x0, y1)):
         tris += [(cx - s, cy - s), (cx + s, cy - s), (cx + s, cy + s), (cx - s, cy - s), (cx + s, cy + s), (cx - s, cy + s)]
+    my = (y0 + y1) / 2                                  # side handles: drag to set where the words wrap
+    h2 = min(s * 3, (y1 - y0) / 2)
+    for cx in (x0, x1):
+        tris += [(cx - s * 0.6, my - h2), (cx + s * 0.6, my - h2), (cx + s * 0.6, my + h2),
+                 (cx - s * 0.6, my - h2), (cx + s * 0.6, my + h2), (cx - s * 0.6, my + h2)]
     batch_for_shader(shader, 'TRIS', {"pos": tris}).draw(shader)
     gpu.state.blend_set('NONE')
 

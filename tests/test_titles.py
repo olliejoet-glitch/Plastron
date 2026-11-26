@@ -47,6 +47,10 @@ def steps():
     yield 0.2
     h.key('T')
     yield 0.5
+    for _ in range(20):                      # (typing starts once the preview has drawn the new title)
+        if is_typing():
+            break
+        yield 0.1
     sc = bpy.context.scene
     t = title_now()
     h.check("T over the preview adds a title at the playhead", t is not None and clips.start(t) == 30,
@@ -141,6 +145,28 @@ def steps():
     yield 0.3
     t = title_now()
     h.check("dragging a corner makes the text bigger", t.font_size > size * 1.1, (size, t.font_size))
+    size2 = t.font_size
+    # A text box: the words wrap at its width; a side handle sets the width.
+    t = title_now()
+    t.text = "A much longer title that has to wrap onto more lines inside its box"
+    t.wrap_width = 0.3
+    yield 0.3
+    with bpy.context.temp_override(window=h.window(), area=area, region=region):
+        h.redraw()
+        bx = titles.rect(sc, t)
+        one = t.font_size * 1.2
+    h.check("a long title wraps inside its box: as wide as the wrap width, several lines tall",
+            abs((bx[2] - bx[0]) - (0.3 * sc.render.resolution_x + (2 * t.box_margin * sc.render.resolution_x
+                                                                    if t.use_box else 0))) < 2
+            and (bx[3] - bx[1]) > 2.5 * one, (bx, one))
+    with bpy.context.temp_override(window=h.window(), area=area, region=region):
+        x0, y0, x1, y1 = titles._region_rect(region, bx)
+    wrap = t.wrap_width
+    yield from h.drag((region.x + x1, region.y + (y0 + y1) / 2), (region.x + x1 + 100, region.y + (y0 + y1) / 2))
+    yield 0.3
+    t = title_now()
+    h.check("dragging the box's side makes it wider: the words re-wrap (the text stays the same size)",
+            t.wrap_width > wrap + 0.02 and abs(t.font_size - size2) < 0.5, (wrap, t.wrap_width))
     h.screenshot("titles")
 
     # Copy / paste the text style onto another title.
@@ -149,7 +175,7 @@ def steps():
     other = titles.add(sc, text="Second")
     yield 0.2
     sc = bpy.context.scene
-    t = next(s for s in clips.top_clips(sc) if titles.is_title(s) and s.text.startswith("First line"))
+    t = next(s for s in clips.top_clips(sc) if titles.is_title(s) and s.text.startswith("A much longer"))
     other = next(s for s in clips.top_clips(sc) if titles.is_title(s) and s.text == "Second")
     for s in clips.top_clips(sc):
         s.select = s == t

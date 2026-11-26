@@ -153,25 +153,40 @@ class PLASTRON_OT_preview_transform(bpy.types.Operator):
             return {'PASS_THROUGH'}               # (Blender's click: select another clip)
         t = strip.transform
         self.strip_name = strip.name
+        self.strip_ref = strip
+        self.last_xy = None
         self.orig = (t.offset_x, t.offset_y, t.scale_x, t.scale_y, t.rotation)
         self.start = to_view(region, event.mouse_region_x, event.mouse_region_y)
         self.centre = Vector((t.offset_x, t.offset_y))
+        from ... import timeline as _timeline
+        _timeline.pause_prefetch(context.scene)       # (frames-ahead off while dragging)
         context.window_manager.modal_handler_add(self)
         return {'RUNNING_MODAL'}
 
     def _strip(self, context):
-        return context.scene.sequence_editor.strips_all.get(self.strip_name)
+        try:
+            self.strip_ref.name                  # (still there: no lookup among every clip)
+            return self.strip_ref
+        except ReferenceError:
+            return context.scene.sequence_editor.strips_all.get(self.strip_name)
 
     def _apply(self, context, event):
         strip = self._strip(context)
         if strip is None:
             return
+        xy = (event.mouse_region_x, event.mouse_region_y, event.shift)
+        if xy == self.last_xy:
+            return                               # (nothing moved: every change makes Blender redo the picture)
+        self.last_xy = xy
         t = strip.transform
         ox, oy, sx, sy, rot = self.orig
         now = to_view(context.region, event.mouse_region_x, event.mouse_region_y)
         if self.mode == 'MOVE':
             d = now - self.start
-            t.offset_x, t.offset_y = ox + d.x, oy + d.y
+            if t.offset_x != ox + d.x:
+                t.offset_x = ox + d.x
+            if t.offset_y != oy + d.y:
+                t.offset_y = oy + d.y
         elif self.mode == 'SCALE':
             a, b = (self.start - self.centre).length, (now - self.centre).length
             k = max(0.01, b / a) if a > 1e-6 else 1.0
@@ -187,7 +202,7 @@ class PLASTRON_OT_preview_transform(bpy.types.Operator):
         context.area.tag_redraw()
 
     def modal(self, context, event):
-        if event.type in {'MOUSEMOVE', 'INBETWEEN_MOUSEMOVE'}:
+        if event.type == 'MOUSEMOVE':            # (a pen's in-between moves skipped: only where it is now)
             self._apply(context, event)
         elif event.type == 'LEFTMOUSE' and event.value == 'RELEASE':
             return {'FINISHED'}
