@@ -259,7 +259,7 @@ Plastron/
 │  │                         titles (text over the picture: typed in the preview, styles, box)
 │  │  └─ audio/              Audio mode: analysis (numpy: LUFS, envelope, beats), loudness
 │  │                         (Normalise), duck (auto-ducking), beats (markers), breaths
-│  │                         (breath remover), creature (voice stacks), fit (music fitting),
+│  │                         (breath remover), level (Level Voice), creature (voice stacks), fit (music fitting),
 │  │                         panel (Sound panel)
 │  │  └─ grade/              Grade mode: grade (a clip's grade = Blender colour modifiers, looks,
 │  │                         copy / paste, Grade Everything), panel (Grade panel)
@@ -1605,6 +1605,18 @@ Plastron/
   "No breaths found" when none. Stored as
   times in the recording (strip["plastron_breaths"]), so moves / trims /
   splits keep them right; Keep Breaths clears.
+- Level Voice (Sound Tools > Level Voice, selected clips; Ollie: "areas
+  where I talk more quietly and lean back away from the mic"): evens out the
+  level INSIDE a recording (Normalise only sets one volume per clip).
+  features/audio/level.py, LEVEL_* in config/audio.py: RMS in 50 ms steps
+  read at 8 kHz; speech-only loudness over a 1.5 s window; gain towards the
+  speech's median level x LEVEL_AMOUNT (0.9), +12 / -6 dB at most; pauses
+  over 1 s get no boost (no pumped room noise); smoothed 0.4 s; thinned to
+  points 0.3 dB apart. Kept ONCE on the recording (Sound ID property
+  "plastron_level" = flat [s, gain, ...]): every piece cut from it is
+  levelled and moves / trims keep it; each clip's part is gain curve
+  "level" (fades.set_gain, bisect to its span) on clips_changed. Clear
+  Level (the reset button) removes it.
 - Creature voices (Sound Tools > Creature Voice menu; CREATURES in
   config/audio.py: Ogre, Goblin, Demon, Robot = the voice at dry_db + layers
   (semitones, dB)): the whole recording baked with audaspace

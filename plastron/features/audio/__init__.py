@@ -5,14 +5,15 @@
     duck       auto-ducking (tracks with Duck dip under the voice)
     beats      Find Beats: a marker on every beat of a music clip
     breaths    breath remover (dips breaths in voice clips)
+    level      Level Voice (evens out quiet / loud stretches inside a recording)
     creature   creature voices (a voice baked into a stack of pitched copies)
     fit        music fitting (a beat lands on the video's end, fade out)
     panel      the Sound panel (Audio mode's timeline sidebar)
 """
 
-from . import beats, breaths, creature, duck, fit, loudness, panel
+from . import beats, breaths, creature, duck, fit, level, loudness, panel
 
-_MODULES = (loudness, duck, panel, beats, breaths, creature, fit)
+_MODULES = (loudness, duck, panel, beats, breaths, level, creature, fit)
 
 
 def register():

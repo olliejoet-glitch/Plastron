@@ -50,3 +50,18 @@ CREATURES = {
 # fades it out over FIT_FADE seconds.
 FIT_MAX_STRETCH = 0.08
 FIT_FADE = 1.0
+
+# Level Voice (Sound Tools): evens out quiet / loud stretches INSIDE a
+# recording (talking softly, leaning back from the mic). A smooth gain curve
+# brings each stretch towards the voice's typical level.
+LEVEL_STEP = 0.05                 # seconds per loudness step
+LEVEL_WINDOW = 1.5                # seconds of speech averaged for "how loud is it here"
+LEVEL_MIN_SPEECH = 0.3            # seconds of speech a window needs to count
+LEVEL_SPEECH_RANGE_DB = 30.0      # speech: within this of the voice's loud parts...
+LEVEL_ABOVE_FLOOR_DB = 8.0        # ...and this much over the silence
+LEVEL_AMOUNT = 0.9                # how much of the difference is made up (1 = all of it)
+LEVEL_MAX_BOOST = 12.0            # dB a quiet stretch can come up
+LEVEL_MAX_CUT = 6.0               # dB a loud stretch can come down
+LEVEL_PAUSE = 1.0                 # pauses longer than this get no boost (room noise stays put)
+LEVEL_SMOOTH = 0.4                # seconds of smoothing (no pumping)
+LEVEL_TOLERANCE_DB = 0.3          # curve points kept where it moves this much
