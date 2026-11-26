@@ -102,8 +102,17 @@ def _redraw(context):
 
 # --- showing it ---------------------------------------------------------------------------
 
+def _alive(img):
+    try:
+        return img is not None and img.name in bpy.data.images
+    except ReferenceError:
+        return False
+
+
 def _display_image(sel):
     """Tint outside the selection, bright edge: an image made once per selection."""
+    if not _alive(_display["image"]):          # (undo / loading frees images Python still holds)
+        _display.update(source=None, image=None)
     if _display["source"] == sel.name and _display["image"] is not None:
         return _display["image"]
     m = pixels.array(sel)[..., 0]
@@ -118,7 +127,7 @@ def _display_image(sel):
     rgba[thick] = (1.0, 1.0, 1.0, 0.9)
     img = _display["image"]
     h, w = m.shape
-    if img is None or tuple(img.size) != (w, h) or img.name not in bpy.data.images:
+    if img is None or tuple(img.size) != (w, h):
         img = bpy.data.images.new(".Plastron Selection View", w, h, alpha=True)
     pixels.write(img, rgba)
     _display.update(source=sel.name, image=img)

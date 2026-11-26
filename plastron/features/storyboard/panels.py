@@ -116,9 +116,8 @@ def _on_split(scene, original, new):
         return
     new.name = f"Panel {_next_number(scene)}"
     uid = uuid.uuid4().hex[:10]
-    panel_cache.copy_for(original.plastron_panel.uid, uid)
     new.plastron_panel.uid = uid
-    panel_cache.point_at(new, panel_cache.cache_dir(), uid)
+    panel_cache.point_at(new, panel_cache.cache_dir(), uid)     # (a copy of the original's image)
     painting = original.plastron_panel.material
     if painting:
         new.plastron_panel.material = stack.copy_material(painting, new.name)
@@ -143,6 +142,7 @@ def _on_load(scene):
         if strip.plastron_panel.material is None:     # a stage-2 (grease pencil) panel
             strip.plastron_panel.material = new_painting(strip.name)
     ensure_cache(scene)
+    panel_cache.repair(scene)
 
 
 def _save_pre(filepath, *_args):
@@ -152,6 +152,7 @@ def _save_pre(filepath, *_args):
     for scene in bpy.data.scenes:
         if hasattr(scene, "plastron_timeline"):
             ensure_cache(scene, panel_cache.cache_dir(filepath))
+    panel_cache.tidy(panel_cache.cache_dir(filepath))
 
 
 classes = (PLASTRON_PG_panel, PLASTRON_OT_panel_new)

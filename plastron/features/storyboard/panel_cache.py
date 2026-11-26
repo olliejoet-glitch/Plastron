@@ -7,6 +7,12 @@ folder until the project is first saved (copied across on save).
 An image is re-made (the camera frame of the panel's layers, flattened in
 numpy over the paper colour) shortly after its panel is painted on or its
 layers change; never during playback.
+
+Each re-made image gets a NEW file name ("panel_<uid>_<stamp>.png"): Blender's
+timeline thumbnails are cached by file name and never notice a file being
+rewritten (Ollie: pasted pictures didn't show on the clip, thumbnails were
+"inconsistent"). The old file goes; one left missing (undo back to an older
+name) is re-made. Files no panel uses are tidied up on save.
 """
 
 import os
@@ -34,8 +40,28 @@ def cache_dir(blend_path=None):
     return os.path.join(bpy.app.tempdir, "plastron_cache")
 
 
-def file_name(uid):
-    return f"panel_{uid}.png"
+def file_name(uid, stamp=None):
+    return f"panel_{uid}.png" if stamp is None else f"panel_{uid}_{stamp}.png"
+
+
+_last_stamp = [0]
+
+
+def _stamp():
+    """A stamp never used before (base 36 of the time in ms, always rising)."""
+    n = max(int(time.time() * 1000), _last_stamp[0] + 1)
+    _last_stamp[0] = n
+    digits = "0123456789abcdefghijklmnopqrstuvwxyz"
+    out = ""
+    while n:
+        n, r = divmod(n, 36)
+        out = digits[r] + out
+    return out
+
+
+def is_own(filename, uid):
+    """Is filename one of panel uid's images?"""
+    return filename == file_name(uid) or (filename.startswith(f"panel_{uid}_") and filename.endswith(".png"))
 
 
 def strip_path(strip):
@@ -101,8 +127,20 @@ def render(strip):
     alpha = rgba[..., 3:4]
     rgba[..., :3] = rgba[..., :3] * alpha + paper() * (1.0 - alpha)
     rgba[..., 3] = 1.0
-    _write(strip_path(strip), rgba)
+    old = strip_path(strip)
+    name = file_name(strip.plastron_panel.uid, _stamp())
+    _write(os.path.join(os.path.dirname(old), name), rgba)
+    strip.elements[0].filename = name            # (a new name: the timeline thumbnail follows)
     strip.invalidate_cache('RAW')
+    _remove(old)
+
+
+def _remove(path):
+    try:
+        if os.path.exists(path):
+            os.remove(path)
+    except OSError:
+        pass                                     # (in use: tidied up on save)
 
 
 # --- re-making images after edits (debounced) ------------------------------------
@@ -145,8 +183,10 @@ def flush_now():
 
 
 def point_at(strip, folder, uid):
-    """Make strip show folder/panel_<uid>.png (creating it if missing)."""
-    path = os.path.join(folder, file_name(uid))
+    """Make strip show its own image in folder (copied there / made if missing)."""
+    current = strip.elements[0].filename if len(strip.elements) else ""
+    name = current if is_own(current, uid) else file_name(uid)
+    path = os.path.join(folder, name)
     if not os.path.exists(path):
         old = strip_path(strip) if len(strip.elements) else ""
         if old and os.path.exists(old) and old != path:
@@ -156,18 +196,38 @@ def point_at(strip, folder, uid):
             write_placeholder(path)
     if os.path.normpath(bpy.path.abspath(strip.directory)) != os.path.normpath(folder):
         strip.directory = folder + os.sep
-    if strip.elements[0].filename != file_name(uid):
-        strip.elements[0].filename = file_name(uid)
+    if strip.elements[0].filename != name:
+        strip.elements[0].filename = name
 
 
-def copy_for(uid_from, uid_to, folder=None):
-    folder = folder or cache_dir()
-    src = os.path.join(folder, file_name(uid_from))
-    dst = os.path.join(folder, file_name(uid_to))
-    if os.path.exists(src):
-        shutil.copyfile(src, dst)
-    else:
-        write_placeholder(dst)
+def missing(scene):
+    """Panels whose image file is gone (undo back to an older name)."""
+    from .panels import all_panels
+    return [s for s in all_panels(scene) if len(s.elements) and not os.path.exists(strip_path(s))]
+
+
+def repair(scene):
+    """Every panel with a missing image: shown from a stand-in, re-made soon."""
+    for strip in missing(scene):
+        point_at(strip, os.path.dirname(strip_path(strip)), strip.plastron_panel.uid)
+        request(strip.plastron_panel.material)
+
+
+def tidy(folder):
+    """Remove panel images in folder that no panel (in any scene) shows."""
+    from .panels import all_panels
+    if not os.path.isdir(folder):
+        return
+    used = set()
+    for scene in bpy.data.scenes:
+        if hasattr(scene, "plastron_timeline") and scene.sequence_editor is not None:
+            used.update(os.path.normcase(os.path.normpath(strip_path(s))) for s in all_panels(scene)
+                        if len(s.elements))
+    for name in os.listdir(folder):
+        if name.startswith("panel_") and name.endswith(".png"):
+            path = os.path.join(folder, name)
+            if os.path.normcase(os.path.normpath(path)) not in used:
+                _remove(path)
 
 
 def _on_stroke(scene, depsgraph):
@@ -184,8 +244,11 @@ def _on_stroke(scene, depsgraph):
         request(mat)
 
 
-def _on_undo(*_args):
+def _on_undo(scene=None, *_args):
     request(paint_target.active_material())
+    for sc in bpy.data.scenes:
+        if hasattr(sc, "plastron_timeline") and sc.sequence_editor is not None:
+            repair(sc)
 
 
 def register():

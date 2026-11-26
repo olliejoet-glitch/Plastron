@@ -11,6 +11,7 @@ from mathutils import Vector
 from bpy_extras.view3d_utils import region_2d_to_location_3d
 
 from ...layers import compiler, paint_target
+from ...layers import events as layer_events
 from ..storyboard import canvas_sync
 
 
@@ -57,6 +58,7 @@ def replace_image(mat, layer_uid, arr):
     layer.paint_image = new
     compiler.push_layer(mat, layer)
     paint_target.sync(mat)
+    layer_events.changed(mat)          # (the panel's timeline image is re-made)
     return new
 
 

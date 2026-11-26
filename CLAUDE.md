@@ -484,6 +484,12 @@ Plastron/
 - Texture Paint lands strokes at the mesh's UV: to paint a layer shown moved,
   shift the canvas mesh's UVs (the canvas has its own "Canvas Paint Sheet"
   mesh) and shift every layer's look back (stack.view_shift).
+- Sequencer timeline thumbnails are cached by FILE NAME for the session:
+  rewriting an image file never updates its thumbnail (invalidate_cache
+  doesn't; refresh_all does but drops every cache). Give changed pictures a
+  new file name (panel_cache.render).
+- Undo / loading frees images Python still holds: a cached bpy Image in a
+  module dict raises ReferenceError on use; check it (selection._alive).
 - `animation_playback_post` exists (fires once when playback stops).
 - Setting `scene.frame_current` from Python runs frame_change handlers only
   on the next event loop: yield before checking their effect in tests.
@@ -621,6 +627,15 @@ Plastron/
   paper colour at 480×270, re-made 2.5 s after the last stroke / layer edit
   / undo (and for every panel when the paper colour changes).
   Opaque for now; the animatic export may want alpha later.
+  Each re-made image gets a NEW file name ("panel_<uid>_<stamp>.png"; the
+  old file goes): Blender's timeline thumbnails are cached by file name and
+  never notice a rewritten file, not even after invalidate_cache (only
+  sequencer.refresh_all clears them, and it drops every cache, footage
+  too) (Ollie: a picture pasted into a panel didn't show on its clip,
+  thumbnails "inconsistent"). Pixel edits (paste, cut, flips, transforms:
+  canvas_edit/pixels.replace_image) now ask for a re-made image too. Undo
+  back to a removed name: panel_cache.repair re-makes it; save tidies
+  unused panel images (panel_cache.tidy).
 - Brush presets: Pencil, Ink, Marker, Soft shading (plastron/presets/brushes/
   *.json: base texture brush + size, opacity, pressure, smoothing, spacing).
   Presets menu in the options bar; "Save current as preset..." writes to
