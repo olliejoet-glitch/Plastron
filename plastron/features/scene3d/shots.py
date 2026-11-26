@@ -337,9 +337,20 @@ def _copy_points(src, dst, shift):
     dst.update()
 
 
-def mirror(scene, force=False):
+_later = {"force": False}
+
+
+def mirror(scene, force=False, now=False):
     """Show the current clip's keys in the keyframe view (only those): its own
-    keys copied into the timeline's action at timeline frames."""
+    keys copied into the timeline's action at timeline frames. Done from a
+    timer once the current operation is over (now: straight away): making
+    the copy removes timeline F-curves, and code in the middle of an edit
+    (e.g. a frame-rate change) may be holding them (a crash)."""
+    if not now:
+        _later["force"] = _later["force"] or force
+        if not bpy.app.timers.is_registered(_mirror_later):
+            bpy.app.timers.register(_mirror_later, first_interval=0.0)
+        return
     if scene is None or _mirror["busy"] or not hasattr(scene, "plastron_timeline"):
         return
     if not scene.get(LOCAL):
@@ -370,6 +381,14 @@ def mirror(scene, force=False):
                        snap=_snap({(p, i): fc for (n, p, i), fc in _shown(scene).items() if n == name}, 0.0))
     finally:
         _mirror["busy"] = False
+
+
+def _mirror_later():
+    force, _later["force"] = _later["force"], False
+    scene = bpy.context.scene
+    if scene is not None:
+        mirror(scene, force=force, now=True)
+    return None
 
 
 def _ids(scene, clip):
@@ -597,6 +616,8 @@ def register():
 
 
 def unregister():
+    if bpy.app.timers.is_registered(_mirror_later):
+        bpy.app.timers.unregister(_mirror_later)
     S = bpy.types.Strip
     from ...timeline import rate
     if scale_times in rate.TIME_SCALERS:

@@ -1300,7 +1300,9 @@ Plastron/
   ran by hand (ACTION_OT_* / ANIM_OT_* / GRAPH_OT_* / TRANSFORM_OT_transform,
   the last of wm.operators, once each) and only for the same clip, file
   and scene (pointers); anything else rewriting the copy just re-makes it
-  (an empty copy read back once wiped a clip's keys on save). Older
+  (an empty copy read back once wiped a clip's keys on save). The copy is made from
+  a timer (shots.mirror now=False): made inside an edit it removed F-curves
+  a frame-rate change still held (crash). Older
   projects' timeline keys move into clip time once (shots.migrate_local,
   scene flag plastron_clip_local; mirror runs it first).
   Keyframe view (Ollie: "an editable keyframe view"): a Dope Sheet area under

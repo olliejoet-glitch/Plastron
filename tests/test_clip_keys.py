@@ -130,7 +130,7 @@ def steps():
     canvas_sync.invalidate(sc)
     yield 0.6
     cur = shots._current(sc)
-    shots.mirror(sc, force=True)
+    shots.mirror(sc, force=True, now=True)
     shown = {k: fc for k, fc in shots._shown(sc).items() if k[0] == cur.name}
     h.check("the keyframe view shows the current clip's keys at timeline frames",
             cur.name == b_name and shown and all(round(fc.keyframe_points[-1].co[0]) == 96 for fc in shown.values()),
@@ -146,7 +146,7 @@ def steps():
 
     # A real edit in the keyframe view: select the clip's keys at frame 72 and press Delete.
     sc = bpy.context.scene
-    shots.mirror(sc, force=True)
+    shots.mirror(sc, force=True, now=True)
     for (n, _p, _i), f in shots._shown(sc).items():
         for kp in f.keyframe_points:
             kp.select_control_point = n == b_name and round(kp.co[0]) == 72
