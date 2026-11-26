@@ -460,6 +460,62 @@ class PLASTRON_OT_scene_select_camera(bpy.types.Operator):
         return {'FINISHED'}
 
 
+class PLASTRON_OT_shot_reset(bpy.types.Operator):
+    """Put the panel being drawn on back: its card square-on in its place,
+    and / or its camera at rest (their keys go)"""
+    bl_idname = "plastron.shot_reset"
+    bl_label = "Reset"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    what: bpy.props.EnumProperty(items=(
+        ('CARD', "Reset Card", "This panel's card back square-on in its place (its card keys go)"),
+        ('CAMERA', "Reset Camera", "This panel's camera back at rest (its camera keys go)"),
+        ('BOTH', "Reset Card and Camera", "Both")), default='CARD')
+
+    @classmethod
+    def poll(cls, context):
+        return context.scene is not None and hasattr(context.scene, "plastron_timeline") \
+            and shot_clip(context.scene) is not None
+
+    def execute(self, context):
+        scene = context.scene
+        clip = shot_clip(scene)
+        if not reset_shot(scene, clip, card=self.what in ('CARD', 'BOTH'), camera=self.what in ('CAMERA', 'BOTH')):
+            self.report({'INFO'}, f"{clip.name}: nothing to reset")
+            return {'CANCELLED'}
+        for area in context.screen.areas:
+            area.tag_redraw()
+        return {'FINISHED'}
+
+
+def reset_shot(scene, clip, card=True, camera=True):
+    """shots.reset, then the camera / cards shown where the clip now says."""
+    from ..storyboard import canvas_sync
+    hold_keys()
+    try:
+        changed = shots.reset(scene, clip, card=card, camera=camera)
+        _forget_shot()
+        canvas_sync.invalidate(scene)
+        canvas_sync.apply_places(scene)
+        apply_camera(scene)
+    finally:
+        release_keys()
+    return changed
+
+
+class PLASTRON_MT_shot_reset(bpy.types.Menu):
+    bl_idname = "PLASTRON_MT_shot_reset"
+    bl_label = "Reset"
+
+    def draw(self, context):
+        clip = shot_clip(context.scene)
+        layout = self.layout
+        if clip is not None:
+            layout.label(text=clip.name)
+        for what, text in (('CARD', "Reset Card"), ('CAMERA', "Reset Camera"), ('BOTH', "Reset Card and Camera")):
+            layout.operator("plastron.shot_reset", text=text).what = what
+
+
 def select_camera(context):
     cam = camera(context.scene)
     view_layer = context.view_layer
@@ -481,6 +537,7 @@ def _draw_header(self, context):
     cam = bpy.data.objects.get(cfg.CAMERA_NAME)
     selected = cam is not None and cam.name in context.view_layer.objects and cam.select_get()
     self.layout.operator("plastron.scene_select_camera", text="Camera", icon='CAMERA_DATA', depress=selected)
+    self.layout.menu("PLASTRON_MT_shot_reset", text="Reset", icon='LOOP_BACK')
 
 
 # --- card outlines in the scene view (empty cards are see-through) --------------------------
@@ -516,7 +573,7 @@ def _draw_cards():
     gpu.state.blend_set('NONE')
 
 
-classes = (PLASTRON_OT_view_focus, PLASTRON_OT_scene_select_camera)
+classes = (PLASTRON_OT_view_focus, PLASTRON_OT_scene_select_camera, PLASTRON_OT_shot_reset, PLASTRON_MT_shot_reset)
 
 
 def _after_undo(scene, *_args):

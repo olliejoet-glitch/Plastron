@@ -160,6 +160,43 @@ def steps():
     sc.frame_current = 25
     yield 0.3
     h.check("...lens too", abs(cam.data.lens - 50.0) < 1e-4, cam.data.lens)
+
+    # Reset (scene view header): the panel being drawn on gets its card back
+    # square-on and its camera at rest (Ollie: a panel didn't show; its card
+    # had been moved out of the camera's view).
+    sheet = bpy.data.objects[canvas_sync.CANVAS]
+    rest_y = sheet.location.y
+    sheet.location.x += 30.0
+    sheet.rotation_euler.z = 1.2
+    yield 0.4
+    h.check("(the drawn-on panel's card moved off, keyed on it)",
+            shots.animated(sc, first, shots.CARD_PROPS) and abs(first.plastron_card_offset[0] - 30.0) < 1e-3,
+            tuple(first.plastron_card_offset))
+    with h.override('SCENE_3D'):
+        bpy.ops.plastron.shot_reset(what='BOTH')
+    yield 0.4
+    rest_loc, _rest_rot = scene3d.rest_pose()
+    h.check("Reset Card and Camera: the card is back square-on in its place, its keys gone",
+            not shots.animated(sc, first, shots.CARD_PROPS) and abs(sheet.location.x) < 1e-4
+            and abs(sheet.rotation_euler.z) < 1e-4 and abs(sheet.location.y - rest_y) < 1e-4,
+            (tuple(sheet.location), tuple(sheet.rotation_euler)))
+    h.check("...and the camera at rest, its keys gone (nothing re-keyed)",
+            not shots.animated(sc, first, shots.CAM_PROPS) and not first.plastron_cam_set
+            and (cam.location - rest_loc).length < 1e-4, tuple(cam.location))
+    sc.frame_current = 13
+    yield 0.3
+    h.check("...it stays put at other frames of the clip", abs(sheet.location.x) < 1e-4
+            and (cam.location - rest_loc).length < 1e-4, (sheet.location.x, tuple(cam.location)))
+    # Put the camera keys back for the checks below.
+    sc.frame_current = 1
+    yield 0.2
+    cam.location.x = 1.0
+    yield 0.3
+    sc.frame_current = 25
+    yield 0.2
+    cam.location.x = 3.0
+    cam.data.lens = 50.0
+    yield 0.3
     h.redraw()
     yield 0.3
     h.check("the keyframe view lists only this clip's channels",

@@ -94,6 +94,29 @@ def set_camera(scene, clip, location, rotation, lens, frame):
     key(scene, clip, CAM_PROPS, frame, "Camera")
 
 
+def reset(scene, clip, card=True, camera=True):
+    """Put a clip's card square-on in its place and / or its shot's camera at
+    rest: its keys go (Ollie: a panel didn't show; its card had been moved
+    out of the camera's view). True if anything changed."""
+    if clip is None:
+        return False
+    props = (CARD_PROPS if card else ()) + ((CAM_PROPS + ("plastron_cam_set",)) if camera else ())
+    base = strip_path(clip) + "."
+    want = {base + p for p in props}
+    ad = scene.animation_data
+    gone = [fc for fc in scene_fcurves(scene) if fc.data_path in want]
+    for fc in gone:
+        _remove_fcurve(ad.action, fc)
+    before = card_place(clip) + (clip.plastron_cam_set,)
+    if card:
+        clip.plastron_card_offset = (0.0, 0.0, 0.0)
+        clip.plastron_card_rotation = (0.0, 0.0, 0.0)
+        clip.plastron_card_scale = 1.0
+    if camera:
+        clip.plastron_cam_set = False
+    return bool(gone) or before != card_place(clip) + (clip.plastron_cam_set,)
+
+
 def shift_keys(scene, strip, delta):
     """Move every key of strip by delta frames (its keys follow its start)."""
     if not delta:

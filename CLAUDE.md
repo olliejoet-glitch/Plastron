@@ -1289,6 +1289,12 @@ Plastron/
   select work in the scene view (view3d.select in its "Object Mode" items);
   the canvas's flat ortho camera (drawn at its full 16-unit frame there)
   can't be clicked (hide_select).
+  Reset (Ollie: "two frames that don't show up in the viewer": their cards
+  had been moved / turned out of the camera's view in the 3D scene): the
+  scene view header's Reset menu (next to Camera) puts the panel being
+  drawn on back: Reset Card (square-on in its place), Reset Camera (at
+  rest), or both; that clip's keys for them go (shots.reset,
+  plastron.shot_reset). One undo step.
 - Blend If isn't in the Layers panel any more (Ollie: superfluous); the
   engine still supports it (PLASTRON_PT_blend_if, not registered).
 - Panel images (thumbnails) show the panel where it starts: camera start
