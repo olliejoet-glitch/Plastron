@@ -539,12 +539,32 @@ def _fix_outline():
     return None
 
 
+def typing_anywhere():
+    """Is a title being typed in any preview? (timeline HOLDERS: each letter
+    is a change; the timeline refreshes once when typing ends: Ollie's
+    "text editing is slow af" on a big project)."""
+    wm = bpy.context.window_manager
+    for window in (wm.windows if wm else []):
+        for area in window.screen.areas:
+            if area.type == 'SEQUENCE_EDITOR' and is_preview(area.spaces.active):
+                region = next((r for r in area.regions if r.type == 'PREVIEW'), None)
+                if region is None:
+                    continue
+                with bpy.context.temp_override(window=window, area=area, region=region):
+                    if typing(bpy.context):
+                        return True
+    return False
+
+
 def _sync_outline(context):
     """Blender draws its text cursor (and the box being typed in) only with
     its outline of selected clips on, which Plastron keeps off (it lagged
     behind titles being dragged): on while typing, off again after (Ollie:
     "there's no cursor suggesting any editing is going on")."""
     want = typing(context)
+    if want:
+        from ... import timeline as _timeline
+        _timeline.pause_prefetch(context.scene)    # (frames-ahead off while typing; back on after)
     if context.space_data.preview_overlay.show_image_outline != want:
         _outline_want[context.area.as_pointer()] = want
         if not bpy.app.timers.is_registered(_fix_outline):
@@ -749,12 +769,17 @@ def register():
     for cls in classes:
         bpy.utils.register_class(cls)
     presets.register_kind(KIND, apply=_preset_apply, capture=_preset_capture)
+    from ... import timeline as _timeline
+    _timeline.HOLDERS.append(typing_anywhere)
     from ...timeline import header
     header.add_preview_section(draw_preview_button)
     _handles.append(bpy.types.SpaceSequenceEditor.draw_handler_add(draw, (), 'PREVIEW', 'POST_PIXEL'))
 
 
 def unregister():
+    from ... import timeline as _timeline
+    if typing_anywhere in _timeline.HOLDERS:
+        _timeline.HOLDERS.remove(typing_anywhere)
     if bpy.app.timers.is_registered(_fix_outline):
         bpy.app.timers.unregister(_fix_outline)
     while _handles:

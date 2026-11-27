@@ -102,7 +102,17 @@ def plan_trim(scene, orig, strip, side, frame, content=None):
                 new_length = min(new_length, e - content[strip])   # (no media before its start)
             delta = new_length - (e - s)
             # The cut-off start of the media is gone: what showed at e - new_length now shows at s.
-            changes[strip] = (s, s + new_length, -((e - new_length) - s))
+            slide = -((e - new_length) - s)
+            changes[strip] = (s, s + new_length, slide)
+            # Linked clips cut differently (a sound piece on a longer video) slide
+            # the same and change length the same, so they stay in sync (Ollie's
+            # sound drifted from its video after trimming sound clips).
+            for other in clips.linked(strip, orig):
+                if other in partners or _locked(scene, other):
+                    continue
+                os_, oe = orig[other]
+                changes[other] = (os_, max(os_ + MIN_LENGTH, oe + delta), slide)
+                exclude = exclude | {other}
             _shift_after(scene, orig, e, delta, changes, exclude=exclude)
     else:
         prev_end, next_start = _neighbours(orig, strip)

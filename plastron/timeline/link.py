@@ -75,6 +75,15 @@ def linked_together(strips):
     return len(strips) > 1 and len(ids) == 1 and None not in ids
 
 
+def all_linked(strips):
+    """Every one of these clips is linked to something (Plastron's link or
+    Blender's connection): the chain button unlinks them, whatever groups
+    they're in (Ollie couldn't unlink: clicking a linked clip selects every
+    clip it's connected to, from several link groups after cuts, and the
+    button linked them all instead)."""
+    return bool(strips) and all(s.get(clips.LINK) or len(s.connections) for s in strips)
+
+
 class PLASTRON_OT_clip_link(bpy.types.Operator):
     """Link the selected clips so they stay together (or unlink them if they already are)"""
     bl_idname = "plastron.clip_link"
@@ -88,7 +97,11 @@ class PLASTRON_OT_clip_link(bpy.types.Operator):
     def execute(self, context):
         scene = context.scene
         strips = selected(scene)
-        if len(strips) > 2 and mismatched(strips):
+        if strips and all_linked(strips):
+            gone = clips.with_linked(strips)
+            clips.unlink_all(gone)
+            self.report({'INFO'}, f"Unlinked {len(gone)} clips")
+        elif len(strips) > 2 and mismatched(strips):
             n = link_matching(scene, strips)
             self.report({'INFO'}, f"Cut to match and linked {n} pair{'s' if n != 1 else ''}")
         elif linked_together(strips):
@@ -115,7 +128,7 @@ class PLASTRON_OT_clip_link(bpy.types.Operator):
 def draw_header(layout, context):
     strips = selected(context.scene)
     if strips:
-        together = linked_together(strips) or (len(strips) == 1 and bool(strips[0].get(clips.LINK)))
+        together = all_linked(strips)
         layout.operator("plastron.clip_link", text="", icon='LINKED' if together else 'UNLINKED',
                         depress=together)
 

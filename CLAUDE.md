@@ -207,7 +207,7 @@ Plastron/
 │  │                         ripple (pure planners), snapping, mix, track_headers, sections,
 │  │                         header, ops, view (framing), edit_tools (Move / Slice),
 │  │                         edit_keys (Q / W, Up / Down, J / K / L), placement (which
-│  │                         clips may go on which track), link (link / unlink by hand), gaps (ripple delete a gap), ripple_move (ripple for clip drags), fades (fade in / out, dips),
+│  │                         clips may go on which track), link (link / unlink by hand), sync (sound out of step: Resync), gaps (ripple delete a gap), ripple_move (ripple for clip drags), fades (fade in / out, dips),
 │  │                         events (features listen; timeline knows no features)
 │  ├─ layers/                Photoshop-style layer stacks on materials (from CaraPainter):
 │  │                         props, blend_lib, layer_trees, compiler (node trees),
@@ -760,6 +760,21 @@ Plastron/
   Separate in the Ums pop-up does the same first for any such link group,
   and can be run again and again (Ollie): already-cut ums stay, new ones /
   newly linked pictures are cut to match.
+- Sync (Ollie: "despite having linked clips, my audio and video has drifted
+  out of sync ... when trimming some sound clips", and "I can't unlink
+  them"). Cause found: a ripple trim of a clip's START slides its media;
+  linked partners were only trimmed with it if they had the very same span,
+  so a sound piece linked to a longer video slid alone (12 frames in the
+  test). Now every linked partner slides the same and changes length the
+  same (ripple.plan_trim). timeline/sync.py: a linked sound and picture from
+  the same file whose media starts (content_start) differ have drifted: a
+  red "Out of sync (n, up to f)" button in the timeline header (checked once
+  per timeline change); it runs Resync (plastron.clip_resync: the selected
+  clips' pairs, else all): each sound's media slides back under its picture,
+  the clip stays put (trimmed if its media can't reach). The chain button
+  now UNLINKS whenever every selected clip is linked (link.all_linked):
+  clicking a linked clip selects everything it's connected to, from several
+  link groups after cuts, and the button used to link them all instead.
 - Muting clips (Ollie: "any reason why I can't hear the audio?": Blender's
   own clip mute key is stripped, so a muted clip had no way back): H over
   the timeline / the header's speaker button (shown while clips are
@@ -1529,6 +1544,10 @@ Plastron/
   show_image_outline), which Plastron keeps off (it lagged behind dragged
   titles): titles' preview draw turns it on while typing and off after
   (from a timer, titles._sync_outline).
+  Typing is held like a drag (Ollie: "text editing is slow af"): every
+  letter changed the scene, so the whole timeline refreshed after each one;
+  timeline.HOLDERS (titles.typing_anywhere) makes dragging() true while a
+  title is typed (one refresh when typing ends) and prefetch is paused.
   Text boxes (Ollie: "proper text boxes with text wrapping"): a selected
   title's box is its wrap width wide (wrap_width x frame width; its words
   if 0) and as tall as its wrapped lines (titles.wrapped_lines: greedy

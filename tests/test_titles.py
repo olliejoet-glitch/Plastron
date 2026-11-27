@@ -64,8 +64,16 @@ def steps():
     yield 0.3
     h.check("...with Blender's text cursor showing (its outline is on while typing)",
             area.spaces.active.preview_overlay.show_image_outline)
+    events = h.module("timeline.events")
+    typed = []
+    count = lambda scene, **_i: typed.append(1)             # noqa: E731
+    events.listen("clips_changed", count)
+    tl = h.module("timeline")
     h.type_text("Hello")
-    yield 0.3
+    yield 0.6
+    events._listeners["clips_changed"].remove(count)
+    h.check("typing doesn't refresh the whole timeline on every letter (held like a drag)",
+            not typed and tl.dragging(), (len(typed), tl.dragging()))
     t = title_now()
     h.check("typing replaces the placeholder word", t.text == "Hello", t.text)
     h.key('RET')

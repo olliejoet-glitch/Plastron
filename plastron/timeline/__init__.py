@@ -18,6 +18,7 @@
     fades.py          fade in / out per clip (corner handles; Ctrl+D dip at a cut)
     colors.py         clip colours (header colour button, Clip panel swatches)
     link.py           link / unlink clips by hand (Ctrl+Alt+L, header chain button)
+    sync.py           linked sound out of step with its picture: header warning, Resync
     track_edit.py     remove a track; the Script lane hidden in Edit mode
     mute.py           mute / unmute clips (H, header speaker button)
     rate.py           the project's frame rate (header fps menu): everything keeps its time
@@ -28,9 +29,9 @@ import bpy
 
 from ..config import project_defaults
 from ..core import handlers
-from . import clips, colors, duplicate, gaps, link, mute, rate, track_edit, edit_keys, edit_tools, events, fades, header, mix, ops, placement, sections, snapping, track_drag, track_headers, tracks
+from . import clips, colors, duplicate, gaps, link, sync, mute, rate, track_edit, edit_keys, edit_tools, events, fades, header, mix, ops, placement, sections, snapping, track_drag, track_headers, tracks
 
-_MODULES = (tracks, mix, header, sections, track_headers, ops, edit_tools, edit_keys, placement, fades, colors, link, mute, rate, track_edit, duplicate, track_drag, gaps)
+_MODULES = (tracks, mix, header, sections, track_headers, ops, edit_tools, edit_keys, placement, fades, colors, link, mute, rate, track_edit, duplicate, track_drag, gaps, sync)
 _pending = set()   # scene names waiting for a debounced clips_changed
 
 
@@ -58,10 +59,18 @@ _held = {"since": None}
 HOLD_MAX = 30.0          # s: never hold a refresh back longer than this
 
 
+# Hooks: func() -> True while something else should hold refreshes like a
+# drag (features/edit/titles: typing in a title, one change per letter).
+HOLDERS = []
+
+
 def dragging():
-    """Is a drag running (Blender's or one of Plastron's boxes)?"""
+    """Is a drag running (Blender's or one of Plastron's boxes), or something
+    held like one (typing in a title)?"""
     wm = bpy.context.window_manager
-    return any(len(w.modal_operators) for w in (wm.windows if wm else []))
+    if any(len(w.modal_operators) for w in (wm.windows if wm else [])):
+        return True
+    return any(func() for func in HOLDERS)
 
 
 _paused = {}             # scene name -> was prefetch on (paused for a drag)
