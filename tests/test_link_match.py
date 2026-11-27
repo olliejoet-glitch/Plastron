@@ -25,7 +25,8 @@ def on(scene, channel):
 
 def setup(sc, folder, name, frame):
     """A long video over its own sound in three pieces (the middle one an um),
-    linked the wrong way: all as one."""
+    linked the wrong way: all as one. (Ctrl+Alt+L unlinks first, then links
+piece by piece.)"""
     movie = os.path.join(folder, name + ".mp4")
     subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-f", "lavfi", "-i", "testsrc=size=160x90:rate=24:duration=3",
                     "-f", "lavfi", "-i", "sine=frequency=300:duration=3", "-c:v", "libx264", "-pix_fmt", "yuv420p",
@@ -61,8 +62,16 @@ def steps():
     h.key('L', ctrl=True, alt=True)
     yield 0.4
     sc = bpy.context.scene
+    h.check("Ctrl+Alt+L on linked clips unlinks them first (nothing cut)",
+            len(on(sc, vch)) == 1 and not any(s.get(clips.LINK) or len(s.connections) for s in clips.top_clips(sc)
+                                              if s.channel in (vch, sch)))
+    for s in clips.top_clips(sc):
+        s.select = s.channel in (vch, sch)
+    h.key('L', ctrl=True, alt=True)
+    yield 0.4
+    sc = bpy.context.scene
     vids, sounds = on(sc, vch), on(sc, sch)
-    h.check("Ctrl+Alt+L on clips cut differently cuts the video to match", spans(vids) == spans(sounds),
+    h.check("...again (now not linked), on clips cut differently: cuts the video to match", spans(vids) == spans(sounds),
             (spans(vids), spans(sounds)))
     h.check("...and links them piece by piece",
             all(clips.linked(a) == [b] for a, b in zip(vids, sounds)),

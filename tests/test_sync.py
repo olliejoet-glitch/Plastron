@@ -79,14 +79,19 @@ def steps():
     sc = bpy.context.scene
     v = sc.sequence_editor.strips_all[v_name]
     group = [v, piece, v2] + clips.linked(v2)
+    loose = next(s for s in clips.top_clips(sc) if s not in group and not s.get(clips.LINK) and not len(s.connections))
+    n_before = len(clips.top_clips(sc))
     for s in clips.top_clips(sc):
-        s.select = s in group
+        s.select = s in group or s == loose            # (one clip that isn't linked selected too)
     with h.override('SEQUENCE_EDITOR'):
         bpy.ops.plastron.clip_link()
     yield 0.3
-    h.check("the chain button on clips from two link groups unlinks them all",
+    sc = bpy.context.scene
+    h.check("the chain button on clips from two link groups (and one not linked) unlinks them all",
             not any(s.get(clips.LINK) or len(s.connections) for s in group),
             [(s.name, s.get(clips.LINK), len(s.connections)) for s in group])
+    h.check("...without cutting or linking anything", len(clips.top_clips(sc)) == n_before
+            and not loose.get(clips.LINK), (len(clips.top_clips(sc)), n_before))
 
 
 h.run(steps())

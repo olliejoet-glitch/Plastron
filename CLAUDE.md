@@ -771,10 +771,13 @@ Plastron/
   red "Out of sync (n, up to f)" button in the timeline header (checked once
   per timeline change); it runs Resync (plastron.clip_resync: the selected
   clips' pairs, else all): each sound's media slides back under its picture,
-  the clip stays put (trimmed if its media can't reach). The chain button
-  now UNLINKS whenever every selected clip is linked (link.all_linked):
-  clicking a linked clip selects everything it's connected to, from several
-  link groups after cuts, and the button used to link them all instead.
+  the clip stays put (trimmed if its media can't reach). The chain button /
+  Ctrl+Alt+L now UNLINKS everything selected whenever ANY selected clip is
+  linked (link.any_linked; Ollie, sliced-up timeline: "I can't unlink them
+  with them selected all at once": clicking a linked clip selects everything
+  it's connected to, from several link groups, and the button linked / cut
+  them to match instead). It links (cutting to match if cut differently)
+  only when none of them is linked: to fix a wrong link, press it twice.
 - Muting clips (Ollie: "any reason why I can't hear the audio?": Blender's
   own clip mute key is stripped, so a muted clip had no way back): H over
   the timeline / the header's speaker button (shown while clips are
