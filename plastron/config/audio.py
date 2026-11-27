@@ -33,6 +33,8 @@ BREATH_BELOW_SPEECH_DB = 12.0     # at least this much quieter than the voice's 
 BREATH_ABOVE_FLOOR_DB = 6.0       # ...and this much louder than the silence
 BREATH_FLATNESS = 0.12            # how noise-like (0 = a pure tone, 1 = white noise; no transcript only)
 BREATH_RAMP = 0.03                # seconds to dip in / out
+BREATH_COLOR = "#f0c850"          # found breaths tinted on the timeline (palette name or "#rrggbb")
+BREATH_ALPHA = 0.45
 
 # Creature voices: the voice baked into a stack of pitched copies (same
 # length), put on the "Creature" track under it; the plain voice is muted.

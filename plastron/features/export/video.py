@@ -10,6 +10,7 @@ import os
 import bpy
 from bpy_extras.io_utils import ExportHelper
 
+from ...config import export as cfg
 from ...core import presets
 from . import animatic
 
@@ -44,6 +45,21 @@ def export_frame(context, path, size=None):
     return animatic.still(context, path, size)
 
 
+def _resolutions(_self, _context):
+    out = [("PRESET", "From preset", "The preset's own size")]
+    out += [(name, f"{name}  {w}×{h}", f"{w}×{h}") for name, w, h in cfg.VIDEO_RESOLUTIONS]
+    return out
+
+
+def sized(preset, resolution):
+    """The preset at another resolution (Ollie: "export video in a variety of
+    resolutions"). A Shorts preset keeps its own vertical size."""
+    found = next(((w, h) for name, w, h in cfg.VIDEO_RESOLUTIONS if name == resolution), None)
+    if found is None or preset.get("shorts"):
+        return preset
+    return dict(preset, width=found[0], height=found[1])
+
+
 def _items(_self, _context):
     return [(p["name"], p["name"], f'{p["width"]}×{p["height"]}') for p in preset_list()] or [("", "(none)", "")]
 
@@ -55,14 +71,22 @@ class PLASTRON_OT_export_video(bpy.types.Operator, ExportHelper):
     filename_ext = ".mp4"
     filter_glob: bpy.props.StringProperty(default="*.mp4", options={'HIDDEN'})
     preset: bpy.props.EnumProperty(name="Preset", items=_items)
+    resolution: bpy.props.EnumProperty(name="Resolution", items=_resolutions)
+
+    def draw(self, context):
+        layout = self.layout
+        layout.prop(self, "preset")
+        layout.prop(self, "resolution")
 
     def execute(self, context):
         preset = preset_named(self.preset)
         if preset is None:
             self.report({'WARNING'}, "No export presets")
             return {'CANCELLED'}
+        preset = sized(preset, self.resolution)
         export(context, self.filepath, preset)
-        self.report({'INFO'}, f"Video saved ({preset['name']}): {self.filepath}")
+        self.report({'INFO'}, f"Video saved ({preset['name']}, {preset['width']}×{preset['height']}): "
+                    f"{self.filepath}")
         return {'FINISHED'}
 
 

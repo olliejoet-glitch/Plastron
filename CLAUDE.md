@@ -249,7 +249,8 @@ Plastron/
 │  │                         speed (2x etc. playback), sounds (temp sounds bin), board
 │  │  └─ export/             animatic (MP4), sheet (hand-written PDF), shotlist (CSV),
 │  │                         video (Export Video with presets: YouTube 4K..., Export Frame PNG),
-│  │                         captions (Export Captions .srt from voice transcripts)
+│  │                         captions (Export Captions .srt from voice transcripts),
+│  │                         audio (Export Audio: whole mix or selected clips; WAV / FLAC / MP3)
 │  │  └─ edit/               Edit mode: media (placing footage / sound / pictures on
 │  │                         tracks; Blender's drops re-placed), bin (media bin, preview size),
 │  │                         clip_panel (Clip panel), frame_rate (Check Frame Rate, real speed), frame_box (move / size / turn in the preview),
@@ -259,7 +260,7 @@ Plastron/
 │  │                         titles (text over the picture: typed in the preview, styles, box)
 │  │  └─ audio/              Audio mode: analysis (numpy: LUFS, envelope, beats), loudness
 │  │                         (Normalise), duck (auto-ducking), beats (markers), breaths
-│  │                         (breath remover), level (Level Voice), creature (voice stacks), fit (music fitting),
+│  │                         (breath detector + remover), level (Level Voice), creature (voice stacks), fit (music fitting),
 │  │                         panel (Sound panel)
 │  │  └─ grade/              Grade mode: grade (a clip's grade = Blender colour modifiers, looks,
 │  │                         copy / paste, Grade Everything), panel (Grade panel)
@@ -1414,6 +1415,16 @@ Plastron/
   out), fluffs left out (CAPTION_FLUFFS), grouped into lines of at most 42
   characters / 5 s, a new line after . ! ? or a 0.6 s pause, each up at
   least 0.8 s (if there's room); times from the project's start.
+- Export Audio (File menu; Ollie: "an export audio option that lets me
+  export only selected"): sound.mixdown to WAV / FLAC / MP3 (AUDIO_FORMATS
+  in config/export.py, 48 kHz). "Selected clips only" (on by default when
+  sound is selected; a selected video counts by its linked sound): every
+  other sound / scene clip is muted and the range set to the selected
+  clips' span for the mixdown, then put back (features/export/audio.py).
+- Export Video resolutions (Ollie: "a variety of resolutions"): the dialog
+  has Resolution: From preset, 4K, 1440p, 1080p, 720p, 480p, 360p
+  (VIDEO_RESOLUTIONS in config/export.py); the preset's codec / quality /
+  audio are kept (video.sized); a Shorts preset keeps its own size.
 - Shorts reframing (Ollie's list): Shorts toggle in the video preview's
   header shows a 9:16 box (full height, 1215 px wide at 4K) over the
   picture, outside dimmed (SHORTS_* in config/edit.py), for the shot at the
@@ -1635,6 +1646,15 @@ Plastron/
   "No breaths found" when none. Stored as
   times in the recording (strip["plastron_breaths"]), so moves / trims /
   splits keep them right; Keep Breaths clears.
+  Breath DETECTOR (Ollie: "I need a breath detector too"), like the um
+  checker: Find Breaths (selected sound clips, else all) keeps what it
+  found ONCE on the recording (Sound ID property "plastron_breaths_found",
+  flat [s, e, ...]) and tints each breath over its clip on the timeline
+  (BREATH_COLOR yellow; blue didn't show on the blue voice clips); x =
+  Forget. Then Dip (the remover above, using what was found), Separate
+  (each breath cut out into its own clip, marked plastron_breath, all
+  selected; linked pictures too) or Delete (those clips, following ripple).
+  breaths.found(scene) is cached until clips_changed.
 - Level Voice (Sound Tools > Level Voice, selected clips; Ollie: "areas
   where I talk more quietly and lean back away from the mic"): evens out the
   level INSIDE a recording (Normalise only sets one volume per clip).

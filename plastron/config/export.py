@@ -22,3 +22,23 @@ CAPTION_MAX_SECONDS = 5.0
 CAPTION_GAP = 0.6               # a pause this long starts a new caption
 CAPTION_MIN_SECONDS = 0.8       # captions stay up at least this long (if there's room)
 CAPTION_FLUFFS = ("um", "umm", "uh", "uhh", "erm", "er", "hmm", "mm", "ah")   # left out
+
+# Export Video: resolution choices in its dialog ("From preset" = the
+# preset's own size). (name, width, height), first = the default after the preset.
+VIDEO_RESOLUTIONS = [
+    ("4K (2160p)", 3840, 2160),
+    ("1440p", 2560, 1440),
+    ("1080p", 1920, 1080),
+    ("720p", 1280, 720),
+    ("480p", 854, 480),
+    ("360p", 640, 360),
+]
+
+# Export Audio (File menu): the whole mix, or only the selected clips.
+# (name, extension, Blender container, codec, sample format)
+AUDIO_FORMATS = [
+    ("WAV", ".wav", 'WAV', 'PCM', 'S24'),
+    ("FLAC", ".flac", 'FLAC', 'FLAC', 'S24'),
+    ("MP3", ".mp3", 'MP3', 'MP3', 'S16'),
+]
+AUDIO_RATE = 48000

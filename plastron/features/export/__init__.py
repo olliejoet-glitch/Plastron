@@ -5,11 +5,12 @@
     shotlist   the panels' notes as a shot list (CSV)
     video      Export Video with presets (YouTube 4K...), Export Frame (PNG)
     captions   Export Captions (.srt) from the voice transcripts
+    audio      Export Audio: the whole mix, or only the selected clips
 """
 
-from . import animatic, captions, sheet, shotlist, video
+from . import animatic, audio, captions, sheet, shotlist, video
 
-_MODULES = (animatic, sheet, shotlist, video, captions)
+_MODULES = (animatic, sheet, shotlist, video, captions, audio)
 
 
 def register():
