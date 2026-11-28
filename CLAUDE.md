@@ -7,7 +7,7 @@ conventions, or decisions change.
 
 Plastron is a full audiovisual video editing app for one user (Ollie), built as
 a **Blender application template** that runs from its own **portable Blender
-5.2.3 LTS** install on **Windows 10**. It launches straight into its own layout,
+5.2.5 LTS** install on **Windows 10**. It launches straight into its own layout,
 theme, and keymap, with Photoshop-style drawing shortcuts.
 
 - The agreed spec is `Plastron storyboard mode build brief.md` (repo root).
@@ -570,7 +570,9 @@ Plastron/
 
 ## Decisions log (unspecified details, changeable later)
 
-- Blender pinned to **5.2.3 LTS** (`install/blender_version.txt`).
+- Blender pinned to **5.2.5 LTS** (`install/blender_version.txt`). (Was 5.2.3; the test machine came back on 5.2.5 after a container
+  restart and every test passed there, so the pin followed: launchers
+  download it once, keeping portable\config.)
 - Install root `C:\Plastron`; shortcuts on desktop and Start menu; Ollie's
   copy updates from `main` at every launch.
 - Frame rate **24 fps** for new projects (YouTube keeps the upload's rate;
