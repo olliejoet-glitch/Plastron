@@ -118,6 +118,27 @@ def packages():
     return dict(cfg.PACKAGES, **(cfg.GPU_PACKAGES if sys.platform == "win32" else {}))
 
 
+_gpu = {"tried": False}
+
+
+def _ready():
+    """The packages are in place (installing them once, in the background).
+    The graphics-card libraries are tried once: if they can't be installed,
+    the speech model runs on the processor instead of waiting for ever."""
+    if not deps.ensure(cfg.PACKAGES, "transcription"):
+        return False
+    gpu = cfg.GPU_PACKAGES if sys.platform == "win32" else {}
+    if not gpu or not deps.missing(gpu):
+        return True
+    if deps.installing():
+        return False
+    if _gpu["tried"]:
+        return True                      # (tried and still missing: the processor it is)
+    _gpu["tried"] = True
+    deps.ensure(gpu, "graphics card support for transcription")
+    return False
+
+
 def _start(uid, wav):
     out = wav + ".json"
     env = dict(os.environ)
@@ -202,7 +223,7 @@ def _step():
         _finish()
     if not _queue:
         return None
-    if not fake() and not deps.ensure(packages(), "transcription"):
+    if not fake() and not _ready():
         return 2.0                       # waiting for the one-time install
     uid, wav = _queue.pop(0)
     _start(uid, wav)

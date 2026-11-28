@@ -502,6 +502,10 @@ Plastron/
   text_cursor_move (TEXT_BEGIN, then NEXT_CHARACTER n times).
 - The preview's text-editing caret is drawn only with preview_overlay.
   show_image_outline on (with it off, typing shows no cursor at all).
+- importlib.util.find_spec("a.b") RAISES ModuleNotFoundError when "a" isn't
+  installed (it returns None only for a missing top-level name).
+- Blender's sequencer.select(toggle=True) on a selected clip that isn't the
+  active one only makes it active (a second Shift+click deselects).
 - `animation_playback_post` exists (fires once when playback stops).
 - Setting `scene.frame_current` from Python runs frame_change handlers only
   on the next event loop: yield before checking their effect in tests.
@@ -1017,6 +1021,19 @@ Plastron/
   sound clips without a transcript (the selected ones, else every one but
   Music / Temp Sounds tracks; one job per recording) are queued, and their
   ums show when the job finishes (ums.untranscribed).
+  Stuck on "Transcription waiting..." (Ollie, Windows): deps.available
+  called find_spec("nvidia.cublas"), which RAISES (not None) when no nvidia
+  package exists yet, so the install never started and the guarded queue
+  retried for ever. Now: a missing parent reads as missing; the graphics-
+  card libraries (GPU_PACKAGES) are tried ONCE (transcribe._ready) and if
+  they still aren't there the job runs on the processor.
+  Choosing which ums go (Ollie: "can I choose which ums I want to delete?"
+  / "deselect some selected ums"): after Separate, Shift+click an um to
+  drop it (and its picture) from the selection; the Ums Delete button and
+  the Delete key then remove only the selected ones. Shift+click is now
+  Plastron's own toggle (ops.clip_trim._select): Blender's toggle only made
+  a selected clip active on the first click; and Shift+click never starts
+  an edge drag (a zoomed-out um clip is all edge).
 - Title fonts: Load Font... / Your Fonts (Clip panel Text section) copy the
   font file into <config>/plastron_fonts/ (C:\Plastron\blender\portable\
   config\plastron_fonts) and pack it into the project; Your Fonts lists

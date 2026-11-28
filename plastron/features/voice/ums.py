@@ -188,11 +188,15 @@ def _separate(scene):
 
 
 def delete(scene):
-    """Remove the um clips (separating them first), following ripple."""
+    """Remove the um clips (separating them first), following ripple. Ums
+    deselected after Separate (Shift+click) are kept (Ollie: "can I choose
+    which ums I want to delete?"): if some are still selected, only those go."""
     with events.batch():
         if not marked(scene):
             _separate(scene)
         gone = marked(scene)
+        if any(s.select for s in gone):
+            gone = [s for s in gone if s.select]
         if gone:
             ripple.delete(scene, gone)
         _dirty()
@@ -330,7 +334,8 @@ class PLASTRON_OT_ums(bpy.types.Operator):
             self.report({'INFO'}, f"{n} um{'s' if n != 1 else ''} cut out and selected: Delete removes them"
                         if n else "No ums found")
         else:
-            had = len([s for s in marked(scene) if s.type == 'SOUND']) or len(find(scene))
+            sel = [s for s in marked(scene) if s.type == 'SOUND' and s.select]
+            had = len(sel) or len([s for s in marked(scene) if s.type == 'SOUND']) or len(find(scene))
             delete(scene)
             self.report({'INFO'}, f"Deleted {had} um{'s' if had != 1 else ''}" if had else "No ums found")
         for area in context.screen.areas:

@@ -98,6 +98,19 @@ class PLASTRON_OT_clip_trim(bpy.types.Operator):
                 sum(1 for s in clips.top_clips(scene) if s.select) > 1:
             scene.sequence_editor.active_strip = hit
             return {'PASS_THROUGH'}
+        if self.extend:
+            # Shift+click: one click picks / drops the clip and its linked clips
+            # (Blender's own toggle first only makes a selected clip the active
+            # one; a second click drops it: Ollie couldn't deselect ums).
+            if hit is None:
+                return {'PASS_THROUGH'}
+            on = not hit.select
+            for s in [hit] + clips.linked(hit):
+                s.select = on
+            if on:
+                scene.sequence_editor.active_strip = hit
+            bpy.context.area.tag_redraw()
+            return {'FINISHED'}
         before = {s: s.select for s in clips.top_clips(scene)}
         if self.extend:
             bpy.ops.sequencer.select('EXEC_DEFAULT', toggle=True, **pos)
@@ -126,6 +139,9 @@ class PLASTRON_OT_clip_trim(bpy.types.Operator):
         index = tracks.index_of_channel(scene, int(fy))
         if index is not None:
             tracks.set_active(scene, scene.plastron_timeline.tracks[index])
+        if self.extend:
+            return self._select(event)       # (Shift+click always picks / drops a clip, even a tiny
+                                             #  um clip that's all edge when zoomed out)
         fpp = snapping.frames_per_pixel(region)
         outside, inside = cfg.EDGE_GRAB_PX * fpp, cfg.EDGE_GRAB_INSIDE_PX * fpp
         best = None

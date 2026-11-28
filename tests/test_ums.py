@@ -90,8 +90,35 @@ def steps():
             and all(s.select for s in marked) and not any(s.select for s in clips.top_clips(sc) if s not in marked),
             [(s.name, s.type) for s in marked])
     h.screenshot("ums_separated")
+
+    # Choosing which ums go (Ollie): Shift+click one to keep it; Delete takes the rest.
+    keep = sorted((s for s in marked if s.type == 'SOUND'), key=clips.start)[0]
+    keep_name = keep.name
+    area = h.area('SEQUENCE_EDITOR')
+    reg = h.region(area)
+    x, y = reg.view2d.view_to_region((clips.start(keep) + clips.end(keep)) / 2, keep.channel + 0.5, clip=False)
+    h.move(reg.x + x, reg.y + y)
+    yield 0.2
+    h._event('LEFT_SHIFT', 'PRESS')
+    h._event('LEFTMOUSE', 'PRESS', shift=True)
+    h._event('LEFTMOUSE', 'RELEASE', shift=True)
+    h._event('LEFT_SHIFT', 'RELEASE')
+    yield 0.3
+    sc = bpy.context.scene
+    keep = sc.sequence_editor.strips_all[keep_name]
+    h.check("Shift+click an um: it and its picture are deselected (kept)",
+            not keep.select and not any(o.select for o in clips.linked(keep))
+            and sum(1 for s in ums.marked(sc) if s.select) == 6,
+            (keep.select, sum(1 for s in ums.marked(sc) if s.select)))
     with h.override('SEQUENCE_EDITOR'):
         bpy.ops.plastron.ums(action='DELETE')
+    yield 0.4
+    sc = bpy.context.scene
+    h.check("...the Ums Delete button removes only the selected ums; the kept one stays",
+            keep_name in sc.sequence_editor.strips_all and len(ums.marked(sc)) == 2,
+            [s.name for s in ums.marked(sc)])
+    with h.override('SEQUENCE_EDITOR'):
+        bpy.ops.plastron.ums(action='DELETE')            # (nothing selected now: the rest go too)
     yield 0.4
     sc = bpy.context.scene
     after = span()

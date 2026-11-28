@@ -30,7 +30,14 @@ def add_to_path():
 
 
 def available(module):
-    return importlib.util.find_spec(module) is not None
+    """Is module importable? A dotted name whose parent isn't installed
+    ("nvidia.cublas" before any nvidia package) makes find_spec RAISE, not
+    return None: that stopped transcription's queue for good on Windows
+    (Ollie: "stuck on transcription waiting")."""
+    try:
+        return importlib.util.find_spec(module) is not None
+    except (ImportError, ValueError):
+        return False
 
 
 def missing(packages):
