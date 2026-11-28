@@ -6,9 +6,12 @@ The timeline shows each panel as its still picture (where it starts). Bake
 renders every animated panel's frames, on its own, as the canvas shows it,
 and the panel's clip plays them instead (its image list becomes those
 frames; the still is kept to come back to):
-  - 3D Camera on: the canvas view through the panel's 3D Camera (Blender's
-    viewport render), other tracks' cards / onion skin / compare hidden;
-    cards, camera and moving layers play by the frame hooks as usual.
+  - 3D Camera on: the canvas view (Blender's viewport render) through the
+    camera of the panel (or of the highest panel over it that has one),
+    with every track's card as the canvas shows them (onion skin / compare
+    hidden): in Edit mode a panel's picture covers the tracks under it, so
+    it carries them. A panel counts as animated when anything shown over its
+    time moves. Cards, camera and moving layers play by the frame hooks.
   - 3D Camera off: the painting flattened per frame (numpy, like the
     thumbnails) at the 2D camera's crop with the layers at their positions.
 Only panels that animate and aren't baked (or changed since) are done; the
@@ -51,8 +54,8 @@ def three_d():
     return linked()
 
 
-def animated(scene, strip):
-    """Does this panel move (as the canvas shows it now)?"""
+def _moves_itself(scene, strip):
+    """Its own moves: a moving layer, or (3D) keyed card / camera."""
     from ..scene3d import shots
     mat = strip.plastron_panel.material
     if mat is not None and any(layer_motion.has_motion(l) for l in mat.plastron_stack.layers):
@@ -62,19 +65,52 @@ def animated(scene, strip):
     return camera.moves(strip)
 
 
+def overlapping(scene, strip):
+    """3D: the panels on the other (shown) video tracks over this one's time:
+    the canvas shows their cards with it (see-through where unpainted), but
+    in Edit mode / exports a panel's picture covers what's under it (Ollie:
+    the bake "missed some animations at the start of my storyboard", where
+    panels sit on several tracks)."""
+    from ..storyboard.panels import all_panels
+    sed = scene.sequence_editor
+    s0, s1 = clips.start(strip), clips.end(strip)
+    out = []
+    for o in all_panels(scene):
+        if o.channel == strip.channel or clips.end(o) <= s0 or clips.start(o) >= s1:
+            continue
+        if sed.channels[o.channel].mute or tracks.track_of_channel(scene, o.channel) is None:
+            continue
+        out.append(o)
+    return sorted(out, key=lambda o: (o.channel, clips.start(o)))
+
+
+def animated(scene, strip):
+    """Does what the canvas shows over this panel move? (3D: any card shown
+    with it, or the camera, moves.)"""
+    if _moves_itself(scene, strip):
+        return True
+    return three_d() and any(_moves_itself(scene, o) for o in overlapping(scene, strip))
+
+
+def camera_clip(scene, strip, frame):
+    """3D: whose camera the bake looks through at frame: the panel's own if
+    it has one, else the highest panel over it at that frame that has one
+    (Ollie may have keyed the camera while drawing on another track)."""
+    if strip.plastron_cam_set:
+        return strip
+    over = [o for o in overlapping(scene, strip) if o.plastron_cam_set and clips.start(o) <= frame < clips.end(o)]
+    return max(over, key=lambda o: o.channel) if over else strip
+
+
 def _r(values):
     return tuple(round(float(v), 4) for v in values)
 
 
-def signature(scene, strip):
-    """What a bake depends on besides the painting (a painting edit re-makes
-    the still: panel_cache.render unbakes) and where the clip sits (moving
-    the whole clip keeps its bake): its length, track, moves, keys, the mode."""
+def _moves_parts(scene, strip):
     from ..scene3d import shots
     m = strip.plastron_motion
-    parts = [clips.length(strip), strip.channel, three_d(),
-             _r(camera.as_tuple(m.start)), _r(camera.as_tuple(m.end)), dot_graph.points(m.curve) if m.curve else None,
-             _r((m.shake, m.shake_speed)), round(scene.render.fps / scene.render.fps_base, 4)]
+    parts = [_r(camera.as_tuple(m.start)), _r(camera.as_tuple(m.end)), dot_graph.points(m.curve) if m.curve else None,
+             _r((m.shake, m.shake_speed))]
     mat = strip.plastron_panel.material
     if mat is not None:
         parts.append([(l.uid, _r((*l.move_start, *l.move_end)), dot_graph.points(l.move_curve) if l.move_curve else None)
@@ -89,6 +125,22 @@ def signature(scene, strip):
             if prop not in keyed:
                 v = getattr(strip, prop)
                 parts.append((prop, _r(v) if hasattr(v, "__len__") else round(v, 4)))
+    return parts
+
+
+def signature(scene, strip):
+    """What a bake depends on besides the painting (a painting edit re-makes
+    the still: panel_cache.render unbakes) and where the clip sits (moving
+    the whole clip keeps its bake): its length, track, moves, keys, the mode;
+    3D: also the panels shown with it (where they sit against it, their
+    moves, their pictures: a repainted one has a new still file name)."""
+    parts = [clips.length(strip), strip.channel, three_d(), round(scene.render.fps / scene.render.fps_base, 4)]
+    parts += _moves_parts(scene, strip)
+    if three_d():
+        s0 = clips.start(strip)
+        for o in overlapping(scene, strip):
+            parts.append((o.channel, clips.start(o) - s0, clips.end(o) - s0,
+                          o[STILL] if baked(o) else o.elements[0].filename, _moves_parts(scene, o)))
     return hashlib.md5(repr(parts).encode()).hexdigest()
 
 
@@ -227,10 +279,12 @@ def _canvas():
 
 
 def _hide_others(scene, hidden):
+    """Onion skins and the version compare aren't part of the picture (the
+    other tracks' cards are: the canvas shows them with the panel)."""
     from ..review.versions import COMPARE
     for obj in scene.objects:
         n = obj.name
-        if n.startswith(canvas_sync.DISPLAY_PREFIX) or n in canvas_sync.ONION or n == COMPARE:
+        if n in canvas_sync.ONION or n == COMPARE:
             if obj.name not in hidden:
                 hidden[obj.name] = obj.hide_viewport
             if not obj.hide_viewport:
@@ -264,8 +318,14 @@ def _frame_2d(scene, strip, frame, path, size):
     _write_jpeg(path, rgba)
 
 
-def _frame_3d(scene, frame, path, where, hidden):
+def _frame_3d(scene, strip, frame, path, where, hidden):
     window, area, region = where
+    cam = camera_clip(scene, strip, frame)        # (the camera = the drawing clip's: its track made active)
+    track = tracks.track_of_channel(scene, cam.channel)
+    now = tracks.active(scene)
+    if track is not None and (now is None or now.uid != track.uid):
+        tracks.set_active(scene, track)
+        canvas_sync.invalidate(scene)
     scene.frame_set(frame)                      # (the canvas places cards / camera / layers)
     _hide_others(scene, hidden)
     with bpy.context.temp_override(window=window, area=area, region=region, scene=scene):
@@ -308,15 +368,12 @@ def run(context, names):
             uid = strip.plastron_panel.uid
             folder = os.path.dirname(panel_cache.strip_path(strip))
             stamp = panel_cache._stamp()
-            if where is not None:
-                tracks.set_active(scene, tracks.track_of_channel(scene, strip.channel))
-                canvas_sync.invalidate(scene)
             frames = []
             for i, frame in enumerate(range(clips.start(strip), clips.end(strip))):
                 fname = f"bake_{uid}_{stamp}_{i:04d}.jpg"
                 path = os.path.join(folder, fname)
                 if where is not None:
-                    _frame_3d(scene, frame, path, where, hidden)
+                    _frame_3d(scene, sed.strips_all[name], frame, path, where, hidden)
                 else:
                     _frame_2d(scene, sed.strips_all[name], frame, path, size)
                 frames.append(fname)

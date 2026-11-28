@@ -1430,6 +1430,17 @@ Plastron/
   bake into the project's cache folder, tidy keeps frames in use.
   shots.has_content treats a baked panel as a still (its own anchor).
   ~0.45 s / frame flat at 720p (CPU), ~1 s / frame 3D under Xvfb (GPU: less).
+  Several tracks (Ollie: the bake "missed some animations at the start of
+  my storyboard"; the multiplane part has panels on several video tracks):
+  in Edit mode / exports a panel's picture is opaque and covers the tracks
+  under it, while the canvas shows every card see-through. So in 3D the
+  bake renders the canvas as it is (every shown track's card, not just the
+  panel's), through the panel's camera or, if it has none, the highest panel
+  over it at that frame that has one (bake.camera_clip); a panel counts as
+  animated when any panel shown over its time moves (bake.overlapping), and
+  its signature includes theirs (where they sit, their moves, their still
+  file name: repainting a lower panel makes the top one stale).
+  tests/test_bake_many.py: every kind of move baked by the button and kept.
 - Panel images (thumbnails) show the panel where it starts: camera start
   frame (rotation left out) and layers at their start.
 - Motion presets (presets/motion/): Straight, Ease in, Ease out, Ease in-out,
