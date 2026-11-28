@@ -71,7 +71,8 @@ CONTENT_TYPES = {'MOVIE', 'SOUND', 'SCENE', 'MOVIECLIP', 'MASK'}
 
 def has_content(clip):
     """Does Blender keep where the clip's media starts (content_start) itself?"""
-    return clip.type in CONTENT_TYPES or (clip.type == 'IMAGE' and len(clip.elements) > 1)
+    return clip.type in CONTENT_TYPES or (clip.type == 'IMAGE' and len(clip.elements) > 1
+                                          and "plastron_bake_sig" not in clip)   # (a baked panel: still a picture)
 
 
 def origin(clip):

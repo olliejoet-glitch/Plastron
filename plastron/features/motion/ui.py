@@ -214,6 +214,8 @@ class PLASTRON_PT_motion(_Tools, bpy.types.Panel):
 
     def draw(self, context):
         layout = self.layout
+        from . import bake
+        bake.draw_button(layout, context)       # (every animated panel: for Edit mode / exports)
         if _panel(context) is None:
             layout.label(text="Scrub onto a panel to move it", icon='INFO')
             return

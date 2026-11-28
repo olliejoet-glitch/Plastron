@@ -10,6 +10,7 @@
     edit          setting a start / end by dragging on the canvas
     canvas_fit    the painting grows to fit its camera move
     thumbnails    panel images show where a panel starts (panel_cache hook)
+    bake          Bake: animated panels rendered to frames the timeline plays
     ui            Motion panel (tools area) + motion presets (presets/motion/)
 
 Clean View (F, hides everything outside the frame) is the storyboard
@@ -22,7 +23,7 @@ from ...core import handlers
 from ...layers import events as layer_events
 from ...timeline import events
 from ..storyboard import canvas_frame
-from . import camera, camera_pad, canvas_fit, edit, layer_motion, thumbnails, ui, view_follow
+from . import bake, camera, camera_pad, canvas_fit, edit, layer_motion, thumbnails, ui, view_follow
 from ...widgets import dot_graph
 
 _CLASSES = camera.classes + camera_pad.classes + edit.classes + ui.classes
@@ -57,6 +58,7 @@ def register():
     thumbnails.register()
     layer_motion.register()
     ui.register()
+    bake.register()
     events.listen("clip_split", _on_split)
     events.listen("clip_duplicated", _on_split)
     layer_events.listen(_on_layers_changed)
@@ -64,6 +66,7 @@ def register():
 
 
 def unregister():
+    bake.unregister()
     layer_motion.unregister()
     canvas_fit.unregister()
     view_follow.unregister()

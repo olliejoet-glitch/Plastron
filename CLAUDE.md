@@ -47,7 +47,8 @@ theme, and keymap, with Photoshop-style drawing shortcuts.
   View (the canvas looks through the camera), easing dot graph
   (`widgets/dot_graph`), camera shake, layer / group start / end motion
   (box, live in playback), motion presets, Clean View (F)
-  (`features/motion`). Then: a 3D multiplane view under the script (track
+  (`features/motion`), Bake (animated panels to frames, for Edit mode /
+  exports: `features/motion/bake.py`). Then: a 3D multiplane view under the script (track
   cards moved in depth, 3D camera keyed as it moves) (`features/scene3d`).
 - **Stage 7 done** (planning, review, export): shot status (clip colour),
   notes, versions (keep / flip / compare), framing guides, speed playback
@@ -241,7 +242,8 @@ Plastron/
 │  │                         controls box), canvas_fit (painting grows to fit
 │  │                         the camera), layer_motion (live positions,
 │  │                         painted-layer UV shift), edit (layer box), thumbnails
-│  │                         (panel_cache hook), ui (Motion panel, presets)
+│  │                         (panel_cache hook), ui (Motion panel, presets),
+│  │                         bake (animated panels rendered to frames the clip plays)
 │  │  └─ scene3d/            the 3D (multiplane) view: track cards, keyed camera, pen-follows modes,
 │  │                         shots (each clip's own card + camera animation),
 │  │                         keys_view (the keyframe view framed on the clip)
@@ -1397,6 +1399,28 @@ Plastron/
   plastron.shot_reset). One undo step.
 - Blend If isn't in the Layers panel any more (Ollie: superfluous); the
   engine still supports it (PLASTRON_PT_blend_if, not registered).
+- Bake (Ollie: "the storyboard animations are not visible in edit mode";
+  "I want a bake button on the storyboard page, not a bake after I edit
+  every panel's animation"): "Bake Animation (n to do)" at the top of the
+  Motion panel (red while any are left) renders every animated panel that
+  isn't baked or changed since (features/motion/bake.py): 3D Camera on =
+  Blender's viewport render of the canvas through the panel's 3D Camera
+  (other tracks' cards / onion / compare hidden, the panel's track made
+  active for the moment); off = numpy flatten per frame at the 2D camera's
+  crop with layers moved. One frame per timer tick, progress on the button,
+  Esc stops (panels done keep their bake). The clip's image list becomes
+  the frames ("bake_<uid>_<stamp>_<n>.jpg", BAKE_SIZE 1280x720 JPEG in
+  config/motion.py, in the panel cache folder; scale x still width / bake
+  width), the still kept in strip["plastron_bake_still"]. A signature
+  (length, track, 2D moves + graphs, moving layers, clip keys, keyed or
+  resting card / camera, 3D on / off, fps) is checked after edits: changed
+  (or trimmed / split) = the still is back (needs baking again); moving the
+  whole clip keeps the bake; painting re-makes the still (panel_cache.render
+  unbakes). The bake flushes waiting still re-makes first. Exports use the
+  baked frames (animatic._panel_frames skips baked panels); save copies a
+  bake into the project's cache folder, tidy keeps frames in use.
+  shots.has_content treats a baked panel as a still (its own anchor).
+  ~0.45 s / frame flat at 720p (CPU), ~1 s / frame 3D under Xvfb (GPU: less).
 - Panel images (thumbnails) show the panel where it starts: camera start
   frame (rotation left out) and layers at their start.
 - Motion presets (presets/motion/): Straight, Ease in, Ease out, Ease in-out,

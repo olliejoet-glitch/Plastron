@@ -39,9 +39,10 @@ def _panel_frames(scene, folder, size):
     from ..storyboard import panel_cache
     from ..storyboard.panels import all_panels
     swapped = {}
+    from ..motion.bake import baked
     for strip in all_panels(scene):
         mat = strip.plastron_panel.material
-        if mat is None or not mat.plastron_stack.enabled:
+        if mat is None or not mat.plastron_stack.enabled or baked(strip):     # (baked: plays its frames)
             continue
         crop, offsets, para = panel_cache.view(strip, mat.plastron_stack)
         rgba = flatten(mat, crop=crop, out_size=size, offsets=offsets, para=para)

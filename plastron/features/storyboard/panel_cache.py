@@ -122,6 +122,8 @@ def render(strip):
     mat = strip.plastron_panel.material
     if mat is None or not mat.plastron_stack.enabled:
         return
+    from ..motion import bake
+    bake.unbake(strip)                           # (the painting changed: its baked frames are stale)
     crop, offsets, para = view(strip, mat.plastron_stack)
     rgba = flatten(mat, crop=crop, out_size=SIZE, offsets=offsets, para=para)
     alpha = rgba[..., 3:4]
@@ -184,6 +186,11 @@ def flush_now():
 
 def point_at(strip, folder, uid):
     """Make strip show its own image in folder (copied there / made if missing)."""
+    from ..motion import bake
+    if bake.baked(strip):
+        if bake.keeps(strip, folder, uid):
+            return
+        bake.unbake(strip)                       # (another folder / a split-off copy: its still)
     current = strip.elements[0].filename if len(strip.elements) else ""
     name = current if is_own(current, uid) else file_name(uid)
     path = os.path.join(folder, name)
@@ -208,6 +215,9 @@ def missing(scene):
 
 def repair(scene):
     """Every panel with a missing image: shown from a stand-in, re-made soon."""
+    from ..motion import bake
+    for strip in bake.broken(scene):             # (a baked frame's file is gone: its still again)
+        bake.unbake(strip)
     for strip in missing(scene):
         point_at(strip, os.path.dirname(strip_path(strip)), strip.plastron_panel.uid)
         request(strip.plastron_panel.material)
@@ -221,10 +231,12 @@ def tidy(folder):
     used = set()
     for scene in bpy.data.scenes:
         if hasattr(scene, "plastron_timeline") and scene.sequence_editor is not None:
-            used.update(os.path.normcase(os.path.normpath(strip_path(s))) for s in all_panels(scene)
-                        if len(s.elements))
+            for s in all_panels(scene):
+                d = bpy.path.abspath(s.directory)
+                names = [e.filename for e in s.elements] + ([s["plastron_bake_still"]] if "plastron_bake_still" in s else [])
+                used.update(os.path.normcase(os.path.normpath(os.path.join(d, n))) for n in names)
     for name in os.listdir(folder):
-        if name.startswith("panel_") and name.endswith(".png"):
+        if (name.startswith("panel_") and name.endswith(".png")) or (name.startswith("bake_") and name.endswith(".jpg")):
             path = os.path.join(folder, name)
             if os.path.normcase(os.path.normpath(path)) not in used:
                 _remove(path)

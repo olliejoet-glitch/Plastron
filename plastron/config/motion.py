@@ -47,3 +47,9 @@ CANVAS_FIT = {"delay": 0.6, "margin": 0.05, "max": 3.0, "step_px": 32, "samples"
 # Camera and layers move with playback and scrubbing (Ollie). Painting on a
 # moved layer is re-aimed this long (seconds) after scrubbing stops.
 LAYER_REFRESH_DELAY = 0.12
+
+# Bake (the options bar's Bake button): animated panels rendered frame by
+# frame so the timeline (Edit mode, exports) plays their moves. Frame size
+# (exports at 4K scale these up) and JPEG quality (0-100).
+BAKE_SIZE = (1280, 720)
+BAKE_QUALITY = 90
