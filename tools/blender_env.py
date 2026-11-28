@@ -23,10 +23,11 @@ def system_blender():
     return os.path.realpath(path)
 
 
-def portable_blender():
-    """Path to the test copy of Blender, creating it on first use."""
+def portable_blender(worker=0):
+    """Path to the test copy of Blender, creating it on first use. Each
+    parallel test worker has its own copy (own portable config folder)."""
     src_dir = os.path.dirname(system_blender())
-    dst_dir = os.path.join(CACHE, "blender")
+    dst_dir = os.path.join(CACHE, "blender" if not worker else f"blender-{worker}")
     if not os.path.isdir(dst_dir):
         os.makedirs(CACHE, exist_ok=True)
         # Hard links: instant and uses no extra disk space.
@@ -45,15 +46,17 @@ def portable_blender():
     return os.path.join(dst_dir, "blender")
 
 
-def run(args, gui=True, timeout=300, env=None):
-    """Run Blender with args; returns (exit code, combined output)."""
+def run(args, gui=True, timeout=300, env=None, worker=0):
+    """Run Blender with args; returns (exit code, combined output). worker:
+    which parallel test worker (its own Blender copy, temp folder, display)."""
     os.makedirs(OUTPUT, exist_ok=True)
-    tmp = os.path.join(CACHE, "tmp")
+    tmp = os.path.join(CACHE, "tmp" if not worker else f"tmp-{worker}")
     os.makedirs(tmp, exist_ok=True)
     full_env = dict(os.environ, TMPDIR=tmp, TEMP=tmp, TMP=tmp, **(env or {}))
-    cmd = [portable_blender()] + list(args)
+    cmd = [portable_blender(worker)] + list(args)
     if gui:
-        cmd = ["xvfb-run", "-a", "-s", "-screen 0 1920x1080x24"] + cmd
+        # (a display number per worker: xvfb-run -a races when several start at once)
+        cmd = ["xvfb-run", "-n", str(90 + worker), "-s", "-screen 0 1920x1080x24"] + cmd
     try:
         proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                               text=True, timeout=timeout, env=full_env)
