@@ -309,6 +309,15 @@ Plastron/
   wiped) with the real UI under Xvfb and `--enable-event-simulate`. Any
   traceback/error in the console fails the test. Logs, JSON results and
   screenshots go to `tests/output/` (look at the screenshots: Read the PNG).
+- Test files run 3 at a time (PLASTRON_TEST_JOBS; each worker has its own
+  Blender copy `.cache/blender-<n>`, temp folder and Xvfb display :9n),
+  slowest first (`.cache/test_times.json`): ~11 min instead of ~50. A file
+  that fails alongside others is run again alone at the end and only that
+  counts (timing-sensitive UI tests: test_clip_keys, test_script_panels
+  failed under load, passed alone); the summary names them.
+- test_layers crashes in Mesa (libgallium) on exit about half the time,
+  every check passed, on commits from before the bake too, even after
+  clearing the shader cache: re-run it alone.
 - Tests are generators: `yield` lets Blender process events and redraw.
   Simulate input with `h.key()`, `h.drag()`, `h.type_text()`; force a draw with
   `h.redraw()` before reading view matrices.
