@@ -137,6 +137,7 @@ def _start(uid, wav):
     for stale in (out, out + ".status"):
         if os.path.exists(stale):
             os.remove(stale)
+    os.makedirs(os.path.dirname(log_path()), exist_ok=True)     # (a fresh install: no config folder yet)
     log = open(log_path(), "a", encoding="utf-8")
     log.write(f"\n--- {time.ctime()}  {' '.join(args[:4])}\n")
     log.flush()

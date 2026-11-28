@@ -134,5 +134,39 @@ def steps():
     captions = h.module("features.export.captions")
     h.check("captions leave [UM] out too", "[um]".strip(" ,.!?;:-…[]()") in h.module("config.export").CAPTION_FLUFFS)
 
+    # Newly imported footage (Ollie: "it's not finding ums on that new
+    # video"): Find transcribes clips without a transcript first, by itself.
+    for _ in range(100):                         # (the model check's job above finishing)
+        if not transcribe.busy():
+            break
+        yield 0.1
+    sc = bpy.context.scene
+    new_movie = os.path.join(folder, "new_talk.mp4")
+    subprocess.run(["ffmpeg", "-y", "-loglevel", "error",
+                    "-f", "lavfi", "-i", "testsrc=size=320x180:rate=24:duration=5",
+                    "-f", "lavfi", "-i", "sine=frequency=330:duration=5",
+                    "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac", "-shortest", new_movie], check=True)
+    end = max(clips.end(s) for s in clips.top_clips(sc))
+    new_sound = next(s for s in media.place(sc, new_movie, frame=end + 48) if s.type == 'SOUND')
+    new_name = new_sound.name
+    yield 0.3
+    sc = bpy.context.scene
+    for s in clips.top_clips(sc):
+        s.select = False
+    os.environ["PLASTRON_FAKE_WORDS"] = "well um okay"
+    h.check("(the new video's sound has no transcript yet)", ums.needs_transcript(sc.sequence_editor.strips_all[new_name]))
+    with h.override('SEQUENCE_EDITOR'):
+        bpy.ops.plastron.ums(action='FIND')
+    for _ in range(200):
+        yield 0.1
+        if not transcribe.busy():
+            break
+    yield 0.3
+    sc = bpy.context.scene
+    new_sound = sc.sequence_editor.strips_all[new_name]
+    h.check("Find on newly imported footage transcribes it by itself, then finds its um",
+            takes.is_voice(new_sound) and any(u[0].name == new_name for u in ums.find(sc)),
+            [(u[0].name, u[1]) for u in ums.find(sc)])
+
 
 h.run(steps())

@@ -1012,6 +1012,11 @@ Plastron/
   checked with a 1 s try, else the processor (int8). is_um / captions
   accept bracketed fillers. Old clips need Transcribe Selected Again.
   Untested here (Hugging Face blocked): only the plumbing is tested.
+  Find transcribes first (Ollie: newly imported video "isn't finding ums":
+  its sound had no transcript and Transcribe Selected was easy to miss):
+  sound clips without a transcript (the selected ones, else every one but
+  Music / Temp Sounds tracks; one job per recording) are queued, and their
+  ums show when the job finishes (ums.untranscribed).
 - Title fonts: Load Font... / Your Fonts (Clip panel Text section) copy the
   font file into <config>/plastron_fonts/ (C:\Plastron\blender\portable\
   config\plastron_fonts) and pack it into the project; Your Fonts lists

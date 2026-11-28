@@ -239,6 +239,28 @@ def transcribe_clip(scene, strip):
 
 # --- operators ----------------------------------------------------------------------------
 
+def untranscribed(scene):
+    """Sound clips Find should transcribe first (Ollie: newly imported
+    footage "isn't finding ums": it had no transcript yet): the selected
+    ones, else every sound clip but music / temp sounds; one per recording."""
+    from ...config import audio as audio_cfg, review as review_cfg
+    from ...timeline import tracks
+    skip = set(audio_cfg.MUSIC_TRACKS) | {review_cfg.TEMP_SOUND_TRACK}
+    pool = [s for s in clips.top_clips(scene) if needs_transcript(s)]
+    chosen = [s for s in pool if s.select]
+    if not chosen:
+        def track_name(strip):
+            track = tracks.track_of_channel(scene, strip.channel)
+            return tracks.name(scene, track) if track is not None else ""
+        chosen = [s for s in pool if track_name(s) not in skip]
+    out, seen = [], set()
+    for s in chosen:
+        if s.sound not in seen:
+            seen.add(s.sound)
+            out.append(s)
+    return out
+
+
 class PLASTRON_OT_ums(bpy.types.Operator):
     """Ums: find / separate / delete the ums in the transcripts"""
     bl_idname = "plastron.ums"
@@ -291,9 +313,15 @@ class PLASTRON_OT_ums(bpy.types.Operator):
             _state["show"] = True
         elif self.action == 'FIND':
             _state["show"] = True
+            todo = untranscribed(scene)
+            started = sum(1 for s in todo if needs_transcript(s) and transcribe_clip(scene, s))
             _dirty()
             n = len(found(scene))
-            self.report({'INFO'}, f"{n} um{'s' if n != 1 else ''} found" if n else "No ums found")
+            msg = f"{n} um{'s' if n != 1 else ''} found" if n else "No ums found"
+            if started:
+                msg += (f"; transcribing {started} new clip{'s' if started != 1 else ''} first "
+                        "(their ums show when that's done)")
+            self.report({'INFO'}, msg)
         elif self.action == 'HIDE':
             _state["show"] = False
         elif self.action == 'SEPARATE':
