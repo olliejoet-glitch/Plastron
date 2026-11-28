@@ -60,6 +60,14 @@ def find(x, rate, words=None):
     loud = np.percentile(db, 95)
     floor = np.percentile(db, 10)
     breathy = (db < loud - cfg.BREATH_BELOW_SPEECH_DB) & (db > floor + cfg.BREATH_ABOVE_FLOOR_DB)
+    power = np.abs(np.fft.rfft(frames * np.hanning(hop), axis=1)) ** 2 + 1e-12
+    # Not a sibilant ("s", "sh": noisy too, but nearly all its energy is high
+    # up; a breath's is spread lower) (Ollie: "it's marking sibilant noises").
+    freqs = np.fft.rfftfreq(hop, 1.0 / rate)
+    high = power[:, freqs >= cfg.BREATH_SIBILANT_HZ].sum(axis=1) / power.sum(axis=1)
+    k = max(1, int(cfg.BREATH_SIBILANT_SMOOTH / step))          # (averaged: 20 ms slices wobble)
+    high = np.convolve(high, np.ones(k) / k, mode="same")
+    breathy &= high < cfg.BREATH_MAX_HIGH
     lo, hi = cfg.BREATH_SECONDS
     if words:
         gaps = np.zeros(m, bool)
@@ -70,7 +78,6 @@ def find(x, rate, words=None):
             if b - a >= lo:
                 gaps[int(a / step) + 1:int(b / step) - 1] = True      # (a little in from the words)
         return _runs(breathy & gaps, step, lo, hi)
-    power = np.abs(np.fft.rfft(frames * np.hanning(hop), axis=1)) ** 2 + 1e-12
     flat = np.exp(np.mean(np.log(power), axis=1)) / np.mean(power, axis=1)
     return _runs(breathy & (flat > cfg.BREATH_FLATNESS), step, lo, hi)
 

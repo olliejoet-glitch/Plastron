@@ -41,8 +41,32 @@ def wav_seconds(path):
         return w.getnframes() / w.getframerate()
 
 
+def band_noise(seconds, rms, lo_hz, hi_hz, rng):
+    """Noise with its energy between lo_hz and hi_hz, at rms."""
+    n = int(seconds * RATE)
+    spec = np.fft.rfft(rng.randn(n))
+    f = np.fft.rfftfreq(n, 1.0 / RATE)
+    spec[(f < lo_hz) | (f > hi_hz)] = 0
+    y = np.fft.irfft(spec, n)
+    return (y / np.sqrt(np.mean(y ** 2)) * rms).astype(np.float32)
+
+
 def steps():
     yield 1.0
+    # Ollie: "it's marking sibilant noises, and missing the quieter breaths".
+    analysis = h.module("features.audio.analysis")
+    cfg = h.module("config.audio")
+    rng = np.random.RandomState(7)
+    x = (rng.randn(int(7 * RATE)) * 0.0005).astype(np.float32)               # room tone (-66 dB)
+    x[24000:72000] += tone(1.0, 0.3, 220)                                     # words 0.5-1.5 s
+    x[74400:84000] += band_noise(0.2, 0.02, 4500, 7500, rng)                  # an "s" (1.55-1.75 s)
+    x[110400:158400] += tone(1.0, 0.3, 260)                                   # words 2.3-3.3 s
+    x[172800:192000] += band_noise(0.4, 0.0007, 300, 3000, rng)               # a quiet breath (3.6-4.0 s)
+    x[211200:259200] += tone(1.0, 0.3, 240)                                   # words 4.4-5.4 s
+    p = write_wav(os.path.join(bpy.app.tempdir, "sibilant.wav"), x)
+    got = breaths.find(analysis.read(p, cfg.ANALYSIS_RATE), cfg.ANALYSIS_RATE)
+    h.check("the quiet breath is found, the sibilant isn't",
+            len(got) == 1 and 3.5 < got[0][0] < 3.75 and 3.85 < got[0][1] < 4.1, got)
     sc = bpy.context.scene
     bpy.context.window_manager.plastron_mode = 'Audio'
     yield 1.0

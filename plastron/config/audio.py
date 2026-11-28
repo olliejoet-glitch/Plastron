@@ -30,7 +30,10 @@ ANALYSIS_RATE = 16000
 BREATH_DB = -18.0
 BREATH_SECONDS = (0.1, 1.0)       # how long a breath can be
 BREATH_BELOW_SPEECH_DB = 12.0     # at least this much quieter than the voice's loud parts
-BREATH_ABOVE_FLOOR_DB = 6.0       # ...and this much louder than the silence
+BREATH_ABOVE_FLOOR_DB = 3.0       # ...and this much louder than the silence (was 6: quiet breaths were missed)
+BREATH_SIBILANT_HZ = 4000         # sibilants ("s", "sh") put most of their energy above this...
+BREATH_MAX_HIGH = 0.6             # ...a breath has less than this share up there (white noise: 0.5)
+BREATH_SIBILANT_SMOOTH = 0.1      # seconds that share is averaged over
 BREATH_FLATNESS = 0.12            # how noise-like (0 = a pure tone, 1 = white noise; no transcript only)
 BREATH_RAMP = 0.03                # seconds to dip in / out
 BREATH_COLOR = "#f0c850"          # found breaths tinted on the timeline (palette name or "#rrggbb")

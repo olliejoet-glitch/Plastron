@@ -1657,6 +1657,12 @@ Plastron/
   (each breath cut out into its own clip, marked plastron_breath, all
   selected; linked pictures too) or Delete (those clips, following ripple).
   breaths.found(scene) is cached until clips_changed.
+  Tuned (Ollie: "it's marking sibilant noises, and missing the quieter
+  breaths"): a stretch whose energy above BREATH_SIBILANT_HZ (4 kHz) is
+  BREATH_MAX_HIGH (60 %) or more of its total, averaged over 0.1 s, is a
+  sibilant, not a breath; a breath now needs only 3 dB over the silence
+  (BREATH_ABOVE_FLOOR_DB, was 6). Tested with an "s" (4.5-7.5 kHz noise)
+  after a word and a breath 5 dB over the room tone.
 - Level Voice (Sound Tools > Level Voice, selected clips; Ollie: "areas
   where I talk more quietly and lean back away from the mic"): evens out the
   level INSIDE a recording (Normalise only sets one volume per clip).
