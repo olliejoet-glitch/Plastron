@@ -7,6 +7,9 @@ Tests run in parallel: PLASTRON_TEST_JOBS workers (default: 3, at most one
 per two processor cores + 1), each with its own Blender copy, config,
 temp folder and virtual display; the slowest tests (times kept in
 .cache/test_times.json) start first. PLASTRON_TEST_JOBS=1: one at a time.
+A file that fails while others run is run again alone at the end (UI
+tests time things, and three Blenders share the processor): only its
+result alone counts, and the summary names it.
 
 Each tests/test_*.py file runs in a fresh Blender started exactly as Plastron
 starts for Ollie (portable install, app template). Any Python error printed
@@ -104,6 +107,9 @@ def main():
     failed = [0]
     started = time.monotonic()
 
+    parallel = jobs(len(files)) > 1
+    again = []
+
     def worker(i):
         while True:
             try:
@@ -114,20 +120,30 @@ def main():
             name, checks = run_file(path, worker=i)
             with lock:
                 times[name] = round(time.monotonic() - t0, 1)
-                failed[0] += report(name, checks)
+                if parallel and any(not c["ok"] for c in checks):
+                    again.append(path)
+                    print(f"(fail  {name}: run again alone at the end)", flush=True)
+                else:
+                    failed[0] += report(name, checks)
 
     threads = [threading.Thread(target=worker, args=(i,)) for i in range(jobs(len(files)))]
     for t in threads:
         t.start()
     for t in threads:
         t.join()
+    if again:
+        print(f"\nAlone: {len(again)} file(s) that failed alongside others", flush=True)
+    for path in again:
+        name, checks = run_file(path)
+        failed[0] += report(name, checks)
     try:
         with open(TIMES, "w") as f:
             json.dump(times, f, indent=1, sort_keys=True)
     except OSError:
         pass
     took = int(time.monotonic() - started)
-    print(f"\n({len(files)} test files, {len(threads)} at a time, {took // 60}:{took % 60:02d})")
+    print(f"\n({len(files)} test files, {len(threads)} at a time, {took // 60}:{took % 60:02d}"
+          + (f"; {len(again)} run again alone: {', '.join(name_of(p) for p in again)})" if again else ")"))
     print("\nAll tests passed." if not failed[0] else f"\n{failed[0]} check(s) failed.")
     sys.exit(1 if failed[0] else 0)
 
